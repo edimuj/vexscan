@@ -1,0 +1,36 @@
+{
+  "id": "vetryx",
+  "name": "Vetryx Security Scanner",
+  "description": "Security scanner for OpenClaw extensions, skills, and configurations. Detects prompt injection, malicious code, obfuscation, and data exfiltration attempts.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable automatic security scanning"
+      },
+      "scanOnInstall": {
+        "type": "boolean",
+        "default": true,
+        "description": "Scan new extensions when installed"
+      },
+      "minSeverity": {
+        "type": "string",
+        "enum": ["info", "low", "medium", "high", "critical"],
+        "default": "medium",
+        "description": "Minimum severity to report"
+      },
+      "thirdPartyOnly": {
+        "type": "boolean",
+        "default": true,
+        "description": "Only scan third-party (non-official) extensions"
+      },
+      "cliPath": {
+        "type": "string",
+        "description": "Path to vetryx CLI binary (auto-detected if not set)"
+      }
+    }
+  }
+}

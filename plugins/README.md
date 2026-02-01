@@ -7,8 +7,8 @@ Platform-specific plugins for Vetryx security scanner integration.
 | Plugin | Platform | Status |
 |--------|----------|--------|
 | [claude-code](./claude-code/) | Claude Code | Ready |
+| [openclaw](./openclaw/) | OpenClaw | Ready |
 | codex | OpenAI Codex | Planned |
-| openclaw | OpenClaw | Planned |
 | cursor | Cursor IDE | Planned |
 
 ## Plugin Architecture
