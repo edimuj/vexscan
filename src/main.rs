@@ -12,6 +12,7 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use std::io;
+use std::path::PathBuf;
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -283,9 +284,275 @@ async fn main() -> Result<()> {
             );
             println!("Edit this file to customize allowlists and trusted packages.");
         }
+
+        Commands::Vet {
+            source,
+            output,
+            min_severity,
+            fail_on,
+            skip_deps,
+            enable_entropy,
+            keep,
+            branch,
+        } => {
+            // Parse severities
+            let min_severity = parse_severity(&min_severity)?;
+            let fail_on_severity = parse_severity(&fail_on)?;
+
+            // Determine if source is a URL or local path
+            let (scan_path, temp_dir) = if is_github_url(&source) {
+                eprintln!("{}", "Fetching from GitHub...".cyan());
+                let temp_dir = clone_github_repo(&source, branch.as_deref())?;
+                (temp_dir.path().to_path_buf(), Some(temp_dir))
+            } else {
+                // Local path
+                let path = PathBuf::from(&source);
+                if !path.exists() {
+                    return Err(anyhow::anyhow!("Path does not exist: {}", source));
+                }
+                (path, None)
+            };
+
+            eprintln!(
+                "{} {}",
+                "Vetting:".bold(),
+                source.bright_cyan()
+            );
+            eprintln!();
+
+            // Build filter config
+            let mut filter_config = base_config;
+            if skip_deps {
+                filter_config.skip_node_modules = true;
+            }
+
+            // Build static analyzer config
+            let mut static_config = AnalyzerConfig::default();
+            if enable_entropy {
+                static_config.enable_entropy = true;
+            }
+
+            // Build scan config
+            let config = ScanConfig {
+                enable_ai: false,
+                platform: None,
+                min_severity,
+                filter_config,
+                static_config,
+                ..Default::default()
+            };
+
+            // Run scanner
+            let scanner = Scanner::with_config(config)?;
+            let scan_report = scanner.scan_path(&scan_path).await?;
+
+            // Output results
+            let format: OutputFormat = cli.format.parse().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+            if let Some(output_path) = output {
+                let mut file = std::fs::File::create(&output_path)?;
+                report(&scan_report, format, &mut file)?;
+                eprintln!("Report written to: {}", output_path.display());
+            } else {
+                let mut stdout = io::stdout().lock();
+                report(&scan_report, format, &mut stdout)?;
+            }
+
+            // Print verdict
+            eprintln!();
+            print_verdict(&scan_report, fail_on_severity);
+
+            // Cleanup temp directory (unless --keep)
+            if let Some(temp) = temp_dir {
+                if keep {
+                    let kept_path = temp.path().to_path_buf();
+                    // Leak the temp dir so it doesn't get cleaned up
+                    std::mem::forget(temp);
+                    eprintln!(
+                        "\n{} {}",
+                        "Repository kept at:".dimmed(),
+                        kept_path.display()
+                    );
+                }
+                // If not keep, temp_dir drops and cleans up automatically
+            }
+
+            // Exit with appropriate code
+            if let Some(max_sev) = scan_report.max_severity() {
+                if max_sev >= fail_on_severity {
+                    std::process::exit(1);
+                }
+            }
+        }
     }
 
     Ok(())
+}
+
+/// Check if a string looks like a GitHub URL.
+fn is_github_url(s: &str) -> bool {
+    s.starts_with("https://github.com/")
+        || s.starts_with("http://github.com/")
+        || s.starts_with("git@github.com:")
+        || s.starts_with("github.com/")
+}
+
+/// Clone a GitHub repository to a temporary directory.
+fn clone_github_repo(url: &str, branch: Option<&str>) -> Result<tempfile::TempDir> {
+
+    // Normalize URL
+    let normalized_url = if url.starts_with("github.com/") {
+        format!("https://{}", url)
+    } else if url.starts_with("git@github.com:") {
+        // Convert SSH to HTTPS
+        let path = url.strip_prefix("git@github.com:").unwrap();
+        format!("https://github.com/{}", path)
+    } else {
+        url.to_string()
+    };
+
+    // Ensure .git suffix for cloning
+    let clone_url = if normalized_url.ends_with(".git") {
+        normalized_url
+    } else {
+        format!("{}.git", normalized_url.trim_end_matches('/'))
+    };
+
+    // Create temp directory
+    let temp_dir = tempfile::tempdir()?;
+
+    // Clone
+    let mut builder = git2::build::RepoBuilder::new();
+
+    if let Some(branch_name) = branch {
+        builder.branch(branch_name);
+    }
+
+    // Set up fetch options for shallow clone (faster)
+    let mut fetch_opts = git2::FetchOptions::new();
+    fetch_opts.depth(1);
+    builder.fetch_options(fetch_opts);
+
+    eprintln!("  {} {}", "Cloning".dimmed(), clone_url.dimmed());
+
+    builder.clone(&clone_url, temp_dir.path()).map_err(|e| {
+        anyhow::anyhow!("Failed to clone repository: {}", e)
+    })?;
+
+    eprintln!("  {} {}", "Cloned to".dimmed(), temp_dir.path().display());
+
+    Ok(temp_dir)
+}
+
+/// Print the verdict based on scan results.
+fn print_verdict(report: &agent_security::ScanReport, threshold: Severity) {
+    let max_sev = report.max_severity();
+
+    let (critical, high, medium, low, info) = count_by_severity(report);
+
+    eprintln!("{}", "═".repeat(60));
+
+    match max_sev {
+        Some(sev) if sev >= Severity::Critical => {
+            eprintln!(
+                "{} {}",
+                "VERDICT:".bold(),
+                "🚨 DANGEROUS - DO NOT INSTALL".bright_red().bold()
+            );
+            eprintln!(
+                "         Found {} critical issue(s) that may compromise your system.",
+                critical.to_string().bright_red()
+            );
+        }
+        Some(sev) if sev >= Severity::High => {
+            eprintln!(
+                "{} {}",
+                "VERDICT:".bold(),
+                "⚠️  HIGH RISK - Review carefully before installing".red().bold()
+            );
+            eprintln!(
+                "         Found {} high severity issue(s).",
+                high.to_string().red()
+            );
+        }
+        Some(sev) if sev >= Severity::Medium => {
+            eprintln!(
+                "{} {}",
+                "VERDICT:".bold(),
+                "⚡ WARNINGS - Proceed with caution".yellow().bold()
+            );
+            eprintln!(
+                "         Found {} medium severity issue(s).",
+                medium.to_string().yellow()
+            );
+        }
+        Some(sev) if sev >= Severity::Low => {
+            eprintln!(
+                "{} {}",
+                "VERDICT:".bold(),
+                "ℹ️  MINOR ISSUES - Generally safe".blue()
+            );
+            eprintln!(
+                "         Found {} low severity and {} info issue(s).",
+                low.to_string().blue(),
+                info.to_string().white()
+            );
+        }
+        Some(_) | None => {
+            eprintln!(
+                "{} {}",
+                "VERDICT:".bold(),
+                "✅ CLEAN - No issues found".green().bold()
+            );
+        }
+    }
+
+    // Show summary counts
+    if critical + high + medium + low + info > 0 {
+        eprintln!();
+        eprintln!(
+            "         Summary: {} critical, {} high, {} medium, {} low, {} info",
+            if critical > 0 { critical.to_string().bright_red().to_string() } else { "0".dimmed().to_string() },
+            if high > 0 { high.to_string().red().to_string() } else { "0".dimmed().to_string() },
+            if medium > 0 { medium.to_string().yellow().to_string() } else { "0".dimmed().to_string() },
+            if low > 0 { low.to_string().blue().to_string() } else { "0".dimmed().to_string() },
+            if info > 0 { info.to_string().white().to_string() } else { "0".dimmed().to_string() },
+        );
+    }
+
+    eprintln!("{}", "═".repeat(60));
+
+    // Note about threshold
+    if max_sev.map(|s| s >= threshold).unwrap_or(false) {
+        eprintln!(
+            "\n{} Exit code 1 (findings at {} or above)",
+            "Note:".dimmed(),
+            format!("{:?}", threshold).to_lowercase()
+        );
+    }
+}
+
+/// Count findings by severity.
+fn count_by_severity(report: &agent_security::ScanReport) -> (usize, usize, usize, usize, usize) {
+    let mut critical = 0;
+    let mut high = 0;
+    let mut medium = 0;
+    let mut low = 0;
+    let mut info = 0;
+
+    for result in &report.results {
+        for finding in &result.findings {
+            match finding.severity {
+                Severity::Critical => critical += 1,
+                Severity::High => high += 1,
+                Severity::Medium => medium += 1,
+                Severity::Low => low += 1,
+                Severity::Info => info += 1,
+            }
+        }
+    }
+
+    (critical, high, medium, low, info)
 }
 
 fn parse_severity(s: &str) -> Result<Severity> {

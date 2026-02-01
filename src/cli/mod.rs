@@ -114,4 +114,41 @@ pub enum Commands {
         #[arg(default_value = "agent-security.toml")]
         output: PathBuf,
     },
+
+    /// Vet a plugin/skill before installation (scan from GitHub URL or local path)
+    Vet {
+        /// GitHub URL or local path to vet
+        /// Examples:
+        ///   https://github.com/user/claude-plugin
+        ///   ./downloaded-plugin/
+        source: String,
+
+        /// Output file (writes to stdout if not specified)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Minimum severity to report (info, low, medium, high, critical)
+        #[arg(long, default_value = "low")]
+        min_severity: String,
+
+        /// Fail with exit code 1 if any findings at this severity or above
+        #[arg(long, default_value = "medium")]
+        fail_on: String,
+
+        /// Skip dependencies (node_modules, etc.)
+        #[arg(long)]
+        skip_deps: bool,
+
+        /// Enable entropy analysis
+        #[arg(long)]
+        enable_entropy: bool,
+
+        /// Keep cloned repository after vetting (don't delete temp dir)
+        #[arg(long)]
+        keep: bool,
+
+        /// Branch to checkout (default: default branch)
+        #[arg(short, long)]
+        branch: Option<String>,
+    },
 }
