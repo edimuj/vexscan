@@ -8,6 +8,7 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/session-scan.sh",
             "timeout": 30000,
+            "async": true,
             "statusMessage": "Vetryx: Scanning plugins for security issues..."
           }
         ]
