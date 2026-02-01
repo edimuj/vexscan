@@ -324,9 +324,8 @@ vetryx scan ./src -f markdown > report.md
 Vetryx auto-detects and scans:
 
 - **Claude Code** — Plugins, MCP servers, CLAUDE.md files
+- **OpenClaw** — Extensions and skills ([plugin available](plugins/openclaw))
 - **Generic** — Any directory with code files
-
-More platforms coming soon.
 
 ## Contributing
 
