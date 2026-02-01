@@ -452,6 +452,120 @@ pub fn builtin_rules() -> Vec<Rule> {
         enabled: true,
     });
 
+    // ==================== ADDITIONAL SHELL PATTERNS ====================
+
+    rules.push(Rule {
+        id: "SHELL-005".to_string(),
+        title: "Destructured child_process import".to_string(),
+        description: "Importing exec/spawn from child_process enables shell command execution.".to_string(),
+        severity: Severity::High,
+        category: FindingCategory::ShellExecution,
+        pattern: r#"(const|let|var)\s*\{\s*(exec|execSync|spawn|spawnSync|execFile|fork)[^}]*\}\s*=\s*require\s*\(\s*['"]child_process['"]\s*\)"#.to_string(),
+        file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
+        remediation: Some("Review shell command usage for security issues.".to_string()),
+        enabled: true,
+    });
+
+    rules.push(Rule {
+        id: "SHELL-006".to_string(),
+        title: "Direct exec/execSync call".to_string(),
+        description: "Direct exec() or execSync() calls execute shell commands.".to_string(),
+        severity: Severity::High,
+        category: FindingCategory::ShellExecution,
+        pattern: r#"\b(exec|execSync)\s*\(\s*['"`]"#.to_string(),
+        file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
+        remediation: Some("Validate all shell command inputs.".to_string()),
+        enabled: true,
+    });
+
+    // ==================== SHELL SCRIPT PATTERNS ====================
+
+    rules.push(Rule {
+        id: "SCRIPT-001".to_string(),
+        title: "Reverse shell pattern".to_string(),
+        description: "Bash reverse shell connects back to attacker-controlled server.".to_string(),
+        severity: Severity::Critical,
+        category: FindingCategory::ShellExecution,
+        pattern: r"(bash\s+-i\s+>&\s*/dev/tcp/|nc\s+(-e|--exec)\s+/bin/(ba)?sh|/dev/tcp/[^/]+/[0-9]+)".to_string(),
+        file_extensions: vec!["sh".into(), "bash".into(), "zsh".into()],
+        remediation: Some("Remove reverse shell code immediately.".to_string()),
+        enabled: true,
+    });
+
+    rules.push(Rule {
+        id: "SCRIPT-002".to_string(),
+        title: "Curl/wget pipe to shell".to_string(),
+        description: "Downloading and executing remote scripts is extremely dangerous.".to_string(),
+        severity: Severity::Critical,
+        category: FindingCategory::ShellExecution,
+        pattern: r"(curl|wget)\s+[^\n|]*\|\s*(sudo\s+)?(ba)?sh".to_string(),
+        file_extensions: vec!["sh".into(), "bash".into(), "zsh".into()],
+        remediation: Some("Download scripts and review before executing.".to_string()),
+        enabled: true,
+    });
+
+    rules.push(Rule {
+        id: "SCRIPT-003".to_string(),
+        title: "Python reverse shell".to_string(),
+        description: "Python one-liner reverse shell pattern.".to_string(),
+        severity: Severity::Critical,
+        category: FindingCategory::ShellExecution,
+        pattern: r"python[23]?\s+-c\s+.import\s+socket".to_string(),
+        file_extensions: vec!["sh".into(), "bash".into(), "zsh".into()],
+        remediation: Some("Remove reverse shell code.".to_string()),
+        enabled: true,
+    });
+
+    // ==================== ENHANCED CREDENTIAL ACCESS ====================
+
+    rules.push(Rule {
+        id: "CRED-001".to_string(),
+        title: "SSH directory access pattern".to_string(),
+        description: "Accessing .ssh directory contents suggests credential theft.".to_string(),
+        severity: Severity::Critical,
+        category: FindingCategory::CredentialAccess,
+        pattern: r"(\.ssh[/\\]|homedir\(\)[^)]*\.ssh|HOME[^)]*\.ssh)".to_string(),
+        file_extensions: vec![],
+        remediation: Some("SSH key access must be strictly justified.".to_string()),
+        enabled: true,
+    });
+
+    rules.push(Rule {
+        id: "CRED-002".to_string(),
+        title: "AWS directory access pattern".to_string(),
+        description: "Accessing .aws directory suggests cloud credential theft.".to_string(),
+        severity: Severity::Critical,
+        category: FindingCategory::CredentialAccess,
+        pattern: r"(\.aws[/\\]|homedir\(\)[^)]*\.aws|HOME[^)]*\.aws)".to_string(),
+        file_extensions: vec![],
+        remediation: Some("AWS credential access must be justified.".to_string()),
+        enabled: true,
+    });
+
+    rules.push(Rule {
+        id: "CRED-003".to_string(),
+        title: "Environment variable harvesting".to_string(),
+        description: "Bulk access to process.env may be harvesting secrets.".to_string(),
+        severity: Severity::High,
+        category: FindingCategory::CredentialAccess,
+        pattern: r"(process\.env\s*[,\}]|JSON\.stringify\s*\([^)]*process\.env|Object\.(keys|entries|values)\s*\(\s*process\.env)".to_string(),
+        file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
+        remediation: Some("Avoid bulk access to environment variables.".to_string()),
+        enabled: true,
+    });
+
+    rules.push(Rule {
+        id: "CRED-004".to_string(),
+        title: "Python environment harvesting".to_string(),
+        description: "Bulk access to os.environ may be harvesting secrets.".to_string(),
+        severity: Severity::High,
+        category: FindingCategory::CredentialAccess,
+        pattern: r"(dict\s*\(\s*os\.environ\)|os\.environ\.(copy|items|keys)|json\.dumps\s*\([^)]*os\.environ)".to_string(),
+        file_extensions: vec!["py".into()],
+        remediation: Some("Avoid bulk access to environment variables.".to_string()),
+        enabled: true,
+    });
+
     rules
 }
 
