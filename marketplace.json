@@ -1,0 +1,14 @@
+{
+  "$schema": "https://claude.ai/schemas/marketplace.json",
+  "name": "vetryx-marketplace",
+  "description": "Vetryx Security Scanner for Claude Code",
+  "plugins": [
+    {
+      "name": "vetryx",
+      "path": "plugin",
+      "description": "Security scanner that automatically protects your Claude Code environment from malicious plugins and MCPs",
+      "version": "0.1.0",
+      "tags": ["security", "scanner", "protection", "malware-detection"]
+    }
+  ]
+}
