@@ -69,13 +69,13 @@ impl Config {
     /// Load config from default locations, or return default config.
     pub fn load_default() -> Self {
         // Try current directory
-        if let Ok(config) = Self::load(Path::new("agent-security.toml")) {
+        if let Ok(config) = Self::load(Path::new("vetryx.toml")) {
             return config;
         }
 
         // Try home directory
         if let Some(home) = dirs::home_dir() {
-            if let Ok(config) = Self::load(&home.join(".agent-security.toml")) {
+            if let Ok(config) = Self::load(&home.join(".vetryx.toml")) {
                 return config;
             }
         }
@@ -271,8 +271,8 @@ impl Config {
 
 /// Generate a default config file content.
 pub fn generate_default_config() -> String {
-    r#"# Agent Security Scanner Configuration
-# Place this file at ./agent-security.toml or ~/.agent-security.toml
+    r#"# Vetryx Configuration
+# Place this file at ./vetryx.toml or ~/.vetryx.toml
 
 # SECURITY NOTE: Files with executable extensions (.js, .py, .sh, etc.) are
 # NEVER skipped by pattern matching, even if they match these patterns.

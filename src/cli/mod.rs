@@ -3,9 +3,9 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-/// Security scanner for AI agent plugins, skills, and configurations.
+/// Security scanner for AI agent plugins, skills, and MCP servers.
 #[derive(Parser, Debug)]
-#[command(name = "agent-security")]
+#[command(name = "vetryx")]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
     /// Enable verbose output
@@ -111,7 +111,7 @@ pub enum Commands {
     /// Generate a default configuration file
     Init {
         /// Output path for config file
-        #[arg(default_value = "agent-security.toml")]
+        #[arg(default_value = "vetryx.toml")]
         output: PathBuf,
     },
 

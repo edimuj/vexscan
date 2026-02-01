@@ -1,4 +1,4 @@
-//! Core type definitions for the agent-security scanner.
+//! Core type definitions for the Vetryx security scanner.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

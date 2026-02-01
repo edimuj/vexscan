@@ -1,6 +1,6 @@
-//! CLI entry point for the agent-security scanner.
+//! CLI entry point for the Vetryx security scanner.
 
-use agent_security::{
+use vetryx::{
     cli::{Cli, Commands},
     config::{generate_default_config, Config},
     decoders::Decoder,
@@ -157,11 +157,11 @@ async fn main() -> Result<()> {
                 .transpose()
                 .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-            let resolved_platform = platform.or_else(agent_security::adapters::detect_platform);
+            let resolved_platform = platform.or_else(vetryx::adapters::detect_platform);
 
             match resolved_platform {
                 Some(p) => {
-                    let adapter = agent_security::adapters::create_adapter(p);
+                    let adapter = vetryx::adapters::create_adapter(p);
                     let components = adapter.discover()?;
 
                     println!("{}", format!("Platform: {}", p).bold());
@@ -445,7 +445,7 @@ fn clone_github_repo(url: &str, branch: Option<&str>) -> Result<tempfile::TempDi
 }
 
 /// Print the verdict based on scan results.
-fn print_verdict(report: &agent_security::ScanReport, threshold: Severity) {
+fn print_verdict(report: &vetryx::ScanReport, threshold: Severity) {
     let max_sev = report.max_severity();
 
     let (critical, high, medium, low, info) = count_by_severity(report);
@@ -533,7 +533,7 @@ fn print_verdict(report: &agent_security::ScanReport, threshold: Severity) {
 }
 
 /// Count findings by severity.
-fn count_by_severity(report: &agent_security::ScanReport) -> (usize, usize, usize, usize, usize) {
+fn count_by_severity(report: &vetryx::ScanReport) -> (usize, usize, usize, usize, usize) {
     let mut critical = 0;
     let mut high = 0;
     let mut medium = 0;

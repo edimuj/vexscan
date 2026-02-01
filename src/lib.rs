@@ -1,4 +1,4 @@
-//! Agent Security Scanner
+//! Vetryx - Security Scanner for AI Agents
 //!
 //! A security scanner for AI agent plugins, skills, MCP servers, and configurations.
 //!
@@ -12,7 +12,7 @@
 //! # Quick Start
 //!
 //! ```no_run
-//! use agent_security::{Scanner, ScanConfig};
+//! use vetryx::{Scanner, ScanConfig};
 //! use std::path::PathBuf;
 //!
 //! #[tokio::main]
