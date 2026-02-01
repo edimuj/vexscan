@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Security scanner for AI agent plugins, skills, and MCP servers"
 license = "Apache-2.0"
-repository = "https://github.com/yourusername/vetryx"
+repository = "https://github.com/edimuj/vetryx"
 keywords = ["security", "ai", "agent", "scanner", "mcp", "plugin"]
 categories = ["command-line-utilities", "development-tools"]
 

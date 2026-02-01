@@ -5,8 +5,8 @@
   "author": {
     "name": "Vetryx Contributors"
   },
-  "homepage": "https://github.com/yourusername/vetryx",
-  "repository": "https://github.com/yourusername/vetryx",
+  "homepage": "https://github.com/edimuj/vetryx",
+  "repository": "https://github.com/edimuj/vetryx",
   "license": "Apache-2.0",
   "keywords": ["security", "scanner", "malware", "plugin-security", "mcp-security"]
 }

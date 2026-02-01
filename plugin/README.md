@@ -17,7 +17,7 @@ Install the Vetryx CLI first:
 
 ```bash
 # From source
-git clone https://github.com/yourusername/vetryx
+git clone https://github.com/edimuj/vetryx
 cd vetryx
 cargo install --path .
 
@@ -33,8 +33,8 @@ cargo install --path .
 
 Or add the marketplace:
 ```bash
-/plugin marketplace add yourusername/vetryx
-/plugin install vetryx@yourusername-vetryx
+/plugin marketplace add edimuj/vetryx
+/plugin install vetryx@edimuj-vetryx
 ```
 
 ## Usage

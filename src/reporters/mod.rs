@@ -197,7 +197,7 @@ fn report_sarif<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
                 "driver": {
                     "name": "vetryx",
                     "version": env!("CARGO_PKG_VERSION"),
-                    "informationUri": "https://github.com/yourusername/vetryx",
+                    "informationUri": "https://github.com/edimuj/vetryx",
                     "rules": collect_rules(report)
                 }
             },

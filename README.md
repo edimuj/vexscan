@@ -54,10 +54,10 @@ Install the plugin for automatic protection in Claude Code:
 
 ```bash
 # Add the Vetryx marketplace
-/plugin marketplace add yourusername/vetryx
+/plugin marketplace add edimuj/vetryx
 
 # Install the plugin
-/plugin install vetryx@yourusername-vetryx
+/plugin install vetryx@edimuj-vetryx
 ```
 
 Once installed:
@@ -72,7 +72,7 @@ Once installed:
 #### From Source
 
 ```bash
-git clone https://github.com/yourusername/vetryx
+git clone https://github.com/edimuj/vetryx
 cd vetryx
 cargo install --path .
 ```
