@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="#installation">Installation</a> •
+  <a href="#claude-code-plugin-recommended">Plugin</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#features">Features</a> •
   <a href="#commands">Commands</a> •
@@ -47,7 +48,28 @@ Vetryx catches these threats with 30+ detection rules, multi-layer encoding dete
 
 ## Installation
 
-### From Source
+### Claude Code Plugin (Recommended)
+
+Install the plugin for automatic protection in Claude Code:
+
+```bash
+# Add the Vetryx marketplace
+/plugin marketplace add yourusername/vetryx
+
+# Install the plugin
+/plugin install vetryx@yourusername-vetryx
+```
+
+Once installed:
+- **Automatic scanning** on every session start
+- **`/vetryx:scan`** for on-demand scanning
+- **`/vetryx:vet`** to check plugins before installing
+
+> **Note**: The plugin requires the Vetryx CLI to be installed (see below).
+
+### CLI Installation
+
+#### From Source
 
 ```bash
 git clone https://github.com/yourusername/vetryx
@@ -55,7 +77,7 @@ cd vetryx
 cargo install --path .
 ```
 
-### Pre-built Binaries
+#### Pre-built Binaries
 
 Coming soon — releases for macOS, Linux, and Windows.
 
