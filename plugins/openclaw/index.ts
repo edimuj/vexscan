@@ -1,8 +1,8 @@
 import { Type } from "@sinclair/typebox";
-import { execVetryx, findVetryx, installVetryx } from "./src/cli-wrapper.js";
-import type { VetryxConfig, ScanResult, VetResult } from "./src/types.js";
+import { execVexscan, findVexscan, installVexscan } from "./src/cli-wrapper.js";
+import type { VexscanConfig, ScanResult, VetResult } from "./src/types.js";
 
-const VetryxToolSchema = Type.Union([
+const VexscanToolSchema = Type.Union([
   Type.Object({
     action: Type.Literal("scan"),
     path: Type.Optional(Type.String({ description: "Path to scan (defaults to extensions dir)" })),
@@ -26,13 +26,13 @@ interface PluginConfig {
   cliPath?: string;
 }
 
-const vetryxPlugin = {
-  id: "vetryx",
-  name: "Vetryx Security Scanner",
+const vexscanPlugin = {
+  id: "vexscan",
+  name: "Vexscan Security Scanner",
   description: "Security scanner for OpenClaw extensions and skills",
 
   configSchema: {
-    parse(value: unknown): VetryxConfig {
+    parse(value: unknown): VexscanConfig {
       const raw = (value && typeof value === "object" ? value : {}) as PluginConfig;
       return {
         enabled: raw.enabled !== false,
@@ -43,11 +43,11 @@ const vetryxPlugin = {
       };
     },
     uiHints: {
-      enabled: { label: "Enable Vetryx", help: "Enable automatic security scanning" },
+      enabled: { label: "Enable Vexscan", help: "Enable automatic security scanning" },
       scanOnInstall: { label: "Scan on Install", help: "Scan new extensions when installed" },
       minSeverity: { label: "Minimum Severity", help: "Minimum severity level to report" },
       thirdPartyOnly: { label: "Third-party Only", help: "Only scan non-official extensions" },
-      cliPath: { label: "CLI Path", help: "Path to vetryx binary (auto-detected if empty)" },
+      cliPath: { label: "CLI Path", help: "Path to vexscan binary (auto-detected if empty)" },
     },
   },
 
@@ -65,33 +65,33 @@ const vetryxPlugin = {
       }
 
       // Find in common locations
-      const found = await findVetryx();
+      const found = await findVexscan();
       if (found) {
         cliPath = found;
         return cliPath;
       }
 
       // Try auto-install
-      api.logger.info("[vetryx] CLI not found, attempting auto-install...");
-      const installed = await installVetryx();
+      api.logger.info("[vexscan] CLI not found, attempting auto-install...");
+      const installed = await installVexscan();
       if (installed) {
         cliPath = installed;
-        api.logger.info(`[vetryx] CLI installed to ${cliPath}`);
+        api.logger.info(`[vexscan] CLI installed to ${cliPath}`);
         return cliPath;
       }
 
       throw new Error(
-        "Vetryx CLI not found. Install with: curl -fsSL https://raw.githubusercontent.com/edimuj/vetryx/main/install.sh | bash"
+        "Vexscan CLI not found. Install with: curl -fsSL https://raw.githubusercontent.com/edimuj/vexscan/main/install.sh | bash"
       );
     };
 
     // Register the security scanner tool
     api.registerTool({
-      name: "vetryx",
+      name: "vexscan",
       label: "Security Scanner",
       description:
         "Scan extensions and code for security threats including prompt injection, malicious code, obfuscation, and data exfiltration.",
-      parameters: VetryxToolSchema,
+      parameters: VexscanToolSchema,
 
       async execute(_toolCallId: string, params: any) {
         const json = (payload: unknown) => ({
@@ -101,7 +101,7 @@ const vetryxPlugin = {
 
         try {
           if (!config.enabled) {
-            return json({ ok: false, error: "Vetryx is disabled in plugin config" });
+            return json({ ok: false, error: "Vexscan is disabled in plugin config" });
           }
 
           const cli = await ensureCli();
@@ -127,7 +127,7 @@ const vetryxPlugin = {
               args.push("--third-party-only");
             }
 
-            const result = await execVetryx(cli, args);
+            const result = await execVexscan(cli, args);
             const parsed = JSON.parse(result.stdout) as ScanResult;
 
             return json({
@@ -145,7 +145,7 @@ const vetryxPlugin = {
               args.push("--branch", params.branch);
             }
 
-            const result = await execVetryx(cli, args);
+            const result = await execVexscan(cli, args);
             const parsed = JSON.parse(result.stdout) as VetResult;
 
             // Determine verdict
@@ -182,9 +182,9 @@ const vetryxPlugin = {
     // Register CLI commands
     api.registerCli(
       ({ program }: any) => {
-        const vetryx = program.command("vetryx").description("Security scanner for extensions");
+        const vexscan = program.command("vexscan").description("Security scanner for extensions");
 
-        vetryx
+        vexscan
           .command("scan [path]")
           .description("Scan extensions for security issues")
           .option("-f, --format <format>", "Output format (cli, json, sarif, markdown)", "cli")
@@ -197,7 +197,7 @@ const vetryxPlugin = {
               const args = ["scan", scanPath, "-f", opts.format, "--min-severity", opts.minSeverity];
               if (opts.thirdPartyOnly) args.push("--third-party-only");
 
-              const result = await execVetryx(cli, args);
+              const result = await execVexscan(cli, args);
               console.log(result.stdout);
               if (result.stderr) console.error(result.stderr);
             } catch (err) {
@@ -206,7 +206,7 @@ const vetryxPlugin = {
             }
           });
 
-        vetryx
+        vexscan
           .command("vet <source>")
           .description("Vet an extension before installing")
           .option("-f, --format <format>", "Output format (cli, json)", "cli")
@@ -219,7 +219,7 @@ const vetryxPlugin = {
               if (opts.branch) args.push("--branch", opts.branch);
               if (opts.keep) args.push("--keep");
 
-              const result = await execVetryx(cli, args);
+              const result = await execVexscan(cli, args);
               console.log(result.stdout);
               if (result.stderr) console.error(result.stderr);
             } catch (err) {
@@ -228,7 +228,7 @@ const vetryxPlugin = {
             }
           });
 
-        vetryx
+        vexscan
           .command("rules")
           .description("List detection rules")
           .option("--json", "Output as JSON")
@@ -240,7 +240,7 @@ const vetryxPlugin = {
               if (opts.json) args.push("--json");
               if (opts.rule) args.push("--rule", opts.rule);
 
-              const result = await execVetryx(cli, args);
+              const result = await execVexscan(cli, args);
               console.log(result.stdout);
             } catch (err) {
               console.error("Error:", err instanceof Error ? err.message : err);
@@ -248,36 +248,36 @@ const vetryxPlugin = {
             }
           });
       },
-      { commands: ["vetryx"] }
+      { commands: ["vexscan"] }
     );
 
     // Register startup service for initial scan
     if (config.scanOnInstall) {
       api.registerService({
-        id: "vetryx-startup",
+        id: "vexscan-startup",
         start: async () => {
           if (!config.enabled) return;
 
           try {
             const cli = await ensureCli();
-            api.logger.info("[vetryx] Running startup security scan...");
+            api.logger.info("[vexscan] Running startup security scan...");
 
             const args = ["scan", "~/.openclaw/extensions", "-f", "json", "--min-severity", "high"];
             if (config.thirdPartyOnly) args.push("--third-party-only");
 
-            const result = await execVetryx(cli, args);
+            const result = await execVexscan(cli, args);
             const parsed = JSON.parse(result.stdout) as ScanResult;
 
             if (parsed.total_findings && parsed.total_findings > 0) {
               api.logger.warn(
-                `[vetryx] Security scan found ${parsed.total_findings} issue(s) with max severity: ${parsed.max_severity}`
+                `[vexscan] Security scan found ${parsed.total_findings} issue(s) with max severity: ${parsed.max_severity}`
               );
             } else {
-              api.logger.info("[vetryx] Security scan complete - no issues found");
+              api.logger.info("[vexscan] Security scan complete - no issues found");
             }
           } catch (err) {
             api.logger.error(
-              `[vetryx] Startup scan failed: ${err instanceof Error ? err.message : err}`
+              `[vexscan] Startup scan failed: ${err instanceof Error ? err.message : err}`
             );
           }
         },
@@ -302,4 +302,4 @@ function getVerdictMessage(verdict: string, findings: number, maxSeverity: strin
   }
 }
 
-export default vetryxPlugin;
+export default vexscanPlugin;

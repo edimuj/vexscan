@@ -73,13 +73,13 @@ impl Config {
     /// Load config from default locations, or return default config.
     pub fn load_default() -> Self {
         // Try current directory
-        if let Ok(config) = Self::load(Path::new("vetryx.toml")) {
+        if let Ok(config) = Self::load(Path::new("vexscan.toml")) {
             return config;
         }
 
         // Try home directory
         if let Some(home) = dirs::home_dir() {
-            if let Ok(config) = Self::load(&home.join(".vetryx.toml")) {
+            if let Ok(config) = Self::load(&home.join(".vexscan.toml")) {
                 return config;
             }
         }
@@ -329,8 +329,8 @@ impl Config {
 
 /// Generate a default config file content.
 pub fn generate_default_config() -> String {
-    r#"# Vetryx Configuration
-# Place this file at ./vetryx.toml or ~/.vetryx.toml
+    r#"# Vexscan Configuration
+# Place this file at ./vexscan.toml or ~/.vexscan.toml
 
 # SECURITY NOTE: Files with executable extensions (.js, .py, .sh, etc.) are
 # NEVER skipped by pattern matching, even if they match these patterns.

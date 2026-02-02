@@ -1,4 +1,4 @@
-# /vetryx:vet
+# /vexscan:vet
 
 Vet a plugin before installation - scan from GitHub URL or local path.
 
@@ -7,13 +7,13 @@ Vet a plugin before installation - scan from GitHub URL or local path.
 ## Usage
 
 ```
-/vetryx:vet <source>
+/vexscan:vet <source>
 ```
 
 ## Examples
 
-- `/vetryx:vet https://github.com/user/claude-plugin` - Vet from GitHub
-- `/vetryx:vet ./downloaded-plugin` - Vet local directory
+- `/vexscan:vet https://github.com/user/claude-plugin` - Vet from GitHub
+- `/vexscan:vet ./downloaded-plugin` - Vet local directory
 
 ## Verdicts
 
@@ -50,7 +50,7 @@ Vet a plugin for security issues before installation.
 
 **Step 1: Run the vet command**
 \`\`\`bash
-vetryx vet "${SOURCE}" --skip-deps -f json
+vexscan vet "${SOURCE}" --skip-deps -f json
 \`\`\`
 
 **Step 2: Deep analysis**

@@ -1,7 +1,7 @@
 {
-  "name": "@exelerus/vetryx-openclaw",
+  "name": "@exelerus/vexscan-openclaw",
   "version": "0.1.0",
-  "description": "Vetryx security scanner plugin for OpenClaw",
+  "description": "Vexscan security scanner plugin for OpenClaw",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,13 +15,13 @@
     "plugin",
     "security",
     "scanner",
-    "vetryx"
+    "vexscan"
   ],
-  "author": "Vetryx Contributors",
+  "author": "Vexscan Contributors",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/edimuj/vetryx.git",
+    "url": "https://github.com/edimuj/vexscan.git",
     "directory": "plugins/openclaw"
   },
   "devDependencies": {

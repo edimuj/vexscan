@@ -1,4 +1,4 @@
-# /vetryx:scan
+# /vexscan:scan
 
 Run a security scan on Claude Code plugins, skills, MCPs, and configurations.
 
@@ -7,14 +7,14 @@ Run a security scan on Claude Code plugins, skills, MCPs, and configurations.
 ## Usage
 
 ```
-/vetryx:scan [path]
+/vexscan:scan [path]
 ```
 
 ## Examples
 
-- `/vetryx:scan` - Scan all installed plugins
-- `/vetryx:scan ~/.claude/plugins/cache/some-plugin` - Scan specific plugin
-- `/vetryx:scan --third-party-only` - Only scan untrusted plugins
+- `/vexscan:scan` - Scan all installed plugins
+- `/vexscan:scan ~/.claude/plugins/cache/some-plugin` - Scan specific plugin
+- `/vexscan:scan --third-party-only` - Only scan untrusted plugins
 
 ## What It Detects
 
@@ -33,11 +33,11 @@ When the user runs this command:
 
 1. Use the **Task tool** to spawn a subagent with the following configuration:
    - `subagent_type`: "general-purpose"
-   - `description`: "Security scan with Vetryx"
+   - `description`: "Security scan with Vexscan"
    - `prompt`: See below
 
 2. The subagent will:
-   - Run the vetryx scan CLI command
+   - Run the vexscan scan CLI command
    - Analyze any findings using AI reasoning (free - uses the current Claude session)
    - Determine which findings are real threats vs false positives
    - Return a concise summary
@@ -47,12 +47,12 @@ When the user runs this command:
 ### Task Prompt Template
 
 ```
-Run a Vetryx security scan and analyze the results.
+Run a Vexscan security scan and analyze the results.
 
 **Step 1: Run the scan**
 Execute this command:
 \`\`\`bash
-vetryx scan "${PATH:-$HOME/.claude/plugins}" ${FLAGS:---third-party-only} -f json
+vexscan scan "${PATH:-$HOME/.claude/plugins}" ${FLAGS:---third-party-only} -f json
 \`\`\`
 
 **Step 2: Analyze findings**

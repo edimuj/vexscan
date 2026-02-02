@@ -1,6 +1,6 @@
-# Contributing Detection Rules to Vetryx
+# Contributing Detection Rules to Vexscan
 
-Thank you for your interest in contributing detection rules to Vetryx! Community rules help expand coverage for emerging threats and platform-specific security issues.
+Thank you for your interest in contributing detection rules to Vexscan! Community rules help expand coverage for emerging threats and platform-specific security issues.
 
 ## Rule Structure
 
@@ -186,4 +186,4 @@ Simply use a descriptive `"category"` name in your rule file.
 
 ## License
 
-By contributing rules, you agree to license them under the same license as Vetryx.
+By contributing rules, you agree to license them under the same license as Vexscan.

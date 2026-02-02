@@ -1,6 +1,6 @@
-//! CLI entry point for the Vetryx security scanner.
+//! CLI entry point for the Vexscan security scanner.
 
-use vetryx::{
+use vexscan::{
     cli::{Cli, Commands, RulesSubcommand},
     config::{generate_default_config, Config},
     decoders::Decoder,
@@ -172,10 +172,10 @@ async fn main() -> Result<()> {
                 watch_paths
             } else {
                 // Get default paths from platform adapter
-                let resolved_platform = platform.or_else(vetryx::adapters::detect_platform);
+                let resolved_platform = platform.or_else(vexscan::adapters::detect_platform);
                 match resolved_platform {
                     Some(p) => {
-                        let adapter = vetryx::adapters::create_adapter(p);
+                        let adapter = vexscan::adapters::create_adapter(p);
                         adapter.default_paths()
                     }
                     None => {
@@ -195,7 +195,7 @@ async fn main() -> Result<()> {
             eprintln!(
                 "{}  {} Watch Mode",
                 "👁".bright_blue(),
-                "Vetryx".bold()
+                "Vexscan".bold()
             );
             eprintln!("{}", "═".repeat(60).bright_blue());
             eprintln!();
@@ -335,7 +335,7 @@ async fn main() -> Result<()> {
                                                 .unwrap_or_else(|| "Unknown".to_string());
 
                                             send_desktop_notification(
-                                                &format!("Vetryx: {} issue(s) found", findings_count),
+                                                &format!("Vexscan: {} issue(s) found", findings_count),
                                                 &format!(
                                                     "{} in {}\nMax severity: {}",
                                                     findings_count,
@@ -377,11 +377,11 @@ async fn main() -> Result<()> {
                 .transpose()
                 .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-            let resolved_platform = platform.or_else(vetryx::adapters::detect_platform);
+            let resolved_platform = platform.or_else(vexscan::adapters::detect_platform);
 
             match resolved_platform {
                 Some(p) => {
-                    let adapter = vetryx::adapters::create_adapter(p);
+                    let adapter = vexscan::adapters::create_adapter(p);
                     let components = adapter.discover()?;
 
                     println!("{}", format!("Platform: {}", p).bold());
@@ -747,7 +747,7 @@ async fn main() -> Result<()> {
             eprintln!(
                 "{}  {} Install",
                 "📦".bright_blue(),
-                "Vetryx".bold()
+                "Vexscan".bold()
             );
             eprintln!("{}", "═".repeat(60).bright_blue());
             eprintln!();
@@ -1085,7 +1085,7 @@ fn clone_github_repo(url: &str, branch: Option<&str>) -> Result<tempfile::TempDi
 }
 
 /// Print the verdict based on scan results.
-fn print_verdict(report: &vetryx::ScanReport, threshold: Severity) {
+fn print_verdict(report: &vexscan::ScanReport, threshold: Severity) {
     let max_sev = report.max_severity();
 
     let (critical, high, medium, low, info) = count_by_severity(report);
@@ -1173,7 +1173,7 @@ fn print_verdict(report: &vetryx::ScanReport, threshold: Severity) {
 }
 
 /// Count findings by severity.
-fn count_by_severity(report: &vetryx::ScanReport) -> (usize, usize, usize, usize, usize) {
+fn count_by_severity(report: &vexscan::ScanReport) -> (usize, usize, usize, usize, usize) {
     let mut critical = 0;
     let mut high = 0;
     let mut medium = 0;
@@ -1241,7 +1241,7 @@ fn send_desktop_notification(title: &str, body: &str) {
     {
         // PowerShell notification (Windows 10+)
         let script = format!(
-            r#"[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); $template.SelectSingleNode('//text[@id=\"1\"]').InnerText = '{}'; $template.SelectSingleNode('//text[@id=\"2\"]').InnerText = '{}'; [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Vetryx').Show([Windows.UI.Notifications.ToastNotification]::new($template))"#,
+            r#"[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); $template.SelectSingleNode('//text[@id=\"1\"]').InnerText = '{}'; $template.SelectSingleNode('//text[@id=\"2\"]').InnerText = '{}'; [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Vexscan').Show([Windows.UI.Notifications.ToastNotification]::new($template))"#,
             title.replace('\'', "''"),
             body.replace('\'', "''").replace('\n', " ")
         );

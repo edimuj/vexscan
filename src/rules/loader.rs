@@ -1,4 +1,4 @@
-//! JSON rule loader for Vetryx.
+//! JSON rule loader for Vexscan.
 //!
 //! Loads rules from JSON files in the rules/ directory and subdirectories.
 

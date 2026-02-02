@@ -1,42 +1,42 @@
 # OpenClaw Platform
 
-Vetryx provides specialized scanning for OpenClaw, an open-source AI agent framework.
+Vexscan provides specialized scanning for OpenClaw, an open-source AI agent framework.
 
 ## Overview
 
 OpenClaw uses several extension points:
 
-| Component | Description | Risk |
-|-----------|-------------|------|
-| Tools | Python/JS functions called by the agent | Code execution |
-| Skills | Reusable agent capabilities | Prompt injection |
-| Plugins | Installable extensions | Supply chain |
-| CLI Extensions | Custom commands | Shell execution |
-| Config | Agent configuration | Behavior manipulation |
+| Component      | Description                             | Risk                  |
+|----------------|-----------------------------------------|-----------------------|
+| Tools          | Python/JS functions called by the agent | Code execution        |
+| Skills         | Reusable agent capabilities             | Prompt injection      |
+| Plugins        | Installable extensions                  | Supply chain          |
+| CLI Extensions | Custom commands                         | Shell execution       |
+| Config         | Agent configuration                     | Behavior manipulation |
 
 ## Installation
 
 The OpenClaw adapter is available as a separate npm package:
 
 ```bash
-npm install @exelerus/vetryx-openclaw
+npm install @exelerus/vexscan-openclaw
 ```
 
 Or use the CLI plugin:
 
 ```bash
-vetryx install @exelerus/vetryx-openclaw
+vexscan install @exelerus/vexscan-openclaw
 ```
 
 ## Scanning OpenClaw Projects
 
 ```bash
 # Scan an OpenClaw project
-vetryx scan --platform openclaw ./my-agent
+vexscan scan --platform openclaw ./my-agent
 
 # Scan specific components
-vetryx scan ./tools
-vetryx scan ./skills
+vexscan scan ./tools
+vexscan scan ./skills
 ```
 
 ## Component Discovery
@@ -54,6 +54,7 @@ def search(query: str) -> list:
 ```
 
 **Threats:**
+
 - Arbitrary code execution via `exec()`/`eval()`
 - Shell command injection
 - Data exfiltration to external services
@@ -73,6 +74,7 @@ prompts:
 ```
 
 **Threats:**
+
 - Prompt injection in skill definitions
 - Authority override attempts
 - Hidden instructions
@@ -90,6 +92,7 @@ my-plugin/
 ```
 
 **Threats:**
+
 - Malicious dependencies
 - Supply chain attacks
 - Typosquatting packages
@@ -102,12 +105,14 @@ Custom commands added to the OpenClaw CLI:
 # cli/deploy.py
 import click
 
+
 @click.command()
 def deploy():
     os.system("deploy.sh")  # Shell execution
 ```
 
 **Threats:**
+
 - Shell command injection
 - Credential harvesting
 - Privilege escalation
@@ -121,10 +126,14 @@ def deploy():
 def dynamic_tool(code: str):
     exec(code)  # Arbitrary code execution
 
+
 # HIGH: subprocess with shell=True
 import subprocess
+
+
 def run_command(cmd: str):
     subprocess.run(cmd, shell=True)
+
 
 # CRITICAL: eval() on user input
 def calculate(expression: str):
@@ -159,7 +168,7 @@ requets==2.28.0  # Should be 'requests'
 ## Example Scan
 
 ```bash
-$ vetryx scan --platform openclaw ./my-agent --deps
+$ vexscan scan --platform openclaw ./my-agent --deps
 
 Scanning OpenClaw agent...
 Discovered 8 components
@@ -194,13 +203,16 @@ Found 4 issues (2 critical, 2 high)
 def run(cmd: str):
     subprocess.run(cmd, shell=True)
 
+
 # GOOD: Safe argument passing
 def run(args: list[str]):
     subprocess.run(args, shell=False)
 
+
 # BAD: Code execution
 def execute(code: str):
     exec(code)
+
 
 # GOOD: Controlled operations
 def calculate(a: float, b: float, op: str):
@@ -232,7 +244,7 @@ prompts:
 
 ```bash
 # Before adding dependencies
-vetryx scan ./requirements.txt --deps
+vexscan scan ./requirements.txt --deps
 
 # Use lockfiles
 pip freeze > requirements.lock
@@ -248,6 +260,7 @@ pip-audit
 @click.command()
 def deploy(target: str):
     os.system(f"./deploy.sh {target}")
+
 
 # GOOD: Validated, controlled execution
 @click.command()
@@ -265,9 +278,9 @@ def deploy(target: str):
 repos:
   - repo: local
     hooks:
-      - id: vetryx-scan
+      - id: vexscan-scan
         name: Security Scan
-        entry: vetryx scan . --deps --fail-on high
+        entry: vexscan scan . --deps --fail-on high
         language: system
         pass_filenames: false
 ```
@@ -277,17 +290,17 @@ repos:
 ```yaml
 name: Security Scan
 
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Vetryx
-        run: cargo install vetryx
+      - name: Install Vexscan
+        run: cargo install vexscan
       - name: Scan
-        run: vetryx scan . --platform openclaw --deps --fail-on high
+        run: vexscan scan . --platform openclaw --deps --fail-on high
 ```
 
 ### Tool Validation
@@ -297,9 +310,10 @@ Before registering a new tool:
 ```python
 import subprocess
 
+
 def validate_tool(tool_path: str) -> bool:
     result = subprocess.run(
-        ["vetryx", "scan", tool_path, "--fail-on", "high"],
+        ["vexscan", "scan", tool_path, "--fail-on", "high"],
         capture_output=True
     )
     return result.returncode == 0
@@ -307,14 +321,14 @@ def validate_tool(tool_path: str) -> bool:
 
 ## Comparison with Claude Code
 
-| Feature | Claude Code | OpenClaw |
-|---------|-------------|----------|
-| Primary Language | JavaScript/TypeScript | Python |
-| Config Format | JSON | YAML |
-| Skill Format | Markdown | YAML/Markdown |
-| Package Manager | npm | pip |
-| Hooks | settings.json | Python decorators |
-| MCP Support | Yes | Limited |
+| Feature          | Claude Code           | OpenClaw          |
+|------------------|-----------------------|-------------------|
+| Primary Language | JavaScript/TypeScript | Python            |
+| Config Format    | JSON                  | YAML              |
+| Skill Format     | Markdown              | YAML/Markdown     |
+| Package Manager  | npm                   | pip               |
+| Hooks            | settings.json         | Python decorators |
+| MCP Support      | Yes                   | Limited           |
 
 ## See Also
 

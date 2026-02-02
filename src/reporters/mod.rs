@@ -49,7 +49,7 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
     )?;
     writeln!(
         writer,
-        "{}  Vetryx Security Scan Report",
+        "{}  Vexscan Security Scan Report",
         "🔒".bright_blue()
     )?;
     writeln!(
@@ -195,9 +195,9 @@ fn report_sarif<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
         "runs": [{
             "tool": {
                 "driver": {
-                    "name": "vetryx",
+                    "name": "vexscan",
                     "version": env!("CARGO_PKG_VERSION"),
-                    "informationUri": "https://github.com/edimuj/vetryx",
+                    "informationUri": "https://github.com/edimuj/vexscan",
                     "rules": collect_rules(report)
                 }
             },

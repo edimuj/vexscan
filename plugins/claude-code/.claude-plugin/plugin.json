@@ -1,12 +1,12 @@
 {
-  "name": "vetryx",
+  "name": "vexscan",
   "version": "0.1.0",
   "description": "Security scanner for Claude Code plugins, skills, MCPs, hooks, and configurations. Automatically scans on session start and alerts on threats.",
   "author": {
-    "name": "Vetryx Contributors"
+    "name": "Vexscan Contributors"
   },
-  "homepage": "https://github.com/edimuj/vetryx",
-  "repository": "https://github.com/edimuj/vetryx",
+  "homepage": "https://github.com/edimuj/vexscan",
+  "repository": "https://github.com/edimuj/vexscan",
   "license": "Apache-2.0",
   "keywords": ["security", "scanner", "malware", "plugin-security", "mcp-security", "skill-security"]
 }

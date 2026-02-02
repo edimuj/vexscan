@@ -1,6 +1,6 @@
 # Rules Reference
 
-Complete list of all detection rules in Vetryx.
+Complete list of all detection rules in Vexscan.
 
 ## Rule Naming Convention
 

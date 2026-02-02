@@ -1,12 +1,12 @@
-# Vetryx Detection Rules
+# Vexscan Detection Rules
 
-This directory contains security detection rules for the Vetryx scanner. Rules are organized into two categories:
+This directory contains security detection rules for the Vexscan scanner. Rules are organized into two categories:
 
 ## Directory Structure
 
 ```
 rules/
-├── official/           # Maintained by the Vetryx team
+├── official/           # Maintained by the Vexscan team
 │   ├── code-execution.json
 │   ├── shell-execution.json
 │   ├── prompt-injection.json
@@ -23,7 +23,7 @@ rules/
 
 ## Official Rules
 
-Official rules are maintained by the Vetryx team and cover core security patterns:
+Official rules are maintained by the Vexscan team and cover core security patterns:
 
 | Category | Description | Rule Count |
 |----------|-------------|------------|
@@ -48,49 +48,49 @@ Current community rules:
 
 ```bash
 # Show all rules
-vetryx rules
+vexscan rules
 
 # Show only official rules
-vetryx rules --official
+vexscan rules --official
 
 # Show only community rules
-vetryx rules --community
+vexscan rules --community
 
 # Filter by tag
-vetryx rules --tag aws
+vexscan rules --tag aws
 
 # Filter by author
-vetryx rules --author username
+vexscan rules --author username
 ```
 
 ### View Rule Details
 
 ```bash
-vetryx rules --rule EXEC-001
-vetryx rules --rule COMM-001
+vexscan rules --rule EXEC-001
+vexscan rules --rule COMM-001
 ```
 
 ### Test Rules
 
 ```bash
 # Test all rules against their test cases
-vetryx rules test
+vexscan rules test
 
 # Test a specific file
-vetryx rules test rules/community/cloud-security.json
+vexscan rules test rules/community/cloud-security.json
 
 # Filter by rule ID pattern
-vetryx rules test --filter COMM
+vexscan rules test --filter COMM
 ```
 
 ### Scan with Rules
 
 ```bash
 # Scan using all rules (default)
-vetryx scan ./path
+vexscan scan ./path
 
 # Output includes rule IDs for each finding
-vetryx scan ./path -f json
+vexscan scan ./path -f json
 ```
 
 ## Writing Rules
@@ -155,5 +155,5 @@ Quick start:
 1. Create a JSON file in `rules/community/`
 2. Use the `COMM-XXX` ID prefix
 3. Add test cases
-4. Run `vetryx rules test`
+4. Run `vexscan rules test`
 5. Submit a PR

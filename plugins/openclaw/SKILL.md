@@ -1,6 +1,6 @@
-# Vetryx Security Scanner
+# Vexscan Security Scanner
 
-Vetryx scans extensions, skills, and code for security threats. Use it when:
+Vexscan scans extensions, skills, and code for security threats. Use it when:
 
 - User wants to install a new extension or skill
 - User asks about security of their OpenClaw setup
@@ -8,9 +8,9 @@ Vetryx scans extensions, skills, and code for security threats. Use it when:
 - User wants to audit installed extensions
 - Before recommending any third-party extension
 
-## When to use Vetryx
+## When to use Vexscan
 
-| User intent                          | Use Vetryx?                         |
+| User intent                          | Use Vexscan?                         |
 |--------------------------------------|-------------------------------------|
 | "Install this extension from GitHub" | Yes — vet before installing         |
 | "Is my setup secure?"                | Yes — scan all extensions           |

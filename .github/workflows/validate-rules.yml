@@ -52,13 +52,13 @@ jobs:
             check-jsonschema --schemafile rules/rule-schema.json "$file"
           done
 
-      - name: Build vetryx
+      - name: Build vexscan
         run: cargo build --release
 
       - name: Test rule patterns compile
         run: |
           echo "Testing all rule patterns..."
-          ./target/release/vetryx rules test
+          ./target/release/vexscan rules test
 
       - name: Check for duplicate rule IDs
         run: |

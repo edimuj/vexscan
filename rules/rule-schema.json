@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Vetryx Rule File",
-  "description": "Schema for Vetryx security detection rules",
+  "title": "Vexscan Rule File",
+  "description": "Schema for Vexscan security detection rules",
   "type": "object",
   "required": ["category", "rules"],
   "properties": {

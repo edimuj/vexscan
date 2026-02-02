@@ -1,6 +1,6 @@
-# Vetryx Plugins
+# Vexscan Plugins
 
-Platform-specific plugins for Vetryx security scanner integration.
+Platform-specific plugins for Vexscan security scanner integration.
 
 ## Available Plugins
 
@@ -18,7 +18,7 @@ Each plugin provides:
 - **On-demand commands** for manual scans
 - **Pre-install vetting** to check before installing extensions
 
-All plugins use the same Vetryx CLI backend.
+All plugins use the same Vexscan CLI backend.
 
 ## Installation
 

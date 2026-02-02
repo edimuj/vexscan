@@ -1,5 +1,5 @@
 #!/bin/bash
-# Vetryx Session Start Security Scan
+# Vexscan Session Start Security Scan
 # Runs automatically when Claude Code session starts
 
 set -e
@@ -11,20 +11,20 @@ HOOK_INPUT=$(cat)
 CLAUDE_DIR="$HOME/.claude"
 INSTALL_DIR="$HOME/.local/bin"
 
-# Find vetryx binary
-find_vetryx() {
+# Find vexscan binary
+find_vexscan() {
     # Check PATH first
-    if command -v vetryx &> /dev/null; then
-        echo "vetryx"
+    if command -v vexscan &> /dev/null; then
+        echo "vexscan"
         return 0
     fi
 
     # Check common install locations
     local locations=(
-        "$INSTALL_DIR/vetryx"
-        "$HOME/.cargo/bin/vetryx"
-        "/usr/local/bin/vetryx"
-        "/opt/homebrew/bin/vetryx"
+        "$INSTALL_DIR/vexscan"
+        "$HOME/.cargo/bin/vexscan"
+        "/usr/local/bin/vexscan"
+        "/opt/homebrew/bin/vexscan"
     )
 
     for loc in "${locations[@]}"; do
@@ -37,9 +37,9 @@ find_vetryx() {
     return 1
 }
 
-# Auto-install vetryx if not found
+# Auto-install vexscan if not found
 auto_install() {
-    local repo="edimuj/vetryx"
+    local repo="edimuj/vexscan"
     local os arch asset_name version download_url
 
     # Detect platform
@@ -55,7 +55,7 @@ auto_install() {
         *) return 1 ;;
     esac
 
-    asset_name="vetryx-${os}-${arch}"
+    asset_name="vexscan-${os}-${arch}"
 
     # Get latest version
     version=$(curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null | \
@@ -69,32 +69,32 @@ auto_install() {
 
     # Download and install
     mkdir -p "$INSTALL_DIR"
-    if curl -fsSL "$download_url" -o "${INSTALL_DIR}/vetryx" 2>/dev/null; then
-        chmod +x "${INSTALL_DIR}/vetryx"
-        echo "${INSTALL_DIR}/vetryx"
+    if curl -fsSL "$download_url" -o "${INSTALL_DIR}/vexscan" 2>/dev/null; then
+        chmod +x "${INSTALL_DIR}/vexscan"
+        echo "${INSTALL_DIR}/vexscan"
         return 0
     fi
 
     return 1
 }
 
-# Try to find or install vetryx
-VETRYX=$(find_vetryx)
+# Try to find or install vexscan
+VEXSCAN=$(find_vexscan)
 
-if [ -z "$VETRYX" ]; then
+if [ -z "$VEXSCAN" ]; then
     # Try auto-install
-    VETRYX=$(auto_install 2>/dev/null || echo "")
+    VEXSCAN=$(auto_install 2>/dev/null || echo "")
 
-    if [ -z "$VETRYX" ]; then
+    if [ -z "$VEXSCAN" ]; then
         # Give helpful install message
-        echo '{"systemMessage": "Vetryx CLI not found. Install with: curl -fsSL https://raw.githubusercontent.com/edimuj/vetryx/main/install.sh | bash"}'
+        echo '{"systemMessage": "Vexscan CLI not found. Install with: curl -fsSL https://raw.githubusercontent.com/edimuj/vexscan/main/install.sh | bash"}'
         exit 0
     fi
 fi
 
 # Run scan on Claude directory (plugins, skills, hooks, configs)
 # Uses --third-party-only to skip official Anthropic components
-SCAN_OUTPUT=$($VETRYX scan "$CLAUDE_DIR" --platform claude-code --third-party-only --min-severity medium -f json 2>/dev/null || true)
+SCAN_OUTPUT=$($VEXSCAN scan "$CLAUDE_DIR" --platform claude-code --third-party-only --min-severity medium -f json 2>/dev/null || true)
 
 # Parse results
 TOTAL_FINDINGS=$(echo "$SCAN_OUTPUT" | jq -r '.results | map(.findings | length) | add // 0' 2>/dev/null || echo "0")
@@ -109,11 +109,11 @@ if [ "$TOTAL_FINDINGS" != "0" ] && [ "$TOTAL_FINDINGS" != "null" ]; then
 
     # Format message based on severity
     if [ "$MAX_SEVERITY" = "critical" ]; then
-        MESSAGE="SECURITY ALERT: Found $CRITICAL critical, $HIGH high, $MEDIUM medium issue(s) in plugins/skills. Run /vetryx:scan for AI-powered analysis."
+        MESSAGE="SECURITY ALERT: Found $CRITICAL critical, $HIGH high, $MEDIUM medium issue(s) in plugins/skills. Run /vexscan:scan for AI-powered analysis."
     elif [ "$MAX_SEVERITY" = "high" ]; then
-        MESSAGE="Security Warning: Found $HIGH high, $MEDIUM medium issue(s) in plugins/skills. Run /vetryx:scan to review."
+        MESSAGE="Security Warning: Found $HIGH high, $MEDIUM medium issue(s) in plugins/skills. Run /vexscan:scan to review."
     else
-        MESSAGE="Security Notice: Found $MEDIUM medium issue(s) in plugins/skills. Run /vetryx:scan for details."
+        MESSAGE="Security Notice: Found $MEDIUM medium issue(s) in plugins/skills. Run /vexscan:scan for details."
     fi
 
     # Output for Claude Code

@@ -1,4 +1,4 @@
-export interface VetryxConfig {
+export interface VexscanConfig {
   enabled: boolean;
   scanOnInstall: boolean;
   minSeverity: string;

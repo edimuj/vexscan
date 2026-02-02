@@ -1,6 +1,6 @@
 {
-  "id": "vetryx",
-  "name": "Vetryx Security Scanner",
+  "id": "vexscan",
+  "name": "Vexscan Security Scanner",
   "description": "Security scanner for OpenClaw extensions, skills, and configurations. Detects prompt injection, malicious code, obfuscation, and data exfiltration attempts.",
   "configSchema": {
     "type": "object",
@@ -29,7 +29,7 @@
       },
       "cliPath": {
         "type": "string",
-        "description": "Path to vetryx CLI binary (auto-detected if not set)"
+        "description": "Path to vexscan CLI binary (auto-detected if not set)"
       }
     }
   }

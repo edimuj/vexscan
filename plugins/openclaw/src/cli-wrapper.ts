@@ -4,26 +4,26 @@ import { homedir, platform, arch } from "os";
 import { join } from "path";
 import type { ExecResult } from "./types.js";
 
-const REPO = "edimuj/vetryx";
+const REPO = "edimuj/vexscan";
 const INSTALL_DIR = join(homedir(), ".local", "bin");
 
 /**
- * Common locations to search for the vetryx binary
+ * Common locations to search for the vexscan binary
  */
 const SEARCH_PATHS = [
-  join(INSTALL_DIR, "vetryx"),
-  join(homedir(), ".cargo", "bin", "vetryx"),
-  "/usr/local/bin/vetryx",
-  "/opt/homebrew/bin/vetryx",
+  join(INSTALL_DIR, "vexscan"),
+  join(homedir(), ".cargo", "bin", "vexscan"),
+  "/usr/local/bin/vexscan",
+  "/opt/homebrew/bin/vexscan",
 ];
 
 /**
- * Find vetryx binary in common locations
+ * Find vexscan binary in common locations
  */
-export async function findVetryx(): Promise<string | null> {
+export async function findVexscan(): Promise<string | null> {
   // Check if in PATH
-  const inPath = await checkInPath("vetryx");
-  if (inPath) return "vetryx";
+  const inPath = await checkInPath("vexscan");
+  if (inPath) return "vexscan";
 
   // Check common locations
   for (const path of SEARCH_PATHS) {
@@ -47,9 +47,9 @@ async function checkInPath(cmd: string): Promise<boolean> {
 }
 
 /**
- * Install vetryx from GitHub releases
+ * Install vexscan from GitHub releases
  */
-export async function installVetryx(): Promise<string | null> {
+export async function installVexscan(): Promise<string | null> {
   const os = platform();
   const cpu = arch();
 
@@ -78,7 +78,7 @@ export async function installVetryx(): Promise<string | null> {
       return null;
   }
 
-  const assetName = `vetryx-${osName}-${archName}`;
+  const assetName = `vexscan-${osName}-${archName}`;
 
   try {
     // Get latest version
@@ -100,7 +100,7 @@ export async function installVetryx(): Promise<string | null> {
     const { mkdir, writeFile, chmod } = await import("fs/promises");
     await mkdir(INSTALL_DIR, { recursive: true });
 
-    const binaryPath = join(INSTALL_DIR, "vetryx");
+    const binaryPath = join(INSTALL_DIR, "vexscan");
     await writeFile(binaryPath, Buffer.from(binary));
     await chmod(binaryPath, 0o755);
 
@@ -111,9 +111,9 @@ export async function installVetryx(): Promise<string | null> {
 }
 
 /**
- * Execute vetryx CLI with arguments
+ * Execute vexscan CLI with arguments
  */
-export async function execVetryx(cliPath: string, args: string[]): Promise<ExecResult> {
+export async function execVexscan(cliPath: string, args: string[]): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
     const proc = spawn(cliPath, args, {
       stdio: ["ignore", "pipe", "pipe"],

@@ -1,18 +1,18 @@
 //! Integration tests for malicious pattern detection.
 //!
-//! These tests ensure Vetryx catches real-world malicious patterns
+//! These tests ensure Vexscan catches real-world malicious patterns
 //! across different threat categories.
 
 use std::path::PathBuf;
 use std::process::Command;
 
-/// Run vetryx scan on a sample and return the number of findings
+/// Run vexscan scan on a sample and return the number of findings
 fn scan_sample(path: &str) -> (i32, String) {
     let output = Command::new("cargo")
         .args(["run", "--quiet", "--", "scan", path, "-f", "json"])
         .env("RUST_LOG", "error")
         .output()
-        .expect("Failed to run vetryx");
+        .expect("Failed to run vexscan");
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();

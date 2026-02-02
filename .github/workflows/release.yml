@@ -16,23 +16,23 @@ jobs:
           # macOS Intel
           - os: macos-15
             target: x86_64-apple-darwin
-            artifact_name: vetryx
-            asset_name: vetryx-macos-x86_64
+            artifact_name: vexscan
+            asset_name: vexscan-macos-x86_64
           # macOS Apple Silicon
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: vetryx
-            asset_name: vetryx-macos-aarch64
+            artifact_name: vexscan
+            asset_name: vexscan-macos-aarch64
           # Linux x86_64
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: vetryx
-            asset_name: vetryx-linux-x86_64
+            artifact_name: vexscan
+            asset_name: vexscan-linux-x86_64
           # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: vetryx.exe
-            asset_name: vetryx-windows-x86_64.exe
+            artifact_name: vexscan.exe
+            asset_name: vexscan-windows-x86_64.exe
 
     runs-on: ${{ matrix.os }}
 

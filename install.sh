@@ -1,11 +1,11 @@
 #!/bin/bash
-# Vetryx CLI Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/edimuj/vetryx/main/install.sh | bash
+# Vexscan CLI Installer
+# Usage: curl -fsSL https://raw.githubusercontent.com/edimuj/vexscan/main/install.sh | bash
 
 set -e
 
-REPO="edimuj/vetryx"
-INSTALL_DIR="${VETRYX_INSTALL_DIR:-$HOME/.local/bin}"
+REPO="edimuj/vexscan"
+INSTALL_DIR="${VEXSCAN_INSTALL_DIR:-$HOME/.local/bin}"
 
 # Colors
 RED='\033[0;31m'
@@ -42,9 +42,9 @@ detect_platform() {
     fi
 
     if [ "$os" = "windows" ]; then
-        echo "vetryx-windows-x86_64.exe"
+        echo "vexscan-windows-x86_64.exe"
     else
-        echo "vetryx-${os}-${arch}"
+        echo "vexscan-${os}-${arch}"
     fi
 }
 
@@ -78,17 +78,17 @@ install() {
 
     # Download
     if command -v curl &> /dev/null; then
-        curl -fsSL "$download_url" -o "${INSTALL_DIR}/vetryx"
+        curl -fsSL "$download_url" -o "${INSTALL_DIR}/vexscan"
     elif command -v wget &> /dev/null; then
-        wget -q "$download_url" -O "${INSTALL_DIR}/vetryx"
+        wget -q "$download_url" -O "${INSTALL_DIR}/vexscan"
     else
         error "Neither curl nor wget found. Please install one of them."
     fi
 
     # Make executable
-    chmod +x "${INSTALL_DIR}/vetryx"
+    chmod +x "${INSTALL_DIR}/vexscan"
 
-    success "Installed to ${INSTALL_DIR}/vetryx"
+    success "Installed to ${INSTALL_DIR}/vexscan"
 
     # Check if in PATH
     if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
@@ -100,10 +100,10 @@ install() {
     fi
 
     # Verify installation
-    if [ -x "${INSTALL_DIR}/vetryx" ]; then
+    if [ -x "${INSTALL_DIR}/vexscan" ]; then
         success "Installation complete!"
         echo ""
-        "${INSTALL_DIR}/vetryx" --version 2>/dev/null || true
+        "${INSTALL_DIR}/vexscan" --version 2>/dev/null || true
     else
         error "Installation failed"
     fi
@@ -111,10 +111,10 @@ install() {
 
 # Check if already installed
 check_existing() {
-    if command -v vetryx &> /dev/null; then
+    if command -v vexscan &> /dev/null; then
         local current_version
-        current_version=$(vetryx --version 2>/dev/null | head -1 || echo "unknown")
-        warn "Vetryx is already installed: $current_version"
+        current_version=$(vexscan --version 2>/dev/null | head -1 || echo "unknown")
+        warn "Vexscan is already installed: $current_version"
         read -p "Do you want to reinstall/update? [y/N] " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
