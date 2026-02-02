@@ -87,7 +87,7 @@ if [ -z "$VEXSCAN" ]; then
 
     if [ -z "$VEXSCAN" ]; then
         # Give helpful install message
-        echo '{"systemMessage": "Vexscan CLI not found. Install with: curl -fsSL https://raw.githubusercontent.com/edimuj/vexscan/main/install.sh | bash"}'
+        echo '{"userMessage": "[Vexscan] CLI not found. Install with: curl -fsSL https://raw.githubusercontent.com/edimuj/vexscan/main/install.sh | bash", "systemMessage": "[Vexscan] CLI not found. Install with: curl -fsSL https://raw.githubusercontent.com/edimuj/vexscan/main/install.sh | bash"}'
         exit 0
     fi
 fi
@@ -109,15 +109,15 @@ if [ "$TOTAL_FINDINGS" != "0" ] && [ "$TOTAL_FINDINGS" != "null" ]; then
 
     # Format message based on severity
     if [ "$MAX_SEVERITY" = "critical" ]; then
-        MESSAGE="SECURITY ALERT: Found $CRITICAL critical, $HIGH high, $MEDIUM medium issue(s) in plugins/skills. Run /vexscan:scan for AI-powered analysis."
+        MESSAGE="[Vexscan] SECURITY ALERT: Found $CRITICAL critical, $HIGH high, $MEDIUM medium issue(s) in plugins/skills. Run /vexscan:scan for AI-powered analysis."
     elif [ "$MAX_SEVERITY" = "high" ]; then
-        MESSAGE="Security Warning: Found $HIGH high, $MEDIUM medium issue(s) in plugins/skills. Run /vexscan:scan to review."
+        MESSAGE="[Vexscan] Security Warning: Found $HIGH high, $MEDIUM medium issue(s) in plugins/skills. Run /vexscan:scan to review."
     else
-        MESSAGE="Security Notice: Found $MEDIUM medium issue(s) in plugins/skills. Run /vexscan:scan for details."
+        MESSAGE="[Vexscan] Security Notice: Found $MEDIUM medium issue(s) in plugins/skills. Run /vexscan:scan for details."
     fi
 
-    # Output for Claude Code
-    echo "{\"systemMessage\": \"$MESSAGE\"}"
+    # Output for Claude Code - both user and system messages
+    echo "{\"userMessage\": \"$MESSAGE\", \"systemMessage\": \"$MESSAGE\"}"
 fi
 
 exit 0
