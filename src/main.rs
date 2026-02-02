@@ -21,11 +21,12 @@ use tracing_subscriber::EnvFilter;
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // Initialize logging
+    // Initialize logging (stderr to avoid interfering with JSON output)
     let log_level = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| log_level.into()))
         .with_target(false)
+        .with_writer(std::io::stderr)
         .init();
 
     // Load config file if specified, otherwise use defaults
