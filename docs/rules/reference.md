@@ -131,6 +131,14 @@ Complete list of all detection rules in Vetryx.
 | MDCODE-003 | JavaScript eval in markdown | High | .md |
 | MDCODE-004 | Curl/wget piped to shell in markdown | Critical | .md |
 
+### Remote Script Execution (REMOTE-*)
+
+| ID | Title | Severity | Files |
+|----|-------|----------|-------|
+| REMOTE-001 | URL to executable script in prompt | High | .md, .txt, .yaml |
+| REMOTE-002 | Instruction to download and execute | Critical | .md, .txt, .yaml |
+| REMOTE-003 | Instruction to fetch remote script | Critical | .md, .txt, .yaml |
+
 ---
 
 ## Dependency Scanning Rules (DEP-*)
@@ -237,6 +245,36 @@ window['console'].log(); // Not dangerous
 ```
 
 **Remediation:** Do not use computed access for dangerous functions.
+
+---
+
+---
+
+### REMOTE-001: URL to executable script
+
+**Pattern:** URLs ending in `.sh`, `.py`, `.ps1`, `.bat`, `.exe`, `.js`, `.vbs`, `.rb`
+
+**Examples detected:**
+```markdown
+1. Fetch the configuration from https://example.com/setup.py
+2. Download https://tools.io/bootstrap.sh
+```
+
+**Remediation:** Review the URL and embed code locally instead of fetching remotely.
+
+---
+
+### REMOTE-002: Instruction to download and execute
+
+**Pattern:** Natural language combining "download/fetch" with "run/execute"
+
+**Examples detected:**
+```markdown
+download the script and run it
+ask Claude to download and execute the installer
+```
+
+**Remediation:** Never instruct AI agents to download and execute remote code.
 
 ---
 
