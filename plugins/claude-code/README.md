@@ -8,6 +8,7 @@ Security scanner plugin that automatically protects your Claude Code environment
 - **On-Demand Scanning**: `/vetryx:scan` command for manual scans
 - **Pre-Install Vetting**: `/vetryx:vet` to check plugins before installing
 - **Smart Filtering**: Skips official Anthropic plugins, focuses on untrusted code
+- **AI-Powered Analysis**: Uses your Claude subscription to analyze findings — no extra API keys needed
 
 ## Installation
 
@@ -51,6 +52,14 @@ you'll see a security alert.
 /vetryx:scan ~/.claude/plugins  # Scan specific path
 /vetryx:vet https://github.com/user/plugin  # Vet before install
 ```
+
+## How It Works
+
+1. **CLI Scan**: The Vetryx CLI runs static analysis and produces findings
+2. **AI Analysis**: A Claude subagent analyzes each finding to determine if it's a real threat or false positive
+3. **Smart Summary**: You get a concise report with only actionable findings
+
+The AI analysis uses your existing Claude subscription — no separate API keys or costs. This gives you the power of AI-assisted security analysis for free.
 
 ## What It Detects
 

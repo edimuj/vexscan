@@ -14,7 +14,7 @@
   <a href="#quick-start">Quick Start</a> •
   <a href="#features">Features</a> •
   <a href="#commands">Commands</a> •
-  <a href="#configuration">Configuration</a>
+  <a href="#documentation">Docs</a>
 </p>
 
 <p align="center">
@@ -67,6 +67,7 @@ Once installed:
 - **Automatic scanning** on every session start
 - **`/vetryx:scan`** for on-demand scanning
 - **`/vetryx:vet`** to check plugins before installing
+- **AI-powered analysis** — Uses your Claude subscription to analyze findings (no extra API keys needed)
 
 > **Note**: The plugin will auto-install the CLI on first run, or you can install it manually (see below).
 
@@ -326,6 +327,21 @@ Vetryx auto-detects and scans:
 - **Claude Code** — Plugins, MCP servers, CLAUDE.md files
 - **OpenClaw** — Extensions and skills ([plugin available](plugins/openclaw))
 - **Generic** — Any directory with code files
+
+## Documentation
+
+For in-depth explanations of each security feature, see the [docs/](docs/) folder:
+
+| Topic | Description |
+|-------|-------------|
+| [Static Analysis](docs/static-analysis.md) | Regex-based pattern matching for known threats |
+| [AST Analysis](docs/ast-analysis.md) | Tree-sitter detection for obfuscated code (`--ast`) |
+| [Dependency Scanning](docs/dependency-scanning.md) | npm supply chain attack protection (`--deps`) |
+| [AI Analysis](docs/ai-analysis.md) | LLM-powered semantic threat detection (`--ai`) |
+| [Encoding Detection](docs/encoding-detection.md) | Automatic decoding of obfuscated payloads |
+| [Rules Reference](docs/rules/reference.md) | Complete list of all 40+ detection rules |
+| [Claude Code Platform](docs/platforms/claude-code.md) | Scanning plugins, skills, hooks, MCP servers |
+| [OpenClaw Platform](docs/platforms/openclaw.md) | Scanning OpenClaw tools and skills |
 
 ## Contributing
 
