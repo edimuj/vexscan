@@ -56,21 +56,20 @@ Vexscan catches these threats with 50+ detection rules, multi-layer encoding det
 Install the plugin for automatic protection in Claude Code:
 
 ```bash
-# Add the Vexscan marketplace
-/plugin marketplace add edimuj/vexscan
-
-# Install the plugin
-/plugin install vexscan@edimuj-vexscan
+# Clone the plugin
+git clone https://github.com/edimuj/vexscan-claude-code ~/.claude/plugins/vexscan
 ```
 
 Once installed:
 
 - **Automatic scanning** on every session start
-- **`/vexscan:scan`** for on-demand scanning
+- **`/vexscan:scan`** for on-demand scanning with AI analysis
 - **`/vexscan:vet`** to check plugins before installing
 - **AI-powered analysis** — Uses your Claude subscription to analyze findings (no extra API keys needed)
 
 > **Note**: The plugin will auto-install the CLI on first run, or you can install it manually (see below).
+>
+> See the [Claude Code plugin repo](https://github.com/edimuj/vexscan-claude-code) for more details.
 
 ### CLI Installation
 
@@ -344,8 +343,8 @@ vexscan scan ./src -f markdown > report.md
 
 Vexscan auto-detects and scans:
 
-- **Claude Code** — Plugins, MCP servers, CLAUDE.md files
-- **OpenClaw** — Extensions and skills ([plugin available](plugins/openclaw))
+- **Claude Code** — Plugins, MCP servers, CLAUDE.md files ([plugin](https://github.com/edimuj/vexscan-claude-code))
+- **OpenClaw** — Extensions and skills ([plugin](https://www.npmjs.com/package/@exelerus/vexscan-openclaw))
 - **Generic** — Any directory with code files
 
 ## Documentation
