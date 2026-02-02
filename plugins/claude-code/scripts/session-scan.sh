@@ -94,7 +94,8 @@ fi
 
 # Run scan on Claude directory (plugins, skills, hooks, configs)
 # Uses --third-party-only to skip official Anthropic components
-SCAN_OUTPUT=$($VEXSCAN scan "$CLAUDE_DIR" --platform claude-code --third-party-only --min-severity medium -f json 2>/dev/null || true)
+# Uses --skip-deps to avoid false positives from node_modules
+SCAN_OUTPUT=$($VEXSCAN scan "$CLAUDE_DIR" --platform claude-code --third-party-only --skip-deps --min-severity medium -f json 2>/dev/null || true)
 
 # Parse results
 TOTAL_FINDINGS=$(echo "$SCAN_OUTPUT" | jq -r '.results | map(.findings | length) | add // 0' 2>/dev/null || echo "0")
