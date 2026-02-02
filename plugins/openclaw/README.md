@@ -79,6 +79,7 @@ plugins:
     scanOnInstall: true
     minSeverity: medium
     thirdPartyOnly: true
+    skipDeps: true
     # cliPath: /custom/path/to/vexscan  # Optional
 ```
 
@@ -88,6 +89,7 @@ plugins:
 | `scanOnInstall` | `true` | Scan on startup |
 | `minSeverity` | `medium` | Minimum severity to report |
 | `thirdPartyOnly` | `true` | Only scan non-official extensions |
+| `skipDeps` | `true` | Skip node_modules to reduce false positives |
 | `cliPath` | (auto) | Path to vexscan binary |
 
 ## What It Detects
