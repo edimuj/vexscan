@@ -22,12 +22,6 @@ The OpenClaw adapter is available as a separate npm package:
 npm install @exelerus/vexscan-openclaw
 ```
 
-Or use the CLI plugin:
-
-```bash
-vexscan install @exelerus/vexscan-openclaw
-```
-
 ## Scanning OpenClaw Projects
 
 ```bash
