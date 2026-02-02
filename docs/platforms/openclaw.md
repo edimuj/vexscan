@@ -16,10 +16,10 @@ OpenClaw uses several extension points:
 
 ## Installation
 
-The OpenClaw adapter is available as a separate npm package:
+Install via the OpenClaw CLI:
 
 ```bash
-npm install @exelerus/vexscan-openclaw
+openclaw plugins install @exelerus/vexscan-openclaw
 ```
 
 ## Scanning OpenClaw Projects
