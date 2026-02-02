@@ -52,7 +52,7 @@ Run a Vexscan security scan and analyze the results.
 **Step 1: Run the scan**
 Execute this command:
 \`\`\`bash
-vexscan scan "${PATH:-$HOME/.claude/plugins}" ${FLAGS:---third-party-only} -f json
+vexscan scan "${PATH:-$HOME/.claude/plugins}" ${FLAGS:---third-party-only} --skip-deps -f json
 \`\`\`
 
 **Step 2: Analyze findings**
