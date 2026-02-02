@@ -45,8 +45,9 @@ AI agents can execute code, access files, and make network requests. A malicious
 - **Exfiltrate data** — Send your code/documents to external servers
 - **Inject prompts** — Override agent instructions to bypass safety
 - **Execute payloads** — Run obfuscated malicious code
+- **Download malware** — Skills that instruct the AI to fetch and run remote scripts
 
-Vetryx catches these threats with 30+ detection rules, multi-layer encoding detection, and pattern analysis.
+Vetryx catches these threats with 50+ detection rules, multi-layer encoding detection, and pattern analysis.
 
 ## Installation
 
@@ -201,6 +202,8 @@ Scan files or directories.
 
 ```bash
 vetryx scan <path>                   # Scan path
+vetryx scan <path> --ast             # Enable AST analysis (detects obfuscated code)
+vetryx scan <path> --deps            # Enable dependency scanning (npm supply chain)
 vetryx scan <path> -f json           # JSON output
 vetryx scan <path> -f sarif          # SARIF for GitHub integration
 vetryx scan <path> --fail-on high    # Fail CI on high+ severity
@@ -237,7 +240,7 @@ vetryx init custom-config.toml # Custom path
 
 ## Detection Rules
 
-Vetryx includes 30+ detection rules across these categories:
+Vetryx includes 50+ detection rules across these categories:
 
 | Category              | Examples                                     |
 |-----------------------|----------------------------------------------|
@@ -247,6 +250,8 @@ Vetryx includes 30+ detection rules across these categories:
 | **Credential Access** | SSH keys, AWS credentials, `.env` files      |
 | **Obfuscation**       | Base64 decode, hex encoding, char codes      |
 | **Prompt Injection**  | Instruction override, role hijacking         |
+| **Remote Execution**  | Skills instructing AI to download/run scripts |
+| **Supply Chain**      | Malicious npm packages, typosquatting        |
 
 View all rules: `vetryx rules`
 
