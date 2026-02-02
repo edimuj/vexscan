@@ -56,8 +56,11 @@ Vexscan catches these threats with 50+ detection rules, multi-layer encoding det
 Install the plugin for automatic protection in Claude Code:
 
 ```bash
-# Clone the plugin
-git clone https://github.com/edimuj/vexscan-claude-code ~/.claude/plugins/vexscan
+# Add the marketplace
+/plugin marketplace add edimuj/vexscan-claude-code
+
+# Install the plugin
+/plugin install vexscan
 ```
 
 Once installed:
