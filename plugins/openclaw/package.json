@@ -1,6 +1,6 @@
 {
   "name": "@exelerus/vexscan-openclaw",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Vexscan security scanner plugin for OpenClaw",
   "type": "module",
   "main": "dist/index.js",
