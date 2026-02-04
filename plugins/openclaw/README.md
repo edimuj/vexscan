@@ -1,6 +1,17 @@
-# Vexscan Plugin for OpenClaw
+<p align="center">
+  <img src="https://raw.githubusercontent.com/edimuj/vexscan/main/assets/sir-clawsalot-256.png" alt="Sir Clawsalot" width="180">
+</p>
 
-Security scanner plugin that protects your OpenClaw environment from malicious extensions and skills.
+<h1 align="center">Vexscan Plugin for OpenClaw</h1>
+
+<p align="center">
+  <strong>Security scanner plugin that protects your OpenClaw environment from malicious extensions and skills.</strong>
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@exelerus/vexscan-openclaw"><img src="https://img.shields.io/npm/v/@exelerus/vexscan-openclaw?style=flat-square&color=blue" alt="npm"></a>
+  <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green?style=flat-square" alt="License"></a>
+</p>
 
 ## Features
 
@@ -83,25 +94,25 @@ plugins:
     # cliPath: /custom/path/to/vexscan  # Optional
 ```
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `enabled` | `true` | Enable security scanning |
-| `scanOnInstall` | `true` | Scan on startup |
-| `minSeverity` | `medium` | Minimum severity to report |
-| `thirdPartyOnly` | `true` | Only scan non-official extensions |
-| `skipDeps` | `true` | Skip node_modules to reduce false positives |
-| `cliPath` | (auto) | Path to vexscan binary |
+| Option           | Default  | Description                                 |
+|------------------|----------|---------------------------------------------|
+| `enabled`        | `true`   | Enable security scanning                    |
+| `scanOnInstall`  | `true`   | Scan on startup                             |
+| `minSeverity`    | `medium` | Minimum severity to report                  |
+| `thirdPartyOnly` | `true`   | Only scan non-official extensions           |
+| `skipDeps`       | `true`   | Skip node_modules to reduce false positives |
+| `cliPath`        | (auto)   | Path to vexscan binary                      |
 
 ## What It Detects
 
-| Category | Examples |
-|----------|----------|
-| Code Execution | `eval()`, `new Function()`, `exec()` |
-| Shell Injection | `child_process`, `subprocess` |
-| Data Exfiltration | Discord webhooks, external POST |
-| Credential Access | SSH keys, AWS credentials |
-| Prompt Injection | Instruction override attempts |
-| Obfuscation | Base64, hex encoding |
+| Category          | Examples                             |
+|-------------------|--------------------------------------|
+| Code Execution    | `eval()`, `new Function()`, `exec()` |
+| Shell Injection   | `child_process`, `subprocess`        |
+| Data Exfiltration | Discord webhooks, external POST      |
+| Credential Access | SSH keys, AWS credentials            |
+| Prompt Injection  | Instruction override attempts        |
+| Obfuscation       | Base64, hex encoding                 |
 
 ## Development
 

