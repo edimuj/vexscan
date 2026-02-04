@@ -37,6 +37,49 @@
       "pattern": "\\b(exec|eval)\\s*\\(",
       "file_extensions": ["py"],
       "remediation": "Use ast.literal_eval() for safe evaluation of literals, or avoid dynamic execution entirely."
+    },
+    {
+      "id": "EXEC-005",
+      "title": "Python __import__() dynamic import",
+      "description": "__import__() allows loading arbitrary modules at runtime, commonly used to evade static analysis.",
+      "severity": "high",
+      "pattern": "\\b__import__\\s*\\(",
+      "file_extensions": ["py"],
+      "remediation": "Use explicit import statements instead of dynamic __import__()."
+    },
+    {
+      "id": "EXEC-006",
+      "title": "Python compile() for code generation",
+      "description": "compile() creates code objects from strings, which can then be executed with exec().",
+      "severity": "high",
+      "pattern": "\\bcompile\\s*\\([^)]*['\"][^'\"]*['\"]\\s*,\\s*['\"]",
+      "file_extensions": ["py"],
+      "remediation": "Avoid compiling code from strings. Use direct function definitions."
+    },
+    {
+      "id": "EXEC-007",
+      "title": "SQL injection via string formatting",
+      "description": "Building SQL queries with f-strings or .format() allows attackers to inject arbitrary SQL commands.",
+      "severity": "critical",
+      "patterns": [
+        "f[\"']SELECT.*FROM.*\\{",
+        "f[\"'].*WHERE.*\\{",
+        "\\.format\\(.*SELECT",
+        "execute\\s*\\(.*\\.format\\("
+      ],
+      "file_extensions": ["py"],
+      "remediation": "Use parameterized queries (cursor.execute(sql, params)) instead of string formatting.",
+      "test_cases": {
+        "should_match": [
+          "cursor.execute(f\"SELECT * FROM users WHERE id = {user_id}\")",
+          "query = f\"SELECT name FROM accounts WHERE email = {email}\"",
+          "cursor.execute(\"SELECT * FROM users WHERE id = {}\".format(user_id))"
+        ],
+        "should_not_match": [
+          "cursor.execute(\"SELECT * FROM users WHERE id = %s\", (user_id,))",
+          "cursor.execute(\"SELECT * FROM users WHERE id = ?\", [user_id])"
+        ]
+      }
     }
   ]
 }

@@ -73,8 +73,8 @@ pub struct Rule {
     pub severity: Severity,
     /// Category of the finding.
     pub category: FindingCategory,
-    /// Regex pattern to match (as string for serialization).
-    pub pattern: String,
+    /// Regex patterns to match (any match triggers a finding).
+    pub patterns: Vec<String>,
     /// File extensions this rule applies to (empty = all).
     #[serde(default)]
     pub file_extensions: Vec<String>,
@@ -96,12 +96,15 @@ fn default_true() -> bool {
 }
 
 impl Rule {
-    /// Compile the regex pattern for this rule.
+    /// Compile all regex patterns for this rule.
     pub fn compile(&self) -> Result<CompiledRule, regex::Error> {
-        let regex = Regex::new(&self.pattern)?;
+        let mut regexes = Vec::with_capacity(self.patterns.len());
+        for pattern in &self.patterns {
+            regexes.push(Regex::new(pattern)?);
+        }
         Ok(CompiledRule {
             rule: self.clone(),
-            regex,
+            regexes,
         })
     }
 
@@ -116,17 +119,25 @@ impl Rule {
     }
 }
 
-/// A rule with its compiled regex.
+/// A rule with its compiled regexes.
 #[derive(Debug, Clone)]
 pub struct CompiledRule {
     pub rule: Rule,
-    pub regex: Regex,
+    pub regexes: Vec<Regex>,
 }
 
 impl CompiledRule {
-    /// Find all matches in the given content.
-    pub fn find_matches<'a>(&'a self, content: &'a str) -> impl Iterator<Item = regex::Match<'a>> {
-        self.regex.find_iter(content)
+    /// Check if any pattern matches the given content.
+    pub fn is_match(&self, content: &str) -> bool {
+        self.regexes.iter().any(|re| re.is_match(content))
+    }
+
+    /// Find all matches across all patterns in the given content.
+    pub fn find_matches<'a>(&'a self, content: &'a str) -> Vec<regex::Match<'a>> {
+        self.regexes
+            .iter()
+            .flat_map(|re| re.find_iter(content))
+            .collect()
     }
 }
 
@@ -206,7 +217,7 @@ mod tests {
             description: "A test rule".to_string(),
             severity: Severity::Medium,
             category: FindingCategory::CodeExecution,
-            pattern: r"eval\s*\(".to_string(),
+            patterns: vec![r"eval\s*\(".to_string()],
             file_extensions: vec!["js".to_string(), "ts".to_string()],
             remediation: None,
             enabled: true,
@@ -215,9 +226,38 @@ mod tests {
         };
 
         let compiled = rule.compile().unwrap();
-        assert!(compiled.regex.is_match("eval(code)"));
-        assert!(compiled.regex.is_match("eval (code)"));
-        assert!(!compiled.regex.is_match("evaluate(code)"));
+        assert!(compiled.is_match("eval(code)"));
+        assert!(compiled.is_match("eval (code)"));
+        assert!(!compiled.is_match("evaluate(code)"));
+    }
+
+    #[test]
+    fn test_rule_with_multiple_patterns() {
+        let rule = Rule {
+            id: "test-002".to_string(),
+            title: "Multi-pattern Rule".to_string(),
+            description: "A rule with multiple patterns".to_string(),
+            severity: Severity::High,
+            category: FindingCategory::CodeExecution,
+            patterns: vec![
+                r"\beval\s*\(".to_string(),
+                r"\bnew\s+Function\s*\(".to_string(),
+            ],
+            file_extensions: vec![],
+            remediation: None,
+            enabled: true,
+            source: RuleSource::Official,
+            metadata: None,
+        };
+
+        let compiled = rule.compile().unwrap();
+        assert!(compiled.is_match("eval(code)"));
+        assert!(compiled.is_match("new Function('code')"));
+        assert!(!compiled.is_match("evaluate(code)"));
+
+        // find_matches should find matches from both patterns
+        let matches = compiled.find_matches("eval(code) and new Function('x')");
+        assert_eq!(matches.len(), 2);
     }
 
     #[test]
@@ -228,7 +268,7 @@ mod tests {
             description: "A test community rule".to_string(),
             severity: Severity::High,
             category: FindingCategory::CredentialAccess,
-            pattern: r"AKIA[0-9A-Z]{16}".to_string(),
+            patterns: vec![r"AKIA[0-9A-Z]{16}".to_string()],
             file_extensions: vec![],
             remediation: Some("Remove hardcoded keys".to_string()),
             enabled: true,
@@ -254,10 +294,10 @@ mod tests {
         if let Some(ref metadata) = rule.metadata {
             if let Some(ref test_cases) = metadata.test_cases {
                 for case in &test_cases.should_match {
-                    assert!(compiled.regex.is_match(case), "Should match: {}", case);
+                    assert!(compiled.is_match(case), "Should match: {}", case);
                 }
                 for case in &test_cases.should_not_match {
-                    assert!(!compiled.regex.is_match(case), "Should not match: {}", case);
+                    assert!(!compiled.is_match(case), "Should not match: {}", case);
                 }
             }
         }

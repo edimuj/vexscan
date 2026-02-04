@@ -82,6 +82,24 @@
       "pattern": "python[23]?\\s+-c\\s+.import\\s+socket",
       "file_extensions": ["sh", "bash", "zsh"],
       "remediation": "Remove reverse shell code."
+    },
+    {
+      "id": "SHELL-007",
+      "title": "Subprocess with shell=True",
+      "description": "subprocess with shell=True passes commands through the shell, enabling command injection.",
+      "severity": "high",
+      "pattern": "\\bsubprocess\\s*\\.\\s*(run|call|Popen|check_output|check_call)\\s*\\([^)]*shell\\s*=\\s*True",
+      "file_extensions": ["py"],
+      "remediation": "Use shell=False (the default) and pass arguments as a list."
+    },
+    {
+      "id": "SHELL-008",
+      "title": "Netcat with shell execution",
+      "description": "Netcat (nc/ncat) combined with shell execution is a common backdoor pattern.",
+      "severity": "critical",
+      "pattern": "\\b(nc|ncat|netcat)\\s+.*(-e|--exec|\\|\\s*/bin/(ba)?sh)",
+      "file_extensions": [],
+      "remediation": "Remove netcat shell execution patterns."
     }
   ]
 }

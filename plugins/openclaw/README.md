@@ -105,14 +105,18 @@ plugins:
 
 ## What It Detects
 
-| Category          | Examples                             |
-|-------------------|--------------------------------------|
-| Code Execution    | `eval()`, `new Function()`, `exec()` |
-| Shell Injection   | `child_process`, `subprocess`        |
-| Data Exfiltration | Discord webhooks, external POST      |
-| Credential Access | SSH keys, AWS credentials            |
-| Prompt Injection  | Instruction override attempts        |
-| Obfuscation       | Base64, hex encoding                 |
+| Category             | Examples                                        |
+|----------------------|-------------------------------------------------|
+| Code Execution       | `eval()`, `new Function()`, `exec()`, SQL injection |
+| Shell Injection      | `child_process`, `subprocess`, reverse shells   |
+| Data Exfiltration    | Discord webhooks, external POST                 |
+| Credential Access    | SSH keys, AWS credentials                       |
+| Hardcoded Secrets    | API keys, tokens, passwords, connection strings |
+| Prompt Injection     | Instruction override, system prompt reveal      |
+| Obfuscation          | Base64, hex encoding                            |
+| Backdoor Detection   | Time bombs, C2 callbacks                        |
+| Dangerous Operations | `rm -rf`, `chmod 777`, `sudo`                   |
+| Resource Abuse       | Fork bombs, infinite loops                      |
 
 ## Development
 

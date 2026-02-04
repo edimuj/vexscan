@@ -32,7 +32,10 @@ struct JsonRule {
     title: String,
     description: String,
     severity: String,
-    pattern: String,
+    /// Single pattern (backward compatible).
+    pattern: Option<String>,
+    /// Multiple patterns (OR semantics: any match triggers a finding).
+    patterns: Option<Vec<String>>,
     #[serde(default)]
     file_extensions: Vec<String>,
     remediation: Option<String>,
@@ -81,13 +84,23 @@ impl JsonRule {
             None
         };
 
+        // Merge pattern/patterns: prefer `patterns`, fall back to wrapping `pattern`
+        let patterns = if let Some(ref pats) = self.patterns {
+            pats.clone()
+        } else if let Some(ref pat) = self.pattern {
+            vec![pat.clone()]
+        } else {
+            tracing::warn!("Rule {} has neither pattern nor patterns; will never match", self.id);
+            vec![]
+        };
+
         Rule {
             id: self.id.clone(),
             title: self.title.clone(),
             description: self.description.clone(),
             severity: parse_severity(&self.severity),
             category: parse_category(category),
-            pattern: self.pattern.clone(),
+            patterns,
             file_extensions: self.file_extensions.clone(),
             remediation: self.remediation.clone(),
             enabled: self.enabled,
@@ -362,7 +375,7 @@ pub fn test_rule(rule: &Rule) -> RuleTestResult {
     if let Some(tc) = test_cases {
         // Test should_match cases
         for case in &tc.should_match {
-            let matched = compiled.regex.is_match(case);
+            let matched = compiled.is_match(case);
             if !matched {
                 result.passed = false;
             }
@@ -371,7 +384,7 @@ pub fn test_rule(rule: &Rule) -> RuleTestResult {
 
         // Test should_not_match cases
         for case in &tc.should_not_match {
-            let not_matched = !compiled.regex.is_match(case);
+            let not_matched = !compiled.is_match(case);
             if !not_matched {
                 result.passed = false;
             }

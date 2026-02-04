@@ -1,0 +1,75 @@
+{
+  "$schema": "../rule-schema.json",
+  "category": "Resource Abuse",
+  "rules": [
+    {
+      "id": "RESOURCE-001",
+      "title": "Infinite loop",
+      "description": "Unbounded loops can consume all CPU resources, causing denial of service.",
+      "severity": "high",
+      "patterns": [
+        "while\\s+True\\s*:",
+        "while\\s+1\\s*:",
+        "for\\s+\\w+\\s+in\\s+itertools\\.count\\s*\\("
+      ],
+      "file_extensions": ["py"],
+      "remediation": "Add loop bounds, timeouts, or break conditions to prevent infinite execution.",
+      "test_cases": {
+        "should_match": [
+          "while True:",
+          "while 1:",
+          "for i in itertools.count(0)"
+        ],
+        "should_not_match": [
+          "while running:",
+          "while count < 10:",
+          "for i in range(100):"
+        ]
+      }
+    },
+    {
+      "id": "RESOURCE-002",
+      "title": "Fork bomb",
+      "description": "Fork bombs create processes exponentially, quickly exhausting system resources and crashing the host.",
+      "severity": "critical",
+      "patterns": [
+        ":\\(\\)\\{\\s*:\\|:\\s*&\\s*\\}\\s*;\\s*:",
+        "os\\.fork\\s*\\(\\s*\\)"
+      ],
+      "file_extensions": ["sh", "bash", "py"],
+      "remediation": "Remove fork bomb patterns. Plugins should never spawn unbounded processes.",
+      "test_cases": {
+        "should_match": [
+          ":(){ :|:& };:",
+          "os.fork()"
+        ],
+        "should_not_match": [
+          "fork_count = 0",
+          "os.path.join('a', 'b')"
+        ]
+      }
+    },
+    {
+      "id": "RESOURCE-003",
+      "title": "Excessive memory allocation",
+      "description": "Allocating very large memory blocks can exhaust system RAM and trigger OOM kills.",
+      "severity": "high",
+      "patterns": [
+        "\\[.*\\]\\s*\\*\\s*(?:[1-9][0-9]{6,})",
+        "bytearray\\s*\\(\\s*(?:[1-9][0-9]{7,})"
+      ],
+      "file_extensions": ["py"],
+      "remediation": "Use bounded allocations. Process data in chunks instead of loading everything into memory.",
+      "test_cases": {
+        "should_match": [
+          "[0] * 10000000",
+          "bytearray(100000000)"
+        ],
+        "should_not_match": [
+          "[0] * 100",
+          "bytearray(1024)"
+        ]
+      }
+    }
+  ]
+}

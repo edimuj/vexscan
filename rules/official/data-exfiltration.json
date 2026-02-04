@@ -37,6 +37,24 @@
       "pattern": "['\"]([0-9]{1,3}\\.){3}[0-9]{1,3}(:[0-9]+)?['\"]",
       "file_extensions": [],
       "remediation": "Review hard-coded IP addresses for legitimacy."
+    },
+    {
+      "id": "EXFIL-003",
+      "title": "Curl/wget POST with sensitive file data",
+      "description": "Using curl or wget to POST sensitive files (SSH keys, env files, credentials) to an external server.",
+      "severity": "critical",
+      "pattern": "(?i)(curl|wget)\\s+[^\\n]*(-d|--data|--post|--upload-file)[^\\n]*(\\.(ssh|env|aws|gnupg)|id_rsa|credentials|secret|password|token)",
+      "file_extensions": [],
+      "remediation": "Remove data exfiltration commands targeting sensitive files."
+    },
+    {
+      "id": "EXFIL-004",
+      "title": "File read and network send pattern",
+      "description": "Reading sensitive files and sending their contents over the network.",
+      "severity": "high",
+      "pattern": "(readFile|readFileSync|open\\s*\\().*(\\.ssh|\\.env|\\.aws|id_rsa|credentials)[^;]*;[\\s\\S]{0,200}(fetch|axios|request|http\\.request|XMLHttpRequest|curl)",
+      "file_extensions": ["js", "ts", "mjs", "cjs", "py"],
+      "remediation": "Audit code that reads sensitive files and makes network requests."
     }
   ]
 }

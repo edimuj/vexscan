@@ -28,7 +28,7 @@
   "definitions": {
     "rule": {
       "type": "object",
-      "required": ["id", "title", "description", "severity", "pattern"],
+      "required": ["id", "title", "description", "severity"],
       "properties": {
         "id": {
           "type": "string",
@@ -50,7 +50,15 @@
         },
         "pattern": {
           "type": "string",
-          "description": "Regular expression pattern to match"
+          "description": "Single regex pattern to match. Either 'pattern' or 'patterns' must be provided."
+        },
+        "patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "description": "Multiple regex patterns (OR semantics: any match triggers a finding). Either 'pattern' or 'patterns' must be provided."
         },
         "file_extensions": {
           "type": "array",

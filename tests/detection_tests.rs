@@ -259,6 +259,97 @@ fn test_detects_shell_injection_reverse_shell() {
 }
 
 // ============================================================================
+// BACKDOOR DETECTION TESTS
+// ============================================================================
+
+#[test]
+fn test_detects_backdoor_production_conditional() {
+    assert_detects(
+        "backdoor/production-backdoor.js",
+        5,
+        "Production-only backdoor, hostname check, time bomb, C2 (BACK-001 through BACK-005)",
+    );
+}
+
+// ============================================================================
+// DANGEROUS OPERATIONS TESTS
+// ============================================================================
+
+#[test]
+fn test_detects_dangerous_ops_system_destruction() {
+    assert_detects(
+        "dangerous-ops/system-destruction.sh",
+        8,
+        "rm -rf, chmod 777, sudo, dd, suid, system dir writes (DANGER-001 through DANGER-006)",
+    );
+}
+
+// ============================================================================
+// PACKAGE MANAGEMENT TESTS
+// ============================================================================
+
+#[test]
+fn test_detects_package_management_abuse() {
+    assert_detects(
+        "package-management/malicious-install.sh",
+        8,
+        "Global installs, sudo pip, force reinstall, URL installs (PKG-001 through PKG-005)",
+    );
+}
+
+// ============================================================================
+// HARDCODED SECRETS TESTS
+// ============================================================================
+
+#[test]
+fn test_detects_hardcoded_secrets() {
+    assert_detects(
+        "hardcoded-secrets/leaked-keys.py",
+        8,
+        "SECRET-001 through SECRET-008: AWS, Stripe, Google, GitHub, JWT, private key, password, DB conn string",
+    );
+}
+
+// ============================================================================
+// RESOURCE ABUSE TESTS
+// ============================================================================
+
+#[test]
+fn test_detects_resource_abuse() {
+    assert_detects(
+        "resource-abuse",
+        3,
+        "RESOURCE-001 through RESOURCE-003: infinite loop, fork bomb, excessive memory",
+    );
+}
+
+// ============================================================================
+// SQL INJECTION TESTS
+// ============================================================================
+
+#[test]
+fn test_detects_sql_injection() {
+    assert_detects(
+        "code-execution/sql-injection.py",
+        2,
+        "EXEC-007: SQL injection via f-string and .format()",
+    );
+}
+
+// ============================================================================
+// PROMPT INJECTION EXTENDED TESTS
+// ============================================================================
+
+#[test]
+fn test_detects_prompt_injection_system_reveal() {
+    assert_detects(
+        "prompt-injection/system-reveal.md",
+        2,
+        "INJECT-006 and INJECT-007: system prompt reveal and action concealment",
+    );
+}
+
+// ============================================================================
 // AGGREGATE TESTS
 // ============================================================================
 
@@ -267,11 +358,11 @@ fn test_all_samples_detected() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/samples");
     let (count, _) = scan_sample(path.to_str().unwrap());
 
-    // We detect all 18 sample files with ~60 total findings
-    // Minimum expected: 55 (allowing some margin for rule changes)
+    // 25 sample files across 11 categories, ~105+ total findings
+    // Minimum expected: 95 (allowing some margin for rule changes)
     assert!(
-        count >= 55,
-        "Expected at least 55 total findings across all samples, got {}",
+        count >= 95,
+        "Expected at least 95 total findings across all samples, got {}",
         count
     );
 }

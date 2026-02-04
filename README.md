@@ -54,7 +54,7 @@ AI agents can execute code, access files, and make network requests. A malicious
 - **Execute payloads** — Run obfuscated malicious code
 - **Download malware** — Instruct the AI to fetch and run remote scripts
 
-Vexscan catches these threats with **50+ detection rules**, multi-layer encoding detection, and pattern analysis.
+Vexscan catches these threats with **85+ detection rules**, multi-layer encoding detection, and pattern analysis.
 
 ## Installation
 
@@ -230,18 +230,23 @@ vexscan scan <path> -f sarif          # SARIF for GitHub integration
 
 ## Detection Rules
 
-50+ detection rules across these categories:
+85+ detection rules across these categories:
 
-| Category              | Examples                                      |
-|-----------------------|-----------------------------------------------|
-| **Code Execution**    | `eval()`, `new Function()`, `exec()`          |
-| **Shell Execution**   | `child_process`, `subprocess`, `os.system()`  |
-| **Data Exfiltration** | Discord webhooks, external POST requests      |
-| **Credential Access** | SSH keys, AWS credentials, `.env` files       |
-| **Obfuscation**       | Base64 decode, hex encoding, char codes       |
-| **Prompt Injection**  | Instruction override, role hijacking          |
-| **Remote Execution**  | Skills instructing AI to download/run scripts |
-| **Supply Chain**      | Malicious npm packages, typosquatting         |
+| Category                | Examples                                        |
+|-------------------------|-------------------------------------------------|
+| **Code Execution**      | `eval()`, `new Function()`, `exec()`, SQL injection |
+| **Shell Execution**     | `child_process`, `subprocess`, `os.system()`    |
+| **Data Exfiltration**   | Discord webhooks, external POST requests        |
+| **Credential Access**   | SSH keys, AWS credentials, `.env` files         |
+| **Hardcoded Secrets**   | API keys, tokens, passwords, connection strings |
+| **Obfuscation**         | Base64 decode, hex encoding, char codes         |
+| **Prompt Injection**    | Instruction override, role hijacking, system prompt reveal |
+| **Remote Execution**    | Skills instructing AI to download/run scripts   |
+| **Resource Abuse**      | Fork bombs, infinite loops, memory exhaustion   |
+| **Backdoor Detection**  | Time bombs, hostname checks, C2 callbacks       |
+| **Dangerous Operations**| `rm -rf`, `chmod 777`, `sudo`, disk writes      |
+| **Package Management**  | Global installs, URL installs, force reinstall  |
+| **Supply Chain**        | Malicious npm packages, typosquatting           |
 
 View all rules: `vexscan rules`
 
@@ -308,8 +313,6 @@ cargo run -- scan ./test-samples
 ```
 
 ## Related Projects
-
-Other Claude Code tools by the same author:
 
 | Project                                                                | Description                                                        |
 |------------------------------------------------------------------------|--------------------------------------------------------------------|

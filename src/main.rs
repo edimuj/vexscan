@@ -587,7 +587,14 @@ async fn main() -> Result<()> {
                         println!("Category:    {}", r.category);
                         println!("Source:      {}", r.source);
                         println!("Description: {}", r.description);
-                        println!("Pattern:     {}", r.pattern);
+                        if r.patterns.len() == 1 {
+                            println!("Pattern:     {}", r.patterns[0]);
+                        } else {
+                            println!("Patterns:");
+                            for (i, pat) in r.patterns.iter().enumerate() {
+                                println!("  {}. {}", i + 1, pat);
+                            }
+                        }
                         if !r.file_extensions.is_empty() {
                             println!("Extensions:  {}", r.file_extensions.join(", "));
                         }

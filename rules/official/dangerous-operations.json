@@ -1,0 +1,126 @@
+{
+  "$schema": "../rule-schema.json",
+  "category": "Dangerous Operations",
+  "rules": [
+    {
+      "id": "DANGER-001",
+      "title": "Recursive force delete",
+      "description": "rm -rf with root or broad paths can destroy entire filesystems.",
+      "severity": "critical",
+      "pattern": "\\brm\\s+(-[a-zA-Z]*r[a-zA-Z]*f|--recursive\\s+--force|-[a-zA-Z]*f[a-zA-Z]*r)\\s+(/|~|\\$HOME|\\$\\{HOME\\}|\\.\\.)",
+      "file_extensions": [],
+      "remediation": "Remove destructive deletion commands. Use targeted paths and confirm before deleting.",
+      "test_cases": {
+        "should_match": [
+          "rm -rf /",
+          "rm -rf ~",
+          "rm -rf $HOME",
+          "rm -rf ${HOME}",
+          "rm -rf .."
+        ],
+        "should_not_match": [
+          "rm -rf ./node_modules",
+          "rm -rf dist"
+        ]
+      }
+    },
+    {
+      "id": "DANGER-002",
+      "title": "World-writable permissions",
+      "description": "chmod 777 or o+w makes files accessible to any user on the system.",
+      "severity": "high",
+      "pattern": "\\bchmod\\s+(-[a-zA-Z]*\\s+)*(777|666|o\\+w|a\\+w)",
+      "file_extensions": [],
+      "remediation": "Use restrictive permissions. 755 for directories, 644 for files.",
+      "test_cases": {
+        "should_match": [
+          "chmod 777 /tmp/script.sh",
+          "chmod 666 /var/data",
+          "chmod a+w /tmp/shared"
+        ],
+        "should_not_match": [
+          "chmod 755 /tmp/script.sh",
+          "chmod 644 config.txt"
+        ]
+      }
+    },
+    {
+      "id": "DANGER-003",
+      "title": "Sudo execution",
+      "description": "sudo elevates to root privileges, enabling unrestricted system access.",
+      "severity": "high",
+      "pattern": "\\bsudo\\s+",
+      "file_extensions": ["sh", "bash", "zsh", "js", "ts", "mjs", "cjs", "py"],
+      "remediation": "Plugins should not require elevated privileges. Remove sudo usage.",
+      "test_cases": {
+        "should_match": [
+          "sudo rm -rf /tmp",
+          "sudo apt-get install package"
+        ],
+        "should_not_match": [
+          "sudoers file configuration",
+          "pseudo random"
+        ]
+      }
+    },
+    {
+      "id": "DANGER-004",
+      "title": "Disk write with dd",
+      "description": "dd writing to block devices or system locations can destroy data.",
+      "severity": "critical",
+      "pattern": "\\bdd\\s+.*of=\\s*(/dev/|/boot|/sys|/proc)",
+      "file_extensions": [],
+      "remediation": "Remove destructive disk write operations.",
+      "test_cases": {
+        "should_match": [
+          "dd if=/dev/zero of=/dev/sda bs=1M",
+          "dd if=payload of=/boot/vmlinuz"
+        ],
+        "should_not_match": [
+          "dd if=input.img of=output.img bs=4k",
+          "dd if=/dev/urandom of=random.bin count=1"
+        ]
+      }
+    },
+    {
+      "id": "DANGER-005",
+      "title": "System directory modification",
+      "description": "Writing to system directories like /etc, /usr, /bin can compromise the system.",
+      "severity": "high",
+      "pattern": "(?:>|>>|\\btee\\b|\\bcp\\b|\\bmv\\b|\\bwrite\\w*\\s*\\(|writeFile\\w*\\s*\\()\\s*['\"]?/(etc|usr|bin|sbin|lib|boot|sys|proc)/",
+      "file_extensions": [],
+      "remediation": "Plugins should not write to system directories.",
+      "test_cases": {
+        "should_match": [
+          "echo payload > /etc/crontab",
+          "tee /etc/crontab",
+          "writeFile('/usr/bin/malware', data)"
+        ],
+        "should_not_match": [
+          "cp file /tmp/backup",
+          "tee /home/user/log.txt"
+        ]
+      }
+    },
+    {
+      "id": "DANGER-006",
+      "title": "Setuid/setgid bit manipulation",
+      "description": "Setting setuid/setgid bits allows running files with owner privileges.",
+      "severity": "critical",
+      "pattern": "\\bchmod\\s+(-[a-zA-Z]*\\s+)*[ugo]*\\+s|\\bchmod\\s+(-[a-zA-Z]*\\s+)*[4267][0-7]{3}",
+      "file_extensions": [],
+      "remediation": "Never set setuid/setgid bits in plugins.",
+      "test_cases": {
+        "should_match": [
+          "chmod u+s /tmp/backdoor",
+          "chmod 4755 /tmp/backdoor",
+          "chmod g+s /tmp/shared"
+        ],
+        "should_not_match": [
+          "chmod 755 /tmp/script",
+          "chmod 644 readme.txt"
+        ]
+      }
+    }
+  ]
+}
