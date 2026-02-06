@@ -293,7 +293,7 @@ impl PlatformAdapter for ClaudeCodeAdapter {
                 "js" | "ts" | "mjs" | "cjs" | "py" => ComponentType::Plugin,
                 "json" | "yaml" | "yml" | "toml" => ComponentType::Config,
                 "md" => ComponentType::Prompt,
-                "sh" | "bash" | "zsh" => ComponentType::Hook,
+                "sh" | "bash" | "zsh" | "ps1" | "psm1" | "psd1" | "bat" | "cmd" => ComponentType::Hook,
                 _ => ComponentType::Other,
             };
 
@@ -319,7 +319,7 @@ impl PlatformAdapter for ClaudeCodeAdapter {
                         "js" | "ts" | "mjs" | "cjs" | "py" => ComponentType::Plugin,
                         "json" | "yaml" | "yml" | "toml" => ComponentType::Config,
                         "md" => ComponentType::Prompt,
-                        "sh" | "bash" | "zsh" => ComponentType::Hook,
+                        "sh" | "bash" | "zsh" | "ps1" | "psm1" | "psd1" | "bat" | "cmd" => ComponentType::Hook,
                         _ => continue, // Skip unknown file types
                     };
 

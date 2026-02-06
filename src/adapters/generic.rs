@@ -21,6 +21,8 @@ impl GenericAdapter {
                 "json", "yaml", "yml", "toml", // Config
                 "md", "txt", // Documentation/prompts
                 "sh", "bash", "zsh", // Shell scripts
+                "ps1", "psm1", "psd1", // PowerShell
+                "bat", "cmd", // Windows batch
             ],
         }
     }
@@ -30,7 +32,7 @@ impl GenericAdapter {
             "js" | "ts" | "mjs" | "cjs" | "py" => ComponentType::Plugin,
             "json" | "yaml" | "yml" | "toml" => ComponentType::Config,
             "md" | "txt" => ComponentType::Prompt,
-            "sh" | "bash" | "zsh" => ComponentType::Hook,
+            "sh" | "bash" | "zsh" | "ps1" | "psm1" | "psd1" | "bat" | "cmd" => ComponentType::Hook,
             _ => ComponentType::Other,
         }
     }
