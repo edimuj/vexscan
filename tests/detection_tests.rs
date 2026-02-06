@@ -350,6 +350,37 @@ fn test_detects_prompt_injection_system_reveal() {
 }
 
 // ============================================================================
+// SHELL SCRIPT ATTACK TESTS
+// ============================================================================
+
+#[test]
+fn test_detects_shell_script_attacks() {
+    assert_detects(
+        "shell-scripts/shell-attacks.sh",
+        15,
+        "SCRIPT-004 through SCRIPT-020: env exfil, b64 exec, eval, cron, ssh theft, alias hijack, etc.",
+    );
+}
+
+#[test]
+fn test_detects_powershell_attacks() {
+    assert_detects(
+        "shell-scripts/powershell-attacks.ps1",
+        12,
+        "PS-001 through PS-012: IEX, download-exec, AMSI bypass, credential harvest, Defender disable",
+    );
+}
+
+#[test]
+fn test_detects_batch_attacks() {
+    assert_detects(
+        "shell-scripts/batch-attacks.bat",
+        10,
+        "BAT-001 through BAT-010: certutil, bitsadmin, registry, firewall, hidden PS, service creation",
+    );
+}
+
+// ============================================================================
 // AGGREGATE TESTS
 // ============================================================================
 
@@ -358,11 +389,11 @@ fn test_all_samples_detected() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/samples");
     let (count, _) = scan_sample(path.to_str().unwrap());
 
-    // 25 sample files across 11 categories, ~105+ total findings
-    // Minimum expected: 95 (allowing some margin for rule changes)
+    // 28 sample files across 14 categories, ~140+ total findings
+    // Minimum expected: 130 (allowing some margin for rule changes)
     assert!(
-        count >= 95,
-        "Expected at least 95 total findings across all samples, got {}",
+        count >= 130,
+        "Expected at least 130 total findings across all samples, got {}",
         count
     );
 }

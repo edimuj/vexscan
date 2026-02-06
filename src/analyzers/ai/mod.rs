@@ -316,7 +316,7 @@ If no issues are found, return {{"findings": []}}
         file_path = context.file_path,
         file_type = context.file_type,
         content_type = context.content_type,
-        content = truncate_content(content, 8000),
+        content = crate::types::truncate(content, 8000),
     )
 }
 
@@ -381,12 +381,5 @@ fn convert_ai_finding(ai_finding: AiFinding, path: &Path) -> Finding {
     .with_metadata("ai_analyzed", "true".to_string())
 }
 
-fn truncate_content(content: &str, max_len: usize) -> &str {
-    if content.len() <= max_len {
-        content
-    } else {
-        &content[..max_len]
-    }
-}
 
 // Need to add async_trait to Cargo.toml

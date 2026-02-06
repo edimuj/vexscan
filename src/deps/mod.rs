@@ -313,14 +313,7 @@ fn find_line_number(content: &str, needle: &str) -> usize {
     1
 }
 
-/// Truncate a string to a maximum length.
-fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max])
-    }
-}
+use crate::types::truncate;
 
 #[cfg(test)]
 mod tests {

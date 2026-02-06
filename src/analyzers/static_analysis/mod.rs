@@ -297,16 +297,7 @@ fn get_context_snippet(content: &str, start: usize, end: usize, context: usize) 
     snippet.replace('\n', "\\n")
 }
 
-/// Truncate a string to a maximum length (UTF-8 safe).
-fn truncate(s: &str, max_chars: usize) -> String {
-    let char_count = s.chars().count();
-    if char_count <= max_chars {
-        s.to_string()
-    } else {
-        let truncated: String = s.chars().take(max_chars).collect();
-        format!("{}...", truncated)
-    }
-}
+use crate::types::truncate;
 
 #[cfg(test)]
 mod tests {

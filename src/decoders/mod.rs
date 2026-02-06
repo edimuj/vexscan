@@ -319,12 +319,13 @@ fn is_printable_text(s: &str) -> bool {
         return false;
     }
 
+    let total_chars = s.chars().count();
     let printable_count = s
         .chars()
         .filter(|c| c.is_alphanumeric() || c.is_whitespace() || c.is_ascii_punctuation())
         .count();
 
-    let ratio = printable_count as f64 / s.len() as f64;
+    let ratio = printable_count as f64 / total_chars as f64;
     ratio > 0.7 // At least 70% printable characters
 }
 

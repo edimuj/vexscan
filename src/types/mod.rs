@@ -250,6 +250,18 @@ impl ScanReport {
     }
 }
 
+/// Truncate a string to a maximum number of characters (UTF-8 safe).
+/// Appends "..." if truncated.
+pub fn truncate(s: &str, max_chars: usize) -> String {
+    let char_count = s.chars().count();
+    if char_count <= max_chars {
+        s.to_string()
+    } else {
+        let truncated: String = s.chars().take(max_chars).collect();
+        format!("{}...", truncated)
+    }
+}
+
 /// Supported AI agent platforms.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]

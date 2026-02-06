@@ -7,8 +7,8 @@ use vexscan::{
     filter_rules_by_author, filter_rules_by_source, filter_rules_by_tag, load_builtin_json_rules,
     reporters::{report, OutputFormat},
     rules::patterns::builtin_rules,
-    test_all_rules, test_rules_from_file, AiAnalyzerConfig, AiBackend, AnalyzerConfig, Platform,
-    RuleSource, ScanConfig, Scanner, Severity,
+    test_all_rules, test_rules_from_file, truncate, AiAnalyzerConfig, AiBackend, AnalyzerConfig,
+    Platform, RuleSource, ScanConfig, Scanner, Severity,
 };
 use anyhow::Result;
 use clap::Parser;
@@ -252,8 +252,9 @@ async fn main() -> Result<()> {
                 }
             }
 
-            // Track seen files to avoid duplicate scans
+            // Track seen files to avoid duplicate scans (capped to prevent unbounded growth)
             let mut seen_files: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+            const MAX_SEEN_FILES: usize = 10_000;
 
             // Event loop
             loop {
@@ -268,6 +269,9 @@ async fn main() -> Result<()> {
                             // Skip if we've already seen this file
                             if seen_files.contains(&path) {
                                 continue;
+                            }
+                            if seen_files.len() >= MAX_SEEN_FILES {
+                                seen_files.clear();
                             }
                             seen_files.insert(path.clone());
 
@@ -468,6 +472,7 @@ async fn main() -> Result<()> {
                             };
 
                             if result.passed && !verbose {
+                                total_passed += result.total_tests();
                                 println!(
                                     "{} {} - {} ({} tests)",
                                     status_icon,
@@ -517,10 +522,6 @@ async fn main() -> Result<()> {
                                         expected.red()
                                     );
                                 }
-                            }
-
-                            if result.passed && result.total_tests() > 0 {
-                                total_passed += result.total_tests();
                             }
                         }
 
@@ -1214,15 +1215,6 @@ fn parse_severity(s: &str) -> Result<Severity> {
     }
 }
 
-fn truncate(s: &str, max: usize) -> String {
-    let char_count = s.chars().count();
-    if char_count <= max {
-        s.to_string()
-    } else {
-        let truncated: String = s.chars().take(max).collect();
-        format!("{}...", truncated)
-    }
-}
 
 /// Send a desktop notification (platform-specific).
 fn send_desktop_notification(title: &str, body: &str) {

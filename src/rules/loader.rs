@@ -258,27 +258,66 @@ pub fn load_rules_from_directory_tree(dir: &Path) -> Result<Vec<Rule>, Box<dyn s
     Ok(all_rules)
 }
 
-/// Load rules from the embedded rules directory (compile-time).
-/// Falls back to runtime loading if files exist.
-/// Supports official/ and community/ subdirectories.
-pub fn load_builtin_json_rules() -> Vec<Rule> {
-    // Try to load from the rules/ directory relative to the crate root
-    let rules_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("rules");
-
-    match load_rules_from_directory_tree(&rules_dir) {
-        Ok(rules) if !rules.is_empty() => {
-            tracing::info!("Loaded {} rules from JSON files", rules.len());
-            rules
-        }
-        Ok(_) => {
-            tracing::debug!("No JSON rules found, using compiled patterns");
-            Vec::new()
-        }
+/// Parse rules from a JSON string with an explicit source.
+fn load_rules_from_json_str(json: &str, source: RuleSource) -> Vec<Rule> {
+    match serde_json::from_str::<RuleFile>(json) {
+        Ok(rule_file) => rule_file
+            .rules
+            .iter()
+            .map(|r| r.to_rule(&rule_file.category, source.clone()))
+            .collect(),
         Err(e) => {
-            tracing::warn!("Failed to load JSON rules: {}, using compiled patterns", e);
+            tracing::warn!("Failed to parse embedded rule JSON: {}", e);
             Vec::new()
         }
     }
+}
+
+/// Embedded official rule JSON files (compiled into the binary).
+const EMBEDDED_OFFICIAL: &[&str] = &[
+    include_str!("../../rules/official/backdoor-detection.json"),
+    include_str!("../../rules/official/code-execution.json"),
+    include_str!("../../rules/official/credential-access.json"),
+    include_str!("../../rules/official/dangerous-operations.json"),
+    include_str!("../../rules/official/data-exfiltration.json"),
+    include_str!("../../rules/official/hardcoded-secrets.json"),
+    include_str!("../../rules/official/hidden-content.json"),
+    include_str!("../../rules/official/obfuscation.json"),
+    include_str!("../../rules/official/package-management.json"),
+    include_str!("../../rules/official/prompt-injection.json"),
+    include_str!("../../rules/official/remote-execution.json"),
+    include_str!("../../rules/official/resource-abuse.json"),
+    include_str!("../../rules/official/shell-execution.json"),
+    include_str!("../../rules/official/shell-scripts.json"),
+    include_str!("../../rules/official/powershell.json"),
+    include_str!("../../rules/official/batch-scripts.json"),
+];
+
+/// Embedded community rule JSON files (compiled into the binary).
+const EMBEDDED_COMMUNITY: &[&str] = &[
+    include_str!("../../rules/community/cloud-security.json"),
+];
+
+/// Load all built-in rules from embedded JSON (compiled into the binary).
+/// No filesystem access needed — works in distributed binaries.
+pub fn load_builtin_json_rules() -> Vec<Rule> {
+    let mut all_rules = Vec::new();
+
+    for json in EMBEDDED_OFFICIAL {
+        all_rules.extend(load_rules_from_json_str(json, RuleSource::Official));
+    }
+
+    for json in EMBEDDED_COMMUNITY {
+        all_rules.extend(load_rules_from_json_str(json, RuleSource::Community));
+    }
+
+    if !all_rules.is_empty() {
+        tracing::info!("Loaded {} embedded rules", all_rules.len());
+    } else {
+        tracing::debug!("No embedded rules found, using compiled patterns");
+    }
+
+    all_rules
 }
 
 /// Filter rules by source.

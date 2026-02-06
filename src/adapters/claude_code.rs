@@ -269,8 +269,16 @@ impl PlatformAdapter for ClaudeCodeAdapter {
         all_components.extend(self.discover_claude_md()?);
         all_components.extend(self.discover_skills()?);
 
-        // Deduplicate by path
-        all_components.sort_by(|a, b| a.path.cmp(&b.path));
+        // Deduplicate by path, preferring specific types over generic Config
+        all_components.sort_by(|a, b| {
+            a.path.cmp(&b.path).then_with(|| {
+                let priority = |ct: &ComponentType| match ct {
+                    ComponentType::McpServer | ComponentType::Plugin | ComponentType::Hook => 0,
+                    _ => 1,
+                };
+                priority(&a.component_type).cmp(&priority(&b.component_type))
+            })
+        });
         all_components.dedup_by(|a, b| a.path == b.path);
 
         Ok(all_components)

@@ -52,12 +52,12 @@ pub use rules::{
     },
     Rule, RuleMetadata, RuleSet, RuleSource, TestCases,
 };
-pub use types::{Finding, Platform, ScanReport, ScanResult, Severity};
+pub use types::{truncate, Finding, Platform, ScanReport, ScanResult, Severity};
 
 use adapters::{create_adapter, detect_platform, PlatformAdapter};
 use anyhow::Result;
-use std::cell::RefCell;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::time::Instant;
 
 /// Configuration for the scanner.
@@ -106,7 +106,7 @@ impl Default for ScanConfig {
 pub struct Scanner {
     config: ScanConfig,
     static_analyzer: StaticAnalyzer,
-    ast_analyzer: Option<RefCell<AstAnalyzer>>,
+    ast_analyzer: Option<Mutex<AstAnalyzer>>,
     deps_analyzer: Option<DependencyAnalyzer>,
     ai_analyzer: Option<AiAnalyzer>,
 }
@@ -123,7 +123,7 @@ impl Scanner {
 
         let ast_analyzer = if config.enable_ast {
             let ast_config = config.ast_config.clone().unwrap_or_default();
-            Some(RefCell::new(AstAnalyzer::with_config(ast_config)?))
+            Some(Mutex::new(AstAnalyzer::with_config(ast_config)?))
         } else {
             None
         };
@@ -189,12 +189,15 @@ impl Scanner {
 
             match self.static_analyzer.scan_file(&component.path) {
                 Ok(mut result) => {
-                    // Filter by minimum severity
-                    result.findings.retain(|f| f.severity >= self.config.min_severity);
+                    // Filter by minimum severity and disabled rules
+                    result.findings.retain(|f| {
+                        f.severity >= self.config.min_severity
+                            && !self.config.filter_config.is_rule_disabled(&f.rule_id)
+                    });
 
                     // Run AST analysis if enabled
                     if let Some(ref ast_analyzer) = self.ast_analyzer {
-                        match ast_analyzer.borrow_mut().analyze_file(&component.path) {
+                        match ast_analyzer.lock().unwrap().analyze_file(&component.path) {
                             Ok(ast_result) => {
                                 let mut ast_findings: Vec<_> = ast_result
                                     .findings
