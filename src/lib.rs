@@ -169,106 +169,149 @@ impl Scanner {
 
         tracing::info!("Discovered {} components to scan", components.len());
 
-        // Scan each component
-        for component in components {
-            // Check if path should be skipped
-            if self.config.filter_config.should_skip_path(&component.path) {
-                tracing::debug!("Skipping (allowlisted): {}", component.path.display());
-                continue;
-            }
+        // Filter components and read file contents once
+        let scannable: Vec<_> = components
+            .into_iter()
+            .filter(|c| {
+                if self.config.filter_config.should_skip_path(&c.path) {
+                    tracing::debug!("Skipping (allowlisted): {}", c.path.display());
+                    return false;
+                }
+                if self.config.filter_config.third_party_only
+                    && self.config.filter_config.is_trusted_source(&c.path)
+                {
+                    tracing::debug!("Skipping (trusted source): {}", c.path.display());
+                    return false;
+                }
+                true
+            })
+            .collect();
 
-            // If third_party_only mode, skip trusted/official sources
-            if self.config.filter_config.third_party_only
-                && self.config.filter_config.is_trusted_source(&component.path)
-            {
-                tracing::debug!("Skipping (trusted source): {}", component.path.display());
-                continue;
-            }
+        // Phase 1: Parallel static analysis (CPU-bound, read file once per component)
+        let static_analyzer = &self.static_analyzer;
+        let min_severity = self.config.min_severity;
+        let filter_config = &self.config.filter_config;
 
-            tracing::debug!("Scanning: {}", component.path.display());
-
-            match self.static_analyzer.scan_file(&component.path) {
-                Ok(mut result) => {
-                    // Filter by minimum severity and disabled rules
-                    result.findings.retain(|f| {
-                        f.severity >= self.config.min_severity
-                            && !self.config.filter_config.is_rule_disabled(&f.rule_id)
-                    });
-
-                    // Run AST analysis if enabled
-                    if let Some(ref ast_analyzer) = self.ast_analyzer {
-                        match ast_analyzer.lock().unwrap().analyze_file(&component.path) {
-                            Ok(ast_result) => {
-                                let mut ast_findings: Vec<_> = ast_result
-                                    .findings
-                                    .into_iter()
-                                    .filter(|f| f.severity >= self.config.min_severity)
-                                    .collect();
-                                result.findings.append(&mut ast_findings);
-                            }
+        let static_results: Vec<_> = std::thread::scope(|s| {
+            let handles: Vec<_> = scannable
+                .iter()
+                .map(|component| {
+                    s.spawn(move || {
+                        tracing::debug!("Scanning: {}", component.path.display());
+                        let content = match std::fs::read_to_string(&component.path) {
+                            Ok(c) => c,
                             Err(e) => {
                                 tracing::warn!(
-                                    "AST analysis failed for {}: {}",
+                                    "Failed to read {}: {}",
                                     component.path.display(),
                                     e
                                 );
+                                return None;
+                            }
+                        };
+
+                        match static_analyzer.scan_content(&content, &component.path) {
+                            Ok(mut result) => {
+                                result.findings.retain(|f| {
+                                    f.severity >= min_severity
+                                        && !filter_config.is_rule_disabled(&f.rule_id)
+                                });
+                                Some((component, content, result))
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    "Failed to scan {}: {}",
+                                    component.path.display(),
+                                    e
+                                );
+                                None
                             }
                         }
+                    })
+                })
+                .collect();
+
+            handles
+                .into_iter()
+                .filter_map(|h| h.join().ok().flatten())
+                .collect()
+        });
+
+        // Phase 2: Sequential AST + deps analysis (reuses already-read content)
+        for (component, content, mut result) in static_results {
+            if let Some(ref ast_analyzer) = self.ast_analyzer {
+                match ast_analyzer
+                    .lock()
+                    .unwrap()
+                    .analyze_content_str(&content, &component.path)
+                {
+                    Ok(ast_result) => {
+                        let mut ast_findings: Vec<_> = ast_result
+                            .findings
+                            .into_iter()
+                            .filter(|f| f.severity >= min_severity)
+                            .collect();
+                        result.findings.append(&mut ast_findings);
                     }
-
-                    // Run dependency analysis if enabled and file is package.json
-                    if let Some(ref deps_analyzer) = self.deps_analyzer {
-                        if component.path.file_name().map(|n| n == "package.json").unwrap_or(false) {
-                            match deps_analyzer.analyze_file(&component.path) {
-                                Ok(deps_result) => {
-                                    let mut deps_findings: Vec<_> = deps_result
-                                        .findings
-                                        .into_iter()
-                                        .filter(|f| f.severity >= self.config.min_severity)
-                                        .collect();
-                                    result.findings.append(&mut deps_findings);
-                                }
-                                Err(e) => {
-                                    tracing::warn!(
-                                        "Dependency analysis failed for {}: {}",
-                                        component.path.display(),
-                                        e
-                                    );
-                                }
-                            }
-                        }
+                    Err(e) => {
+                        tracing::warn!(
+                            "AST analysis failed for {}: {}",
+                            component.path.display(),
+                            e
+                        );
                     }
-
-                    // Run AI analysis if enabled
-                    if let Some(ref ai_analyzer) = self.ai_analyzer {
-                        if let Ok(content) = std::fs::read_to_string(&component.path) {
-                            let content_type =
-                                analyzers::ContentType::Code; // TODO: infer from component type
-
-                            match ai_analyzer
-                                .analyze_content(&content, &component.path, content_type)
-                                .await
-                            {
-                                Ok(ai_findings) => {
-                                    result.findings.extend(ai_findings);
-                                }
-                                Err(e) => {
-                                    tracing::warn!(
-                                        "AI analysis failed for {}: {}",
-                                        component.path.display(),
-                                        e
-                                    );
-                                }
-                            }
-                        }
-                    }
-
-                    report.results.push(result);
-                }
-                Err(e) => {
-                    tracing::warn!("Failed to scan {}: {}", component.path.display(), e);
                 }
             }
+
+            if let Some(ref deps_analyzer) = self.deps_analyzer {
+                if component
+                    .path
+                    .file_name()
+                    .map(|n| n == "package.json")
+                    .unwrap_or(false)
+                {
+                    match deps_analyzer.analyze_file(&component.path) {
+                        Ok(deps_result) => {
+                            let mut deps_findings: Vec<_> = deps_result
+                                .findings
+                                .into_iter()
+                                .filter(|f| f.severity >= min_severity)
+                                .collect();
+                            result.findings.append(&mut deps_findings);
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                "Dependency analysis failed for {}: {}",
+                                component.path.display(),
+                                e
+                            );
+                        }
+                    }
+                }
+            }
+
+            // AI analysis reuses already-read content
+            if let Some(ref ai_analyzer) = self.ai_analyzer {
+                let content_type = analyzers::ContentType::Code;
+
+                match ai_analyzer
+                    .analyze_content(&content, &component.path, content_type)
+                    .await
+                {
+                    Ok(ai_findings) => {
+                        result.findings.extend(ai_findings);
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "AI analysis failed for {}: {}",
+                            component.path.display(),
+                            e
+                        );
+                    }
+                }
+            }
+
+            report.results.push(result);
         }
 
         report.total_time_ms = start.elapsed().as_millis() as u64;

@@ -4,8 +4,9 @@ pub mod loader;
 pub mod patterns;
 
 use crate::types::{FindingCategory, Severity};
-use regex::Regex;
+use regex::{Regex, RegexSet};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fmt;
 
 /// Source of a rule (official or community).
@@ -142,14 +143,44 @@ impl CompiledRule {
 }
 
 /// Collection of rules that can be loaded and managed.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct RuleSet {
     rules: Vec<CompiledRule>,
+    /// Pre-filter: all patterns in a single RegexSet for fast multi-pattern matching.
+    regex_set: Option<RegexSet>,
+    /// Maps each RegexSet pattern index to its rule index in `self.rules`.
+    pattern_to_rule: Vec<usize>,
+}
+
+impl Default for RuleSet {
+    fn default() -> Self {
+        Self {
+            rules: Vec::new(),
+            regex_set: None,
+            pattern_to_rule: Vec::new(),
+        }
+    }
 }
 
 impl RuleSet {
     pub fn new() -> Self {
-        Self { rules: Vec::new() }
+        Self::default()
+    }
+
+    /// Build the RegexSet pre-filter from all current rules.
+    fn build_regex_set(&mut self) {
+        let mut all_patterns = Vec::new();
+        let mut mapping = Vec::new();
+
+        for (rule_idx, rule) in self.rules.iter().enumerate() {
+            for pattern in &rule.rule.patterns {
+                all_patterns.push(pattern.as_str());
+                mapping.push(rule_idx);
+            }
+        }
+
+        self.pattern_to_rule = mapping;
+        self.regex_set = RegexSet::new(all_patterns).ok();
     }
 
     /// Load the built-in rules from JSON files (preferred) or compiled patterns (fallback).
@@ -171,6 +202,7 @@ impl RuleSet {
                 }
             }
         }
+        self.build_regex_set();
         Ok(self)
     }
 
@@ -182,12 +214,14 @@ impl RuleSet {
                 self.rules.push(rule.compile()?);
             }
         }
+        self.build_regex_set();
         Ok(self)
     }
 
     /// Add a custom rule.
     pub fn add_rule(&mut self, rule: Rule) -> Result<(), regex::Error> {
         self.rules.push(rule.compile()?);
+        self.build_regex_set();
         Ok(())
     }
 
@@ -201,6 +235,50 @@ impl RuleSet {
         self.rules
             .iter()
             .filter(|r| r.rule.applies_to_extension(ext))
+            .collect()
+    }
+
+    /// Get only rules that match content for a given extension, using RegexSet pre-filtering.
+    /// Returns (rule, matches) pairs — only rules with actual hits.
+    pub fn find_matches_for_extension<'a>(
+        &'a self,
+        content: &'a str,
+        ext: &str,
+    ) -> Vec<(&'a CompiledRule, Vec<regex::Match<'a>>)> {
+        // Determine which rule indices apply to this extension
+        let applicable: Vec<usize> = self
+            .rules
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| r.rule.applies_to_extension(ext))
+            .map(|(i, _)| i)
+            .collect();
+
+        // Use RegexSet pre-filter to find which rules have any match
+        let matching_rule_indices: HashSet<usize> = if let Some(ref regex_set) = self.regex_set {
+            regex_set
+                .matches(content)
+                .iter()
+                .map(|pattern_idx| self.pattern_to_rule[pattern_idx])
+                .collect()
+        } else {
+            // Fallback: all applicable rules are candidates
+            applicable.iter().copied().collect()
+        };
+
+        // Only extract match positions from rules that actually hit
+        applicable
+            .into_iter()
+            .filter(|idx| matching_rule_indices.contains(idx))
+            .filter_map(|idx| {
+                let rule = &self.rules[idx];
+                let matches = rule.find_matches(content);
+                if matches.is_empty() {
+                    None
+                } else {
+                    Some((rule, matches))
+                }
+            })
             .collect()
     }
 }

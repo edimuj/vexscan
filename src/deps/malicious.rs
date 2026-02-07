@@ -410,16 +410,6 @@ fn builtin_malicious_packages() -> Vec<MaliciousPackage> {
             tags: vec!["typosquat".to_string()],
         },
         MaliciousPackage {
-            name: "mariadb".to_string(),
-            versions: vec![],
-            reason: "Typosquat of mysql/mariadb connector. Steals credentials.".to_string(),
-            severity: "critical".to_string(),
-            cve: None,
-            reference: None,
-            discovered: Some("2017-08-01".to_string()),
-            tags: vec!["typosquat".to_string(), "credential-theft".to_string()],
-        },
-        MaliciousPackage {
             name: "mongose".to_string(),
             versions: vec![],
             reason: "Typosquat of mongoose. Malicious package.".to_string(),

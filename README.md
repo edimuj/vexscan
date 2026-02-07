@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/edimuj/vexscan/releases"><img src="https://img.shields.io/github/v/release/edimuj/vexscan?style=flat-square&color=blue" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green?style=flat-square" alt="License"></a>
-  <img src="https://img.shields.io/badge/rust-1.70%2B-orange?style=flat-square" alt="Rust">
+  <img src="https://img.shields.io/badge/rust-1.87%2B-orange?style=flat-square" alt="Rust">
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=flat-square" alt="Platform">
 </p>
 
@@ -304,7 +304,7 @@ Generate a default config: `vexscan init`
 
 ## Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions welcome! Please open an issue or pull request on GitHub.
 
 ```bash
 cargo build        # Build

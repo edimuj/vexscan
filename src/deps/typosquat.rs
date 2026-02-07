@@ -63,6 +63,7 @@ impl TyposquatDetector {
 }
 
 /// Calculate Levenshtein distance between two strings.
+/// Uses two-row algorithm: O(min(m,n)) memory instead of O(m*n).
 fn levenshtein(a: &str, b: &str) -> usize {
     let a_chars: Vec<char> = a.chars().collect();
     let b_chars: Vec<char> = b.chars().collect();
@@ -77,30 +78,32 @@ fn levenshtein(a: &str, b: &str) -> usize {
         return a_len;
     }
 
-    let mut matrix = vec![vec![0usize; b_len + 1]; a_len + 1];
+    // Ensure b is the shorter string for minimal memory usage
+    let (a_chars, b_chars, a_len, b_len) = if a_len < b_len {
+        (&b_chars, &a_chars, b_len, a_len)
+    } else {
+        (&a_chars, &b_chars, a_len, b_len)
+    };
 
-    for i in 0..=a_len {
-        matrix[i][0] = i;
-    }
-    for j in 0..=b_len {
-        matrix[0][j] = j;
-    }
+    let mut prev = (0..=b_len).collect::<Vec<_>>();
+    let mut curr = vec![0; b_len + 1];
 
     for i in 1..=a_len {
+        curr[0] = i;
         for j in 1..=b_len {
             let cost = if a_chars[i - 1] == b_chars[j - 1] {
                 0
             } else {
                 1
             };
-
-            matrix[i][j] = (matrix[i - 1][j] + 1) // deletion
-                .min(matrix[i][j - 1] + 1) // insertion
-                .min(matrix[i - 1][j - 1] + cost); // substitution
+            curr[j] = (prev[j] + 1)
+                .min(curr[j - 1] + 1)
+                .min(prev[j - 1] + cost);
         }
+        std::mem::swap(&mut prev, &mut curr);
     }
 
-    matrix[a_len][b_len]
+    prev[b_len]
 }
 
 /// Check for common typosquatting patterns beyond Levenshtein distance.

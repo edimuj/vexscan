@@ -62,11 +62,14 @@ impl AstAnalyzer {
 
     /// Analyze a file and return findings.
     pub fn analyze_file(&mut self, path: &Path) -> Result<ScanResult> {
+        let content = std::fs::read_to_string(path)?;
+        self.analyze_content_str(&content, path)
+    }
+
+    /// Analyze pre-read content and return findings.
+    pub fn analyze_content_str(&mut self, content: &str, path: &Path) -> Result<ScanResult> {
         let start = Instant::now();
         let mut result = ScanResult::new(path.to_path_buf());
-
-        // Read file content
-        let content = std::fs::read_to_string(path)?;
 
         // Check file size
         if content.len() > self.config.max_file_size {
@@ -87,13 +90,13 @@ impl AstAnalyzer {
 
         let findings = match ext {
             "js" | "mjs" | "cjs" | "jsx" if self.config.enable_javascript => {
-                self.analyze_javascript(&content, path)?
+                self.analyze_javascript(content, path)?
             }
             "ts" | "tsx" | "mts" | "cts" if self.config.enable_javascript => {
-                self.analyze_typescript(&content, path)?
+                self.analyze_typescript(content, path)?
             }
             "py" if self.config.enable_python => {
-                self.analyze_python(&content, path)?
+                self.analyze_python(content, path)?
             }
             _ => Vec::new(),
         };

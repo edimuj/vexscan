@@ -35,7 +35,7 @@ impl Default for AiAnalyzerConfig {
         Self {
             backend: AiBackend::Claude,
             api_key: None,
-            model: "claude-3-haiku-20240307".to_string(),
+            model: "claude-haiku-4-5-20251001".to_string(),
             base_url: None,
             max_tokens: 1024,
             temperature: 0.0,

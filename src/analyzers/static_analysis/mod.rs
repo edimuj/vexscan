@@ -4,6 +4,7 @@ use crate::decoders::{calculate_entropy, Decoder};
 use crate::rules::RuleSet;
 use crate::types::{Finding, FindingCategory, Location, ScanResult, Severity};
 use anyhow::Result;
+use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::time::Instant;
@@ -43,6 +44,8 @@ pub struct StaticAnalyzer {
     config: AnalyzerConfig,
     rules: RuleSet,
     decoder: Decoder,
+    /// Pre-compiled regex for entropy string literal extraction.
+    entropy_pattern: Regex,
 }
 
 impl StaticAnalyzer {
@@ -53,6 +56,7 @@ impl StaticAnalyzer {
             config: AnalyzerConfig::default(),
             rules,
             decoder: Decoder::new(),
+            entropy_pattern: Regex::new(r#"['"`]([^'"`]{50,})['"`]"#).unwrap(),
         })
     }
 
@@ -63,16 +67,20 @@ impl StaticAnalyzer {
             config,
             rules,
             decoder: Decoder::new(),
+            entropy_pattern: Regex::new(r#"['"`]([^'"`]{50,})['"`]"#).unwrap(),
         })
     }
 
     /// Scan a single file and return findings.
     pub fn scan_file(&self, path: &Path) -> Result<ScanResult> {
+        let content = std::fs::read_to_string(path)?;
+        self.scan_content(&content, path)
+    }
+
+    /// Scan pre-read content and return findings.
+    pub fn scan_content(&self, content: &str, path: &Path) -> Result<ScanResult> {
         let start = Instant::now();
         let mut result = ScanResult::new(path.to_path_buf());
-
-        // Read file content
-        let content = std::fs::read_to_string(path)?;
 
         // Check file size
         if content.len() > self.config.max_file_size {
@@ -97,17 +105,17 @@ impl StaticAnalyzer {
             .unwrap_or("");
 
         // Run pattern matching
-        let mut findings = self.analyze_content(&content, path, ext);
+        let mut findings = self.analyze_content(content, path, ext);
 
         // Analyze decoded content
         if self.config.analyze_decoded {
-            let decoded_findings = self.analyze_decoded_content(&content, path, ext);
+            let decoded_findings = self.analyze_decoded_content(content, path, ext);
             findings.extend(decoded_findings);
         }
 
         // Check for high-entropy strings (only if enabled)
         if self.config.enable_entropy {
-            let entropy_findings = self.analyze_entropy(&content, path);
+            let entropy_findings = self.analyze_entropy(content, path);
             findings.extend(entropy_findings);
         }
 
@@ -117,15 +125,17 @@ impl StaticAnalyzer {
         Ok(result)
     }
 
-    /// Analyze raw content with rules.
+    /// Analyze raw content with rules using RegexSet pre-filtering.
     fn analyze_content(&self, content: &str, path: &Path, ext: &str) -> Vec<Finding> {
         let mut findings = Vec::new();
-        let rules = self.rules.rules_for_extension(ext);
+        let line_index = LineIndex::new(content);
 
-        for rule in rules {
-            for mat in rule.find_matches(content) {
-                let (start_line, start_col) = offset_to_line_col(content, mat.start());
-                let (end_line, end_col) = offset_to_line_col(content, mat.end());
+        // Use RegexSet pre-filter: single-pass identifies which rules match,
+        // then only extract positions from those rules.
+        for (rule, matches) in self.rules.find_matches_for_extension(content, ext) {
+            for mat in matches {
+                let (start_line, start_col) = line_index.offset_to_line_col(mat.start());
+                let (end_line, end_col) = line_index.offset_to_line_col(mat.end());
 
                 let snippet = get_context_snippet(content, mat.start(), mat.end(), 50);
 
@@ -154,6 +164,7 @@ impl StaticAnalyzer {
     /// Analyze decoded content for hidden payloads.
     fn analyze_decoded_content(&self, content: &str, path: &Path, ext: &str) -> Vec<Finding> {
         let mut findings = Vec::new();
+        let line_index = LineIndex::new(content);
 
         // Find and decode all encoded content
         let decoded_layers = self
@@ -163,7 +174,7 @@ impl StaticAnalyzer {
         for (depth, layer) in decoded_layers.iter().enumerate() {
             for decoded in layer {
                 // Report the encoded content itself
-                let (start_line, _) = offset_to_line_col(content, decoded.offset);
+                let (start_line, _) = line_index.offset_to_line_col(decoded.offset);
 
                 // Check if the decoded content contains suspicious patterns
                 let decoded_findings = self.analyze_content(&decoded.decoded, path, ext);
@@ -208,18 +219,16 @@ impl StaticAnalyzer {
     /// Analyze strings for suspicious entropy levels.
     fn analyze_entropy(&self, content: &str, path: &Path) -> Vec<Finding> {
         let mut findings = Vec::new();
+        let line_index = LineIndex::new(content);
 
-        // Find string literals
-        let string_pattern = regex::Regex::new(r#"['"`]([^'"`]{50,})['"`]"#).unwrap();
-
-        for cap in string_pattern.captures_iter(content) {
+        for cap in self.entropy_pattern.captures_iter(content) {
             if let Some(m) = cap.get(1) {
                 let s = m.as_str();
                 let entropy = calculate_entropy(s);
 
                 if entropy > self.config.entropy_threshold && s.len() >= self.config.min_entropy_length
                 {
-                    let (start_line, start_col) = offset_to_line_col(content, m.start());
+                    let (start_line, start_col) = line_index.offset_to_line_col(m.start());
 
                     let finding = Finding::new(
                         "ENTROPY-001",
@@ -252,24 +261,31 @@ impl Default for StaticAnalyzer {
     }
 }
 
-/// Convert byte offset to line and column numbers.
-fn offset_to_line_col(content: &str, offset: usize) -> (usize, usize) {
-    let mut line = 1;
-    let mut col = 1;
+/// Pre-computed line offset index for O(log n) line/column lookups.
+struct LineIndex {
+    line_starts: Vec<usize>,
+}
 
-    for (i, c) in content.char_indices() {
-        if i >= offset {
-            break;
+impl LineIndex {
+    fn new(content: &str) -> Self {
+        let mut line_starts = vec![0];
+        for (i, b) in content.bytes().enumerate() {
+            if b == b'\n' {
+                line_starts.push(i + 1);
+            }
         }
-        if c == '\n' {
-            line += 1;
-            col = 1;
-        } else {
-            col += 1;
-        }
+        LineIndex { line_starts }
     }
 
-    (line, col)
+    fn offset_to_line_col(&self, offset: usize) -> (usize, usize) {
+        match self.line_starts.binary_search(&offset) {
+            Ok(line) => (line + 1, 1),
+            Err(line) => {
+                let line_start = self.line_starts[line - 1];
+                (line, offset - line_start + 1)
+            }
+        }
+    }
 }
 
 /// Get a snippet of content around a match with context (UTF-8 safe).
@@ -331,10 +347,11 @@ mod tests {
     }
 
     #[test]
-    fn test_offset_to_line_col() {
+    fn test_line_index() {
         let content = "line1\nline2\nline3";
-        assert_eq!(offset_to_line_col(content, 0), (1, 1));
-        assert_eq!(offset_to_line_col(content, 6), (2, 1));
-        assert_eq!(offset_to_line_col(content, 8), (2, 3));
+        let idx = LineIndex::new(content);
+        assert_eq!(idx.offset_to_line_col(0), (1, 1));
+        assert_eq!(idx.offset_to_line_col(6), (2, 1));
+        assert_eq!(idx.offset_to_line_col(8), (2, 3));
     }
 }

@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use std::sync::OnceLock;
 
 /// Extensions that are executable and should NEVER be skipped, regardless of filename.
 const EXECUTABLE_EXTENSIONS: &[&str] = &[
@@ -56,6 +57,10 @@ pub struct Config {
     /// Only scan third-party/unknown sources (skip official and trusted).
     #[serde(default)]
     pub third_party_only: bool,
+
+    /// Pre-compiled glob patterns for skip_paths (lazily initialized).
+    #[serde(skip)]
+    compiled_skip_globs: OnceLock<globset::GlobSet>,
 }
 
 fn default_entropy_threshold() -> f64 {
@@ -163,7 +168,23 @@ impl Config {
             entropy_threshold: 5.5,
             disabled_rules: vec![],
             third_party_only: false,
+            compiled_skip_globs: OnceLock::new(),
         }
+    }
+
+    /// Get the pre-compiled GlobSet for skip_paths, compiling on first access.
+    fn skip_glob_set(&self) -> &globset::GlobSet {
+        self.compiled_skip_globs.get_or_init(|| {
+            let mut builder = globset::GlobSetBuilder::new();
+            for pattern in &self.skip_paths {
+                if let Ok(glob) = globset::Glob::new(pattern) {
+                    builder.add(glob);
+                }
+            }
+            builder
+                .build()
+                .unwrap_or_else(|_| globset::GlobSetBuilder::new().build().unwrap())
+        })
     }
 
     /// Check if a path should be skipped.
@@ -240,14 +261,9 @@ impl Config {
             return false;
         }
 
-        // Check glob patterns (only for non-executable files)
-        for pattern in &self.skip_paths {
-            if let Ok(glob) = globset::Glob::new(pattern) {
-                let matcher = glob.compile_matcher();
-                if matcher.is_match(path) {
-                    return true;
-                }
-            }
+        // Check pre-compiled glob patterns (only for non-executable files)
+        if self.skip_glob_set().is_match(path) {
+            return true;
         }
 
         false
