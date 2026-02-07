@@ -5,33 +5,28 @@
 //! - `window["Fu" + "nct" + "ion"](code)`
 
 use super::Detector;
+use crate::analyzers::ast::rules::{AstRuleEntry, DangerousLists};
 use crate::analyzers::ast::scope::ScopeTracker;
-use crate::types::{Finding, FindingCategory, Location, Severity};
+use crate::types::{Finding, Location};
 use std::path::Path;
+use std::sync::Arc;
 use tree_sitter::Node;
 
-/// Dangerous global objects.
-const DANGEROUS_GLOBALS: &[&str] = &["window", "globalThis", "global", "self", "this"];
-
-/// Dangerous function names.
-const DANGEROUS_FUNCTIONS: &[&str] = &[
-    "eval",
-    "Function",
-    "setTimeout",
-    "setInterval",
-    "setImmediate",
-];
-
 pub struct StringConcatDetector {
+    rule: AstRuleEntry,
+    lists: Arc<DangerousLists>,
     max_depth: usize,
 }
 
 impl StringConcatDetector {
-    pub fn new() -> Self {
-        Self { max_depth: 10 }
+    pub fn new(rule: AstRuleEntry, lists: Arc<DangerousLists>) -> Self {
+        Self {
+            rule,
+            lists,
+            max_depth: 10,
+        }
     }
 
-    /// Try to statically resolve a string concatenation expression.
     fn resolve_concat(&self, node: Node, source: &str, depth: usize) -> Option<String> {
         if depth > self.max_depth {
             return None;
@@ -40,20 +35,17 @@ impl StringConcatDetector {
         match node.kind() {
             "string" => {
                 let text = node.utf8_text(source.as_bytes()).ok()?;
-                // Remove quotes
                 if (text.starts_with('"') && text.ends_with('"'))
                     || (text.starts_with('\'') && text.ends_with('\''))
                 {
                     Some(text[1..text.len() - 1].to_string())
                 } else if text.starts_with('`') && text.ends_with('`') {
-                    // Template literal - only handle simple case
                     Some(text[1..text.len() - 1].to_string())
                 } else {
                     None
                 }
             }
             "binary_expression" => {
-                // Check if it's a + operator
                 let operator = node.child_by_field_name("operator")?;
                 let op_text = operator.utf8_text(source.as_bytes()).ok()?;
                 if op_text != "+" {
@@ -69,7 +61,6 @@ impl StringConcatDetector {
                 Some(format!("{}{}", left_val, right_val))
             }
             "parenthesized_expression" => {
-                // Handle (a + b)
                 let inner = node.named_child(0)?;
                 self.resolve_concat(inner, source, depth + 1)
             }
@@ -78,19 +69,13 @@ impl StringConcatDetector {
     }
 }
 
-impl Default for StringConcatDetector {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Detector for StringConcatDetector {
-    fn rule_id(&self) -> &'static str {
-        "AST-EXEC-003"
+    fn rule_id(&self) -> &str {
+        &self.rule.id
     }
 
-    fn title(&self) -> &'static str {
-        "String concatenation to access dangerous function"
+    fn title(&self) -> &str {
+        &self.rule.title
     }
 
     fn handles_node_type(&self, node_type: &str) -> bool {
@@ -106,7 +91,6 @@ impl Detector for StringConcatDetector {
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
-        // Handle call_expression with subscript as callee
         let subscript = if node.kind() == "call_expression" {
             match node.child_by_field_name("function") {
                 Some(callee) if callee.kind() == "subscript_expression" => callee,
@@ -118,7 +102,6 @@ impl Detector for StringConcatDetector {
             return findings;
         };
 
-        // Get the object being accessed
         let object = match subscript.child_by_field_name("object") {
             Some(obj) => obj,
             None => return findings,
@@ -129,26 +112,21 @@ impl Detector for StringConcatDetector {
             Err(_) => return findings,
         };
 
-        // Check if accessing a dangerous global
-        if !DANGEROUS_GLOBALS.contains(&object_text) {
+        if !self.lists.is_dangerous_global(object_text) {
             return findings;
         }
 
-        // Get the index (property being accessed)
         let index = match subscript.child_by_field_name("index") {
             Some(idx) => idx,
             None => return findings,
         };
 
-        // Check if it's a binary expression (concatenation)
         if index.kind() != "binary_expression" {
             return findings;
         }
 
-        // Try to resolve the concatenation
         if let Some(resolved) = self.resolve_concat(index, source, 0) {
-            // Check if the resolved string is a dangerous function
-            if DANGEROUS_FUNCTIONS.contains(&resolved.as_str()) {
+            if self.lists.is_dangerous_function(&resolved) {
                 let snippet = node
                     .utf8_text(source.as_bytes())
                     .unwrap_or("")
@@ -166,13 +144,13 @@ impl Detector for StringConcatDetector {
                             This pattern is used to evade regex-based detection by splitting dangerous function names.",
                             resolved, object_text
                         ),
-                        Severity::Critical,
-                        FindingCategory::CodeExecution,
+                        self.rule.severity(),
+                        self.rule.category(),
                         Location::new(path.to_path_buf(), start_line, end_line)
                             .with_columns(index.start_position().column + 1, index.end_position().column + 1),
                         snippet,
                     )
-                    .with_remediation("Remove the obfuscated dangerous function access.")
+                    .with_remediation(&self.rule.remediation)
                     .with_metadata("technique", "string_concatenation")
                     .with_metadata("resolved_function", resolved)
                     .with_metadata("ast_analyzed", "true"),

@@ -8,32 +8,31 @@
 //! and evade detection of direct calls.
 
 use super::Detector;
-use crate::analyzers::ast::scope::{is_global_dangerous_function, ScopeTracker};
-use crate::types::{Finding, FindingCategory, Location, Severity};
+use crate::analyzers::ast::rules::{AstRuleEntry, DangerousLists};
+use crate::analyzers::ast::scope::ScopeTracker;
+use crate::types::{Finding, Location};
 use std::path::Path;
+use std::sync::Arc;
 use tree_sitter::Node;
 
-pub struct CommaOperatorDetector;
-
-impl CommaOperatorDetector {
-    pub fn new() -> Self {
-        Self
-    }
+pub struct CommaOperatorDetector {
+    rule: AstRuleEntry,
+    lists: Arc<DangerousLists>,
 }
 
-impl Default for CommaOperatorDetector {
-    fn default() -> Self {
-        Self::new()
+impl CommaOperatorDetector {
+    pub fn new(rule: AstRuleEntry, lists: Arc<DangerousLists>) -> Self {
+        Self { rule, lists }
     }
 }
 
 impl Detector for CommaOperatorDetector {
-    fn rule_id(&self) -> &'static str {
-        "AST-EXEC-005"
+    fn rule_id(&self) -> &str {
+        &self.rule.id
     }
 
-    fn title(&self) -> &'static str {
-        "Comma operator indirect call to dangerous function"
+    fn title(&self) -> &str {
+        &self.rule.title
     }
 
     fn handles_node_type(&self, node_type: &str) -> bool {
@@ -53,41 +52,32 @@ impl Detector for CommaOperatorDetector {
             return findings;
         }
 
-        // Get the callee (function being called)
         let callee = match node.child_by_field_name("function") {
             Some(c) => c,
             None => return findings,
         };
 
-        // We're looking for (expr, func)(args) pattern
-        // The callee should be a parenthesized_expression containing a sequence_expression
         if callee.kind() != "parenthesized_expression" {
             return findings;
         }
 
-        // Get the inner expression
         let inner = match callee.named_child(0) {
             Some(i) => i,
             None => return findings,
         };
 
-        // Check if it's a sequence expression (comma operator)
         if inner.kind() != "sequence_expression" {
             return findings;
         }
 
-        // The last expression in the sequence is what's actually called
-        // Find the rightmost named child in the sequence expression
         let mut cursor = inner.walk();
         let named_children: Vec<_> = inner.named_children(&mut cursor).collect();
 
-        // The last named child is the target (e.g., "eval" in "(0, eval)")
         let target = match named_children.last() {
             Some(t) => *t,
             None => return findings,
         };
 
-        // Check if the target is a dangerous identifier
         if target.kind() != "identifier" {
             return findings;
         }
@@ -97,7 +87,7 @@ impl Detector for CommaOperatorDetector {
             Err(_) => return findings,
         };
 
-        if is_global_dangerous_function(target_name) {
+        if self.lists.is_dangerous_function(target_name) {
             let snippet = node
                 .utf8_text(source.as_bytes())
                 .unwrap_or("")
@@ -115,13 +105,13 @@ impl Detector for CommaOperatorDetector {
                         This technique changes the 'this' binding and evades direct call detection.",
                         target_name, target_name
                     ),
-                    Severity::Critical,
-                    FindingCategory::CodeExecution,
+                    self.rule.severity(),
+                    self.rule.category(),
                     Location::new(path.to_path_buf(), start_line, end_line)
                         .with_columns(callee.start_position().column + 1, callee.end_position().column + 1),
                     snippet,
                 )
-                .with_remediation("Remove the indirect call pattern.")
+                .with_remediation(&self.rule.remediation)
                 .with_metadata("technique", "comma_operator_indirect_call")
                 .with_metadata("function", target_name.to_string())
                 .with_metadata("ast_analyzed", "true"),

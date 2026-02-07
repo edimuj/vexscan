@@ -12,15 +12,18 @@
 
 pub mod config;
 pub mod detectors;
+pub mod rules;
 pub mod scope;
 
 pub use config::AstAnalyzerConfig;
 use detectors::DetectorSet;
-use scope::{is_global_dangerous_function, ResolvedValue, ScopeTracker};
+use rules::DangerousLists;
+use scope::{ResolvedValue, ScopeTracker};
 
 use crate::types::{Finding, ScanResult};
 use anyhow::Result;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Instant;
 use tree_sitter::{Node, Parser};
 
@@ -32,6 +35,7 @@ pub struct AstAnalyzer {
     #[allow(dead_code)]
     py_parser: Parser,
     detectors: DetectorSet,
+    lists: Arc<DangerousLists>,
 }
 
 impl AstAnalyzer {
@@ -51,12 +55,16 @@ impl AstAnalyzer {
         let mut py_parser = Parser::new();
         py_parser.set_language(&tree_sitter_python::LANGUAGE.into())?;
 
+        let (rule_entries, lists) = rules::load_ast_rules()?;
+        let detectors = DetectorSet::from_rules(&rule_entries, lists.clone());
+
         Ok(Self {
             config,
             js_parser,
             ts_parser,
             py_parser,
-            detectors: DetectorSet::new(),
+            detectors,
+            lists,
         })
     }
 
@@ -147,7 +155,7 @@ impl AstAnalyzer {
         path: &Path,
     ) -> Result<Vec<Finding>> {
         let mut findings = Vec::new();
-        let mut scope_tracker = ScopeTracker::new(self.config.max_scope_depth);
+        let mut scope_tracker = ScopeTracker::new(self.config.max_scope_depth, self.lists.clone());
 
         self.walk_tree(root, source, path, &mut scope_tracker, &mut findings);
 
@@ -250,7 +258,7 @@ impl AstAnalyzer {
                     Err(_) => return,
                 };
 
-                if is_global_dangerous_function(value_name) {
+                if self.lists.is_dangerous_function(value_name) {
                     scope_tracker.add_binding(
                         name,
                         ResolvedValue::DangerousFunction(value_name.to_string()),

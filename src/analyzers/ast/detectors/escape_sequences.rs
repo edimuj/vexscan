@@ -5,31 +5,23 @@
 //! - `window["\u0065\u0076\u0061\u006c"]()` - unicode escapes for "eval"
 
 use super::Detector;
+use crate::analyzers::ast::rules::{AstRuleEntry, DangerousLists};
 use crate::analyzers::ast::scope::ScopeTracker;
-use crate::types::{Finding, FindingCategory, Location, Severity};
+use crate::types::{Finding, Location};
 use std::path::Path;
+use std::sync::Arc;
 use tree_sitter::Node;
 
-/// Dangerous global objects.
-const DANGEROUS_GLOBALS: &[&str] = &["window", "globalThis", "global", "self", "this"];
-
-/// Dangerous function names.
-const DANGEROUS_FUNCTIONS: &[&str] = &[
-    "eval",
-    "Function",
-    "setTimeout",
-    "setInterval",
-    "setImmediate",
-];
-
-pub struct EscapeSequenceDetector;
+pub struct EscapeSequenceDetector {
+    rule: AstRuleEntry,
+    lists: Arc<DangerousLists>,
+}
 
 impl EscapeSequenceDetector {
-    pub fn new() -> Self {
-        Self
+    pub fn new(rule: AstRuleEntry, lists: Arc<DangerousLists>) -> Self {
+        Self { rule, lists }
     }
 
-    /// Decode escape sequences in a string.
     fn decode_escapes(s: &str) -> Option<String> {
         let mut result = String::new();
         let mut chars = s.chars().peekable();
@@ -40,7 +32,6 @@ impl EscapeSequenceDetector {
                 has_escapes = true;
                 match chars.next() {
                     Some('x') => {
-                        // \xHH - 2 hex digits
                         let mut hex = String::new();
                         for _ in 0..2 {
                             if let Some(&ch) = chars.peek() {
@@ -58,10 +49,8 @@ impl EscapeSequenceDetector {
                         }
                     }
                     Some('u') => {
-                        // \uHHHH - 4 hex digits
-                        // or \u{HHHH} - variable length
                         if chars.peek() == Some(&'{') {
-                            chars.next(); // consume '{'
+                            chars.next();
                             let mut hex = String::new();
                             while let Some(&ch) = chars.peek() {
                                 if ch == '}' {
@@ -121,10 +110,8 @@ impl EscapeSequenceDetector {
         }
     }
 
-    /// Get the raw string content (with escapes still present).
     fn get_raw_string_content(node: Node, source: &str) -> Option<String> {
         let text = node.utf8_text(source.as_bytes()).ok()?;
-        // Remove outer quotes but keep inner content raw
         if (text.starts_with('"') && text.ends_with('"'))
             || (text.starts_with('\'') && text.ends_with('\''))
         {
@@ -135,19 +122,13 @@ impl EscapeSequenceDetector {
     }
 }
 
-impl Default for EscapeSequenceDetector {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Detector for EscapeSequenceDetector {
-    fn rule_id(&self) -> &'static str {
-        "AST-EXEC-004"
+    fn rule_id(&self) -> &str {
+        &self.rule.id
     }
 
-    fn title(&self) -> &'static str {
-        "Escape sequence obfuscation of dangerous function"
+    fn title(&self) -> &str {
+        &self.rule.title
     }
 
     fn handles_node_type(&self, node_type: &str) -> bool {
@@ -163,7 +144,6 @@ impl Detector for EscapeSequenceDetector {
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
-        // Handle call_expression with subscript as callee
         let subscript = if node.kind() == "call_expression" {
             match node.child_by_field_name("function") {
                 Some(callee) if callee.kind() == "subscript_expression" => callee,
@@ -175,7 +155,6 @@ impl Detector for EscapeSequenceDetector {
             return findings;
         };
 
-        // Get the object being accessed
         let object = match subscript.child_by_field_name("object") {
             Some(obj) => obj,
             None => return findings,
@@ -186,32 +165,26 @@ impl Detector for EscapeSequenceDetector {
             Err(_) => return findings,
         };
 
-        // Check if accessing a dangerous global
-        if !DANGEROUS_GLOBALS.contains(&object_text) {
+        if !self.lists.is_dangerous_global(object_text) {
             return findings;
         }
 
-        // Get the index (property being accessed)
         let index = match subscript.child_by_field_name("index") {
             Some(idx) => idx,
             None => return findings,
         };
 
-        // Check if it's a string literal
         if index.kind() != "string" {
             return findings;
         }
 
-        // Get the raw string content
         let raw = match Self::get_raw_string_content(index, source) {
             Some(s) => s,
             None => return findings,
         };
 
-        // Check if it contains escape sequences and decode them
         if let Some(decoded) = Self::decode_escapes(&raw) {
-            // Check if the decoded string is a dangerous function
-            if DANGEROUS_FUNCTIONS.contains(&decoded.as_str()) {
+            if self.lists.is_dangerous_function(&decoded) {
                 let snippet = node
                     .utf8_text(source.as_bytes())
                     .unwrap_or("")
@@ -229,13 +202,13 @@ impl Detector for EscapeSequenceDetector {
                             This pattern uses character escapes (\\x, \\u) to hide dangerous function names.",
                             decoded, object_text
                         ),
-                        Severity::Critical,
-                        FindingCategory::CodeExecution,
+                        self.rule.severity(),
+                        self.rule.category(),
                         Location::new(path.to_path_buf(), start_line, end_line)
                             .with_columns(index.start_position().column + 1, index.end_position().column + 1),
                         snippet,
                     )
-                    .with_remediation("Remove the obfuscated dangerous function access.")
+                    .with_remediation(&self.rule.remediation)
                     .with_metadata("technique", "escape_sequence_obfuscation")
                     .with_metadata("decoded_function", decoded)
                     .with_metadata("ast_analyzed", "true"),
@@ -253,14 +226,12 @@ mod tests {
 
     #[test]
     fn test_decode_hex_escapes() {
-        // "eval" in hex: \x65\x76\x61\x6c
         let decoded = EscapeSequenceDetector::decode_escapes(r"\x65\x76\x61\x6c");
         assert_eq!(decoded, Some("eval".to_string()));
     }
 
     #[test]
     fn test_decode_unicode_escapes() {
-        // "eval" in unicode: \u0065\u0076\u0061\u006c
         let decoded = EscapeSequenceDetector::decode_escapes(r"\u0065\u0076\u0061\u006c");
         assert_eq!(decoded, Some("eval".to_string()));
     }
@@ -273,7 +244,6 @@ mod tests {
 
     #[test]
     fn test_mixed_escapes() {
-        // "eval" mixed: ev\x61l
         let decoded = EscapeSequenceDetector::decode_escapes(r"ev\x61l");
         assert_eq!(decoded, Some("eval".to_string()));
     }

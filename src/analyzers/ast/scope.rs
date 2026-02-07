@@ -5,6 +5,9 @@
 //! - `const {exec: run} = require('child_process'); run(cmd)` - destructuring aliases
 
 use std::collections::HashMap;
+use std::sync::Arc;
+
+use super::rules::DangerousLists;
 
 /// A resolved value that a variable binding points to.
 #[derive(Debug, Clone, PartialEq)]
@@ -64,19 +67,22 @@ impl Scope {
 }
 
 /// Tracks variable scopes for aliasing resolution.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ScopeTracker {
     /// Stack of scopes (innermost is last).
     scopes: Vec<Scope>,
     /// Maximum depth to follow alias chains.
     max_alias_depth: usize,
+    /// Shared dangerous lists from JSON config.
+    lists: Arc<DangerousLists>,
 }
 
 impl ScopeTracker {
-    pub fn new(max_alias_depth: usize) -> Self {
+    pub fn new(max_alias_depth: usize, lists: Arc<DangerousLists>) -> Self {
         Self {
             scopes: vec![Scope::new()], // Start with global scope
             max_alias_depth,
+            lists,
         }
     }
 
@@ -129,12 +135,17 @@ impl ScopeTracker {
             }
         } else {
             // Check if it's a global dangerous function
-            if is_global_dangerous_function(name) {
+            if self.lists.is_dangerous_function(name) {
                 ResolvedValue::DangerousFunction(name.to_string())
             } else {
                 ResolvedValue::Unknown
             }
         }
+    }
+
+    /// Get access to the dangerous lists.
+    pub fn lists(&self) -> &DangerousLists {
+        &self.lists
     }
 
     /// Clear all scopes and reset to initial state.
@@ -144,43 +155,19 @@ impl ScopeTracker {
     }
 }
 
-/// Check if a name is a globally dangerous function.
-pub fn is_global_dangerous_function(name: &str) -> bool {
-    matches!(
-        name,
-        "eval" | "Function" | "setTimeout" | "setInterval" | "setImmediate"
-    )
-}
-
-/// Check if a module is dangerous for shell execution.
-pub fn is_dangerous_module(module: &str) -> bool {
-    matches!(
-        module,
-        "child_process" | "node:child_process" | "os" | "node:os" | "fs" | "node:fs"
-    )
-}
-
-/// Check if a module export is a dangerous function.
-pub fn is_dangerous_export(module: &str, export: &str) -> bool {
-    match module {
-        "child_process" | "node:child_process" => {
-            matches!(export, "exec" | "execSync" | "spawn" | "spawnSync" | "execFile" | "execFileSync" | "fork")
-        }
-        "os" | "node:os" => {
-            // os module doesn't have direct exec, but platform can be used for command building
-            false
-        }
-        _ => false,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn test_lists() -> Arc<DangerousLists> {
+        use crate::analyzers::ast::rules::load_builtin_ast_rules;
+        let config = load_builtin_ast_rules().unwrap();
+        Arc::new(config.dangerous_lists)
+    }
+
     #[test]
     fn test_simple_alias() {
-        let mut tracker = ScopeTracker::new(10);
+        let mut tracker = ScopeTracker::new(10, test_lists());
         tracker.add_binding(
             "e".to_string(),
             ResolvedValue::DangerousFunction("eval".to_string()),
@@ -195,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_alias_chain() {
-        let mut tracker = ScopeTracker::new(10);
+        let mut tracker = ScopeTracker::new(10, test_lists());
         tracker.add_binding(
             "e".to_string(),
             ResolvedValue::DangerousFunction("eval".to_string()),
@@ -212,7 +199,7 @@ mod tests {
 
     #[test]
     fn test_scope_shadowing() {
-        let mut tracker = ScopeTracker::new(10);
+        let mut tracker = ScopeTracker::new(10, test_lists());
         tracker.add_binding(
             "x".to_string(),
             ResolvedValue::DangerousFunction("eval".to_string()),
@@ -236,7 +223,7 @@ mod tests {
 
     #[test]
     fn test_global_dangerous_functions() {
-        let tracker = ScopeTracker::new(10);
+        let tracker = ScopeTracker::new(10, test_lists());
 
         match tracker.resolve("eval") {
             ResolvedValue::DangerousFunction(name) => assert_eq!(name, "eval"),

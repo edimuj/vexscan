@@ -6,32 +6,31 @@
 //! - `var exec = eval; exec(input)`
 
 use super::Detector;
+use crate::analyzers::ast::rules::{AstRuleEntry, DangerousLists};
 use crate::analyzers::ast::scope::{ResolvedValue, ScopeTracker};
 use crate::types::{Finding, FindingCategory, Location, Severity};
 use std::path::Path;
+use std::sync::Arc;
 use tree_sitter::Node;
 
-pub struct VariableAliasingDetector;
-
-impl VariableAliasingDetector {
-    pub fn new() -> Self {
-        Self
-    }
+pub struct VariableAliasingDetector {
+    rule: AstRuleEntry,
+    lists: Arc<DangerousLists>,
 }
 
-impl Default for VariableAliasingDetector {
-    fn default() -> Self {
-        Self::new()
+impl VariableAliasingDetector {
+    pub fn new(rule: AstRuleEntry, lists: Arc<DangerousLists>) -> Self {
+        Self { rule, lists }
     }
 }
 
 impl Detector for VariableAliasingDetector {
-    fn rule_id(&self) -> &'static str {
-        "AST-EXEC-002"
+    fn rule_id(&self) -> &str {
+        &self.rule.id
     }
 
-    fn title(&self) -> &'static str {
-        "Variable aliasing of dangerous function"
+    fn title(&self) -> &str {
+        &self.rule.title
     }
 
     fn handles_node_type(&self, node_type: &str) -> bool {
@@ -51,13 +50,11 @@ impl Detector for VariableAliasingDetector {
             return findings;
         }
 
-        // Get the callee (function being called)
         let callee = match node.child_by_field_name("function") {
             Some(c) => c,
             None => return findings,
         };
 
-        // We're looking for simple identifier calls like `e(code)`
         if callee.kind() != "identifier" {
             return findings;
         }
@@ -67,11 +64,8 @@ impl Detector for VariableAliasingDetector {
             Err(_) => return findings,
         };
 
-        // Resolve the variable to see if it points to a dangerous function
         match scope_tracker.resolve(callee_name) {
             ResolvedValue::DangerousFunction(func_name) => {
-                // Only report if the callee name is different from the dangerous function
-                // (i.e., it's actually an alias, not a direct call)
                 if callee_name != func_name {
                     let snippet = node
                         .utf8_text(source.as_bytes())
@@ -90,13 +84,13 @@ impl Detector for VariableAliasingDetector {
                                 This pattern is used to evade regex-based detection.",
                                 callee_name, func_name
                             ),
-                            Severity::Critical,
-                            FindingCategory::CodeExecution,
+                            self.rule.severity(),
+                            self.rule.category(),
                             Location::new(path.to_path_buf(), start_line, end_line)
                                 .with_columns(callee.start_position().column + 1, callee.end_position().column + 1),
                             snippet,
                         )
-                        .with_remediation("Remove the aliased dangerous function call.")
+                        .with_remediation(&self.rule.remediation)
                         .with_metadata("technique", "variable_aliasing")
                         .with_metadata("alias", callee_name.to_string())
                         .with_metadata("target_function", func_name)
@@ -105,10 +99,9 @@ impl Detector for VariableAliasingDetector {
                 }
             }
             ResolvedValue::ImportResult { module, export } => {
-                // Check if it's a dangerous import
-                if crate::analyzers::ast::scope::is_dangerous_module(&module) {
+                if self.lists.is_dangerous_module(&module) {
                     if let Some(ref exp) = export {
-                        if crate::analyzers::ast::scope::is_dangerous_export(&module, exp) {
+                        if self.lists.is_dangerous_export(&module, exp) {
                             let snippet = node
                                 .utf8_text(source.as_bytes())
                                 .unwrap_or("")

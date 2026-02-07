@@ -6,34 +6,25 @@
 //! - `global['Function'](code)`
 
 use super::Detector;
+use crate::analyzers::ast::rules::{AstRuleEntry, DangerousLists};
 use crate::analyzers::ast::scope::ScopeTracker;
-use crate::types::{Finding, FindingCategory, Location, Severity};
+use crate::types::{Finding, Location};
 use std::path::Path;
+use std::sync::Arc;
 use tree_sitter::Node;
 
-/// Dangerous global objects that can access dangerous functions.
-const DANGEROUS_GLOBALS: &[&str] = &["window", "globalThis", "global", "self", "this"];
-
-/// Dangerous function names that can be accessed via computed properties.
-const DANGEROUS_FUNCTIONS: &[&str] = &[
-    "eval",
-    "Function",
-    "setTimeout",
-    "setInterval",
-    "setImmediate",
-];
-
-pub struct ComputedAccessDetector;
+pub struct ComputedAccessDetector {
+    rule: AstRuleEntry,
+    lists: Arc<DangerousLists>,
+}
 
 impl ComputedAccessDetector {
-    pub fn new() -> Self {
-        Self
+    pub fn new(rule: AstRuleEntry, lists: Arc<DangerousLists>) -> Self {
+        Self { rule, lists }
     }
 
-    /// Extract the string value from a string node.
     fn get_string_value(node: Node, source: &str) -> Option<String> {
         let text = node.utf8_text(source.as_bytes()).ok()?;
-        // Remove quotes
         if (text.starts_with('"') && text.ends_with('"'))
             || (text.starts_with('\'') && text.ends_with('\''))
         {
@@ -46,19 +37,13 @@ impl ComputedAccessDetector {
     }
 }
 
-impl Default for ComputedAccessDetector {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Detector for ComputedAccessDetector {
-    fn rule_id(&self) -> &'static str {
-        "AST-EXEC-001"
+    fn rule_id(&self) -> &str {
+        &self.rule.id
     }
 
-    fn title(&self) -> &'static str {
-        "Computed property access to dangerous function"
+    fn title(&self) -> &str {
+        &self.rule.title
     }
 
     fn handles_node_type(&self, node_type: &str) -> bool {
@@ -74,8 +59,6 @@ impl Detector for ComputedAccessDetector {
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
-        // Handle call_expression with subscript as callee
-        // e.g., window['eval'](code)
         if node.kind() == "call_expression" {
             if let Some(callee) = node.child_by_field_name("function") {
                 if callee.kind() == "subscript_expression" {
@@ -85,8 +68,6 @@ impl Detector for ComputedAccessDetector {
             return findings;
         }
 
-        // Handle subscript_expression directly
-        // e.g., window['eval']
         if node.kind() == "subscript_expression" {
             findings.extend(self.check_subscript(node, source, path));
         }
@@ -99,7 +80,6 @@ impl ComputedAccessDetector {
     fn check_subscript(&self, node: Node, source: &str, path: &Path) -> Vec<Finding> {
         let mut findings = Vec::new();
 
-        // Get the object being accessed (e.g., "window" in window['eval'])
         let object = match node.child_by_field_name("object") {
             Some(obj) => obj,
             None => return findings,
@@ -110,30 +90,25 @@ impl ComputedAccessDetector {
             Err(_) => return findings,
         };
 
-        // Check if accessing a dangerous global
-        if !DANGEROUS_GLOBALS.contains(&object_text) {
+        if !self.lists.is_dangerous_global(object_text) {
             return findings;
         }
 
-        // Get the index (property being accessed)
         let index = match node.child_by_field_name("index") {
             Some(idx) => idx,
             None => return findings,
         };
 
-        // Check if it's a string literal
         if index.kind() != "string" {
             return findings;
         }
 
-        // Get the string value
         let property = match Self::get_string_value(index, source) {
             Some(s) => s,
             None => return findings,
         };
 
-        // Check if it's a dangerous function
-        if DANGEROUS_FUNCTIONS.contains(&property.as_str()) {
+        if self.lists.is_dangerous_function(&property) {
             let snippet = node
                 .utf8_text(source.as_bytes())
                 .unwrap_or("")
@@ -151,13 +126,13 @@ impl ComputedAccessDetector {
                         This pattern is often used to evade regex-based detection.",
                         property, object_text
                     ),
-                    Severity::Critical,
-                    FindingCategory::CodeExecution,
+                    self.rule.severity(),
+                    self.rule.category(),
                     Location::new(path.to_path_buf(), start_line, end_line)
                         .with_columns(node.start_position().column + 1, node.end_position().column + 1),
                     snippet,
                 )
-                .with_remediation("Remove dynamic property access to dangerous functions.")
+                .with_remediation(&self.rule.remediation)
                 .with_metadata("technique", "computed_property_access")
                 .with_metadata("function", property)
                 .with_metadata("ast_analyzed", "true"),

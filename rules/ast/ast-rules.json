@@ -1,0 +1,77 @@
+{
+  "version": "1.0",
+  "dangerous_lists": {
+    "globals": ["window", "globalThis", "global", "self", "this"],
+    "functions": ["eval", "Function", "setTimeout", "setInterval", "setImmediate"],
+    "modules": {
+      "child_process": ["exec", "execSync", "spawn", "spawnSync", "execFile", "execFileSync", "fork"],
+      "node:child_process": ["exec", "execSync", "spawn", "spawnSync", "execFile", "execFileSync", "fork"],
+      "os": [],
+      "node:os": [],
+      "fs": [],
+      "node:fs": []
+    }
+  },
+  "detectors": [
+    {
+      "id": "AST-EXEC-001",
+      "strategy": "computed_access",
+      "title": "Computed property access to dangerous function",
+      "description": "Detects window['eval'](code) and similar patterns where dangerous functions are accessed via computed properties on global objects.",
+      "severity": "critical",
+      "category": "code_execution",
+      "enabled": true,
+      "remediation": "Remove dynamic property access to dangerous functions."
+    },
+    {
+      "id": "AST-EXEC-002",
+      "strategy": "variable_aliasing",
+      "title": "Variable aliasing of dangerous function",
+      "description": "Detects const e = eval; e(code) patterns where dangerous functions are assigned to new variable names to evade detection.",
+      "severity": "critical",
+      "category": "code_execution",
+      "enabled": true,
+      "remediation": "Remove the aliased dangerous function call."
+    },
+    {
+      "id": "AST-EXEC-003",
+      "strategy": "string_concat",
+      "title": "String concatenation to access dangerous function",
+      "description": "Detects window['ev'+'al']() patterns where dangerous function names are split across string concatenation to evade detection.",
+      "severity": "critical",
+      "category": "code_execution",
+      "enabled": true,
+      "remediation": "Remove the obfuscated dangerous function access."
+    },
+    {
+      "id": "AST-EXEC-004",
+      "strategy": "escape_sequences",
+      "title": "Escape sequence obfuscation of dangerous function",
+      "description": "Detects window[\"\\x65\\x76\\x61\\x6c\"]() patterns where hex or unicode escape sequences hide dangerous function names.",
+      "severity": "critical",
+      "category": "code_execution",
+      "enabled": true,
+      "remediation": "Remove the obfuscated dangerous function access."
+    },
+    {
+      "id": "AST-EXEC-005",
+      "strategy": "comma_operator",
+      "title": "Comma operator indirect call to dangerous function",
+      "description": "Detects (0, eval)(code) patterns where the comma operator is used to indirectly call dangerous functions, changing the this binding.",
+      "severity": "critical",
+      "category": "code_execution",
+      "enabled": true,
+      "remediation": "Remove the indirect call pattern."
+    },
+    {
+      "id": "AST-SHELL-001",
+      "strategy": "destructured_alias",
+      "title": "Destructured and aliased shell execution",
+      "description": "Detects const {exec: run} = require('child_process') patterns where dangerous module exports are destructured with aliases.",
+      "severity": "high",
+      "category": "shell_execution",
+      "enabled": true,
+      "remediation": "Remove the aliasing or use the original function name for clarity."
+    }
+  ]
+}

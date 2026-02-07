@@ -19,17 +19,19 @@ pub use destructured_alias::DestructuredAliasDetector;
 
 use crate::types::Finding;
 use std::path::Path;
+use std::sync::Arc;
 use tree_sitter::Node;
 
+use super::rules::{AstRuleEntry, DangerousLists, DetectionStrategy};
 use super::scope::ScopeTracker;
 
 /// A detector that analyzes AST nodes for specific malicious patterns.
 pub trait Detector: Send + Sync {
     /// Returns the unique rule ID for this detector.
-    fn rule_id(&self) -> &'static str;
+    fn rule_id(&self) -> &str;
 
     /// Returns the human-readable title for findings from this detector.
-    fn title(&self) -> &'static str;
+    fn title(&self) -> &str;
 
     /// Check if this detector should analyze a given node type.
     fn handles_node_type(&self, node_type: &str) -> bool;
@@ -50,18 +52,35 @@ pub struct DetectorSet {
 }
 
 impl DetectorSet {
-    /// Create a new detector set with all built-in detectors.
-    pub fn new() -> Self {
-        Self {
-            detectors: vec![
-                Box::new(ComputedAccessDetector::new()),
-                Box::new(VariableAliasingDetector::new()),
-                Box::new(StringConcatDetector::new()),
-                Box::new(EscapeSequenceDetector::new()),
-                Box::new(CommaOperatorDetector::new()),
-                Box::new(DestructuredAliasDetector::new()),
-            ],
-        }
+    /// Create a detector set from externalized AST rules.
+    pub fn from_rules(rules: &[AstRuleEntry], lists: Arc<DangerousLists>) -> Self {
+        let detectors: Vec<Box<dyn Detector>> = rules
+            .iter()
+            .map(|rule| -> Box<dyn Detector> {
+                match rule.strategy {
+                    DetectionStrategy::ComputedAccess => {
+                        Box::new(ComputedAccessDetector::new(rule.clone(), lists.clone()))
+                    }
+                    DetectionStrategy::VariableAliasing => {
+                        Box::new(VariableAliasingDetector::new(rule.clone(), lists.clone()))
+                    }
+                    DetectionStrategy::StringConcat => {
+                        Box::new(StringConcatDetector::new(rule.clone(), lists.clone()))
+                    }
+                    DetectionStrategy::EscapeSequences => {
+                        Box::new(EscapeSequenceDetector::new(rule.clone(), lists.clone()))
+                    }
+                    DetectionStrategy::CommaOperator => {
+                        Box::new(CommaOperatorDetector::new(rule.clone(), lists.clone()))
+                    }
+                    DetectionStrategy::DestructuredAlias => {
+                        Box::new(DestructuredAliasDetector::new(rule.clone(), lists.clone()))
+                    }
+                }
+            })
+            .collect();
+
+        Self { detectors }
     }
 
     /// Get all detectors that handle a specific node type.
@@ -76,11 +95,5 @@ impl DetectorSet {
     /// Get all detectors.
     pub fn all(&self) -> &[Box<dyn Detector>] {
         &self.detectors
-    }
-}
-
-impl Default for DetectorSet {
-    fn default() -> Self {
-        Self::new()
     }
 }
