@@ -120,7 +120,7 @@ Complete list of all detection rules in Vexscan.
 | ID | Title | Severity | Files |
 |----|-------|----------|-------|
 | NET-001 | Crypto mining indicators | Critical | All |
-| NET-002 | Suspicious IP address | Low | All |
+| NET-002 | Suspicious IP address | Low | All (excludes safe IPs) |
 
 ### Markdown Code Blocks (MDCODE-*)
 

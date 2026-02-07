@@ -1,0 +1,294 @@
+{
+  "description": "Known malicious npm packages compiled from security advisories and incident reports.",
+  "updated": "2026-02-07",
+  "packages": [
+    {
+      "name": "event-stream",
+      "versions": ["3.3.6"],
+      "reason": "Contained malicious code targeting Copay bitcoin wallet. The flatmap-stream dependency was compromised.",
+      "severity": "critical",
+      "cve": "CVE-2018-16492",
+      "reference": "https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident",
+      "discovered": "2018-11-26",
+      "tags": ["supply-chain", "cryptocurrency"]
+    },
+    {
+      "name": "flatmap-stream",
+      "versions": ["0.1.1"],
+      "reason": "Injected malicious code into event-stream to steal cryptocurrency.",
+      "severity": "critical",
+      "cve": "CVE-2018-16492",
+      "reference": "https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident",
+      "discovered": "2018-11-26",
+      "tags": ["supply-chain", "cryptocurrency"]
+    },
+    {
+      "name": "ua-parser-js",
+      "versions": ["0.7.29", "0.8.0", "1.0.0"],
+      "reason": "Compromised versions contained crypto mining and password stealing malware.",
+      "severity": "critical",
+      "cve": "CVE-2021-41264",
+      "reference": "https://github.com/nicgirault/ua-parser-js/issues/536",
+      "discovered": "2021-10-22",
+      "tags": ["supply-chain", "cryptominer", "credential-theft"]
+    },
+    {
+      "name": "coa",
+      "versions": ["2.0.3", "2.0.4", "2.1.1", "2.1.3", "3.0.1", "3.1.3"],
+      "reason": "Compromised with malware that steals passwords.",
+      "severity": "critical",
+      "reference": "https://github.com/veged/coa/issues/99",
+      "discovered": "2021-11-04",
+      "tags": ["supply-chain", "credential-theft"]
+    },
+    {
+      "name": "rc",
+      "versions": ["1.2.9", "1.3.9", "2.3.9"],
+      "reason": "Compromised with malware similar to coa attack.",
+      "severity": "critical",
+      "reference": "https://github.com/dominictarr/rc/issues/131",
+      "discovered": "2021-11-04",
+      "tags": ["supply-chain", "credential-theft"]
+    },
+    {
+      "name": "crossenv",
+      "versions": [],
+      "reason": "Typosquat of cross-env. Steals environment variables including npm tokens.",
+      "severity": "critical",
+      "reference": "https://blog.npmjs.org/post/163723642530/crossenv-malware-on-the-npm-registry",
+      "discovered": "2017-08-01",
+      "tags": ["typosquat", "credential-theft"]
+    },
+    {
+      "name": "cross-env.js",
+      "versions": [],
+      "reason": "Typosquat of cross-env. Steals environment variables.",
+      "severity": "critical",
+      "discovered": "2017-08-01",
+      "tags": ["typosquat", "credential-theft"]
+    },
+    {
+      "name": "babelcli",
+      "versions": [],
+      "reason": "Typosquat of babel-cli. Malicious package.",
+      "severity": "critical",
+      "discovered": "2017-08-01",
+      "tags": ["typosquat"]
+    },
+    {
+      "name": "eslint-scope",
+      "versions": ["3.7.2"],
+      "reason": "Compromised to steal npm credentials.",
+      "severity": "critical",
+      "reference": "https://eslint.org/blog/2018/07/postmortem-for-malicious-package-publishes",
+      "discovered": "2018-07-12",
+      "tags": ["supply-chain", "credential-theft"]
+    },
+    {
+      "name": "getcookies",
+      "versions": [],
+      "reason": "Steals cookies and sends them to attacker-controlled server.",
+      "severity": "critical",
+      "discovered": "2018-05-02",
+      "tags": ["data-theft"]
+    },
+    {
+      "name": "discord-selfbot-v14",
+      "versions": [],
+      "reason": "Steals Discord tokens and system information.",
+      "severity": "critical",
+      "discovered": "2022-01-01",
+      "tags": ["data-theft", "discord"]
+    },
+    {
+      "name": "discord-badge",
+      "versions": [],
+      "reason": "Steals Discord tokens.",
+      "severity": "critical",
+      "discovered": "2022-01-01",
+      "tags": ["data-theft", "discord"]
+    },
+    {
+      "name": "colors",
+      "versions": ["1.4.1", "1.4.2"],
+      "reason": "Developer intentionally corrupted package with infinite loop as protest.",
+      "severity": "high",
+      "reference": "https://www.bleepingcomputer.com/news/security/dev-corrupts-npm-libs-colors-and-faker-breaking-thousands-of-apps/",
+      "discovered": "2022-01-08",
+      "tags": ["sabotage"]
+    },
+    {
+      "name": "faker",
+      "versions": ["6.6.6"],
+      "reason": "Developer intentionally corrupted package as protest.",
+      "severity": "high",
+      "reference": "https://www.bleepingcomputer.com/news/security/dev-corrupts-npm-libs-colors-and-faker-breaking-thousands-of-apps/",
+      "discovered": "2022-01-08",
+      "tags": ["sabotage"]
+    },
+    {
+      "name": "node-ipc",
+      "versions": ["10.1.1", "10.1.2", "10.1.3"],
+      "reason": "Developer added code that would delete files on Russian/Belarusian systems (protestware).",
+      "severity": "critical",
+      "cve": "CVE-2022-23812",
+      "reference": "https://snyk.io/blog/peacenotwar-malicious-npm-node-ipc-package-vulnerability/",
+      "discovered": "2022-03-15",
+      "tags": ["protestware", "destructive"]
+    },
+    {
+      "name": "peacenotwar",
+      "versions": [],
+      "reason": "Dependency used by node-ipc to deliver protestware.",
+      "severity": "high",
+      "reference": "https://snyk.io/blog/peacenotwar-malicious-npm-node-ipc-package-vulnerability/",
+      "discovered": "2022-03-15",
+      "tags": ["protestware"]
+    },
+    {
+      "name": "@pnpm/exe",
+      "versions": [],
+      "reason": "Typosquat targeting pnpm users, contains malware.",
+      "severity": "critical",
+      "discovered": "2024-01-01",
+      "tags": ["typosquat"]
+    },
+    {
+      "name": "eslint-config-prettier-plugin",
+      "versions": [],
+      "reason": "Typosquat of eslint-config-prettier, contains malware.",
+      "severity": "critical",
+      "discovered": "2024-01-01",
+      "tags": ["typosquat"]
+    },
+    {
+      "name": "jdb",
+      "versions": [],
+      "reason": "Contains hidden cryptocurrency miner.",
+      "severity": "high",
+      "discovered": "2018-01-01",
+      "tags": ["cryptominer"]
+    },
+    {
+      "name": "db-json",
+      "versions": [],
+      "reason": "Contains hidden cryptocurrency miner.",
+      "severity": "high",
+      "discovered": "2018-01-01",
+      "tags": ["cryptominer"]
+    },
+    {
+      "name": "nodemailer-js",
+      "versions": [],
+      "reason": "Typosquat of nodemailer containing backdoor.",
+      "severity": "critical",
+      "discovered": "2019-01-01",
+      "tags": ["typosquat", "backdoor"]
+    },
+    {
+      "name": "nodemailer-js-utils",
+      "versions": [],
+      "reason": "Fake package containing backdoor.",
+      "severity": "critical",
+      "discovered": "2019-01-01",
+      "tags": ["backdoor"]
+    },
+    {
+      "name": "http-fetch-cookies",
+      "versions": [],
+      "reason": "Contains reverse shell backdoor.",
+      "severity": "critical",
+      "discovered": "2020-01-01",
+      "tags": ["backdoor", "reverse-shell"]
+    },
+    {
+      "name": "twilio-npm",
+      "versions": [],
+      "reason": "Typosquat of twilio, contains malware.",
+      "severity": "critical",
+      "discovered": "2020-01-01",
+      "tags": ["typosquat"]
+    },
+    {
+      "name": "lodash-es",
+      "versions": ["4.17.22"],
+      "reason": "Malicious version uploaded briefly, not from original maintainer.",
+      "severity": "high",
+      "discovered": "2022-01-01",
+      "tags": ["supply-chain"]
+    },
+    {
+      "name": "lemaaa",
+      "versions": [],
+      "reason": "Contains token grabber and data exfiltration code.",
+      "severity": "critical",
+      "discovered": "2023-01-01",
+      "tags": ["data-theft"]
+    },
+    {
+      "name": "internal-store",
+      "versions": [],
+      "reason": "Dependency confusion attack targeting internal packages.",
+      "severity": "high",
+      "reference": "https://medium.com/@alex.birsan/dependency-confusion-4a5d60fec610",
+      "discovered": "2021-02-09",
+      "tags": ["dependency-confusion"]
+    },
+    {
+      "name": "socketio",
+      "versions": [],
+      "reason": "Typosquat of socket.io. Contains data-stealing malware.",
+      "severity": "critical",
+      "discovered": "2017-08-01",
+      "tags": ["typosquat", "data-theft"]
+    },
+    {
+      "name": "d3.js",
+      "versions": [],
+      "reason": "Typosquat of d3. Malicious package.",
+      "severity": "critical",
+      "discovered": "2017-08-01",
+      "tags": ["typosquat"]
+    },
+    {
+      "name": "mongose",
+      "versions": [],
+      "reason": "Typosquat of mongoose. Malicious package.",
+      "severity": "critical",
+      "discovered": "2017-08-01",
+      "tags": ["typosquat"]
+    },
+    {
+      "name": "mssql-node",
+      "versions": [],
+      "reason": "Fake database connector with backdoor.",
+      "severity": "critical",
+      "discovered": "2019-01-01",
+      "tags": ["backdoor"]
+    },
+    {
+      "name": "require-port",
+      "versions": [],
+      "reason": "Typosquat of portfinder/require-port, contains malware.",
+      "severity": "critical",
+      "discovered": "2020-01-01",
+      "tags": ["typosquat"]
+    },
+    {
+      "name": "azure-identity-js",
+      "versions": [],
+      "reason": "Typosquat of @azure/identity, contains credential stealer.",
+      "severity": "critical",
+      "discovered": "2023-01-01",
+      "tags": ["typosquat", "credential-theft"]
+    },
+    {
+      "name": "aws-sdk-js",
+      "versions": [],
+      "reason": "Typosquat of aws-sdk, contains credential stealer.",
+      "severity": "critical",
+      "discovered": "2023-01-01",
+      "tags": ["typosquat", "credential-theft"]
+    }
+  ]
+}

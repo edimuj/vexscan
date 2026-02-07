@@ -1,12 +1,23 @@
 //! Typosquatting detection for npm packages.
 //!
-//! Detects packages with names suspiciously similar to popular packages,
-//! which could indicate a typosquatting attack.
+//! Popular package list is externalized to `data/popular-packages.json`
+//! and embedded at compile time via `include_str!()`.
+
+use serde::Deserialize;
+
+/// Embedded JSON list of popular packages.
+const POPULAR_JSON: &str = include_str!("../../data/popular-packages.json");
+
+/// JSON file wrapper.
+#[derive(Debug, Deserialize)]
+struct PopularPackageFile {
+    packages: Vec<String>,
+}
 
 /// Detector for typosquatting attempts.
 pub struct TyposquatDetector {
     /// List of popular packages to check against.
-    popular_packages: Vec<&'static str>,
+    popular_packages: Vec<String>,
     /// Maximum Levenshtein distance to consider as typosquatting.
     threshold: usize,
 }
@@ -14,8 +25,10 @@ pub struct TyposquatDetector {
 impl TyposquatDetector {
     /// Create a new typosquatting detector.
     pub fn new(threshold: usize) -> Self {
+        let file: PopularPackageFile =
+            serde_json::from_str(POPULAR_JSON).expect("Failed to parse embedded popular-packages.json");
         Self {
-            popular_packages: POPULAR_PACKAGES.to_vec(),
+            popular_packages: file.packages,
             threshold,
         }
     }
@@ -178,218 +191,6 @@ fn contains_doubled_letter(name: &str, popular: &str) -> bool {
 
     found_double && j == popular_chars.len()
 }
-
-/// Popular npm packages to protect against typosquatting.
-/// This list includes the most downloaded and commonly used packages.
-static POPULAR_PACKAGES: &[&str] = &[
-    // === Core/Build Tools ===
-    "lodash",
-    "underscore",
-    "webpack",
-    "babel",
-    "babel-core",
-    "babel-cli",
-    "typescript",
-    "esbuild",
-    "vite",
-    "rollup",
-    "parcel",
-    "gulp",
-    "grunt",
-    // === React Ecosystem ===
-    "react",
-    "react-dom",
-    "react-router",
-    "react-router-dom",
-    "react-redux",
-    "redux",
-    "next",
-    "nextjs",
-    "gatsby",
-    "create-react-app",
-    // === Vue Ecosystem ===
-    "vue",
-    "vuex",
-    "vue-router",
-    "nuxt",
-    // === Angular Ecosystem ===
-    "angular",
-    "@angular/core",
-    "@angular/cli",
-    // === Server/Framework ===
-    "express",
-    "fastify",
-    "koa",
-    "hapi",
-    "nest",
-    "nestjs",
-    "@nestjs/core",
-    // === Testing ===
-    "jest",
-    "mocha",
-    "chai",
-    "jasmine",
-    "cypress",
-    "playwright",
-    "puppeteer",
-    "vitest",
-    // === Linting/Formatting ===
-    "eslint",
-    "prettier",
-    "tslint",
-    "stylelint",
-    // === Database ===
-    "mongoose",
-    "sequelize",
-    "typeorm",
-    "prisma",
-    "knex",
-    "mysql",
-    "mysql2",
-    "pg",
-    "postgres",
-    "mongodb",
-    "redis",
-    "ioredis",
-    // === HTTP/API ===
-    "axios",
-    "fetch",
-    "node-fetch",
-    "got",
-    "request",
-    "superagent",
-    "graphql",
-    "apollo",
-    "@apollo/client",
-    // === Authentication ===
-    "passport",
-    "jsonwebtoken",
-    "jwt",
-    "bcrypt",
-    "bcryptjs",
-    "oauth",
-    // === Utilities ===
-    "moment",
-    "dayjs",
-    "date-fns",
-    "uuid",
-    "nanoid",
-    "chalk",
-    "colors",
-    "debug",
-    "dotenv",
-    "cross-env",
-    "commander",
-    "yargs",
-    "inquirer",
-    "ora",
-    "glob",
-    "rimraf",
-    "mkdirp",
-    "fs-extra",
-    "async",
-    "bluebird",
-    "rxjs",
-    "ramda",
-    "immutable",
-    "immer",
-    // === Validation ===
-    "joi",
-    "yup",
-    "zod",
-    "validator",
-    "class-validator",
-    // === Templating ===
-    "handlebars",
-    "ejs",
-    "pug",
-    "mustache",
-    "nunjucks",
-    // === Real-time ===
-    "socket.io",
-    "socket-io",
-    "ws",
-    "websocket",
-    // === Cloud/AWS ===
-    "aws-sdk",
-    "@aws-sdk/client-s3",
-    "firebase",
-    "firebase-admin",
-    "@google-cloud/storage",
-    "azure",
-    // === Email ===
-    "nodemailer",
-    "sendgrid",
-    "@sendgrid/mail",
-    // === File/Image Processing ===
-    "sharp",
-    "jimp",
-    "multer",
-    "formidable",
-    // === Crypto/Security ===
-    "crypto",
-    "crypto-js",
-    "node-forge",
-    // === Logging ===
-    "winston",
-    "bunyan",
-    "pino",
-    "morgan",
-    "log4js",
-    // === Process/System ===
-    "pm2",
-    "nodemon",
-    "concurrently",
-    "npm-run-all",
-    "execa",
-    "shelljs",
-    "cross-spawn",
-    // === Package Managers ===
-    "npm",
-    "yarn",
-    "pnpm",
-    // === Popular Libraries ===
-    "jquery",
-    "bootstrap",
-    "tailwindcss",
-    "styled-components",
-    "emotion",
-    "@emotion/react",
-    "sass",
-    "less",
-    "postcss",
-    "autoprefixer",
-    // === Three.js / Graphics ===
-    "three",
-    "d3",
-    "chart.js",
-    "echarts",
-    // === Mobile ===
-    "react-native",
-    "expo",
-    "ionic",
-    "cordova",
-    // === CLI ===
-    "create-react-app",
-    "@vue/cli",
-    "@angular/cli",
-    "yeoman",
-    "yo",
-    // === Monorepo ===
-    "lerna",
-    "nx",
-    "turbo",
-    "turborepo",
-    // === Other Popular ===
-    "twilio",
-    "stripe",
-    "@stripe/stripe-js",
-    "paypal",
-    "pusher",
-    "contentful",
-    "sanity",
-    "supabase",
-];
 
 #[cfg(test)]
 mod tests {

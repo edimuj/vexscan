@@ -79,6 +79,10 @@ pub struct Rule {
     /// File extensions this rule applies to (empty = all).
     #[serde(default)]
     pub file_extensions: Vec<String>,
+    /// Patterns that exclude a match (e.g. safe IP ranges). If a match also
+    /// matches any exclude pattern, it is silently dropped.
+    #[serde(default)]
+    pub exclude_patterns: Vec<String>,
     /// Suggested remediation.
     pub remediation: Option<String>,
     /// Whether this rule is enabled by default.
@@ -103,9 +107,14 @@ impl Rule {
         for pattern in &self.patterns {
             regexes.push(Regex::new(pattern)?);
         }
+        let mut exclude_regexes = Vec::with_capacity(self.exclude_patterns.len());
+        for pattern in &self.exclude_patterns {
+            exclude_regexes.push(Regex::new(pattern)?);
+        }
         Ok(CompiledRule {
             rule: self.clone(),
             regexes,
+            exclude_regexes,
         })
     }
 
@@ -125,19 +134,38 @@ impl Rule {
 pub struct CompiledRule {
     pub rule: Rule,
     pub regexes: Vec<Regex>,
+    /// Compiled exclude patterns — matches hitting these are dropped.
+    pub exclude_regexes: Vec<Regex>,
 }
 
 impl CompiledRule {
-    /// Check if any pattern matches the given content.
+    /// Check if any pattern matches the given content (respecting exclude patterns).
     pub fn is_match(&self, content: &str) -> bool {
-        self.regexes.iter().any(|re| re.is_match(content))
+        if self.exclude_regexes.is_empty() {
+            self.regexes.iter().any(|re| re.is_match(content))
+        } else {
+            !self.find_matches(content).is_empty()
+        }
     }
 
-    /// Find all matches across all patterns in the given content.
+    /// Find all matches across all patterns, filtering out excluded matches.
     pub fn find_matches<'a>(&'a self, content: &'a str) -> Vec<regex::Match<'a>> {
-        self.regexes
+        let matches: Vec<_> = self
+            .regexes
             .iter()
             .flat_map(|re| re.find_iter(content))
+            .collect();
+        if self.exclude_regexes.is_empty() {
+            return matches;
+        }
+        matches
+            .into_iter()
+            .filter(|m| {
+                !self
+                    .exclude_regexes
+                    .iter()
+                    .any(|ex| ex.is_match(m.as_str()))
+            })
             .collect()
     }
 }
@@ -290,6 +318,7 @@ mod tests {
             category: FindingCategory::CodeExecution,
             patterns: vec![r"eval\s*\(".to_string()],
             file_extensions: vec!["js".to_string(), "ts".to_string()],
+            exclude_patterns: vec![],
             remediation: None,
             enabled: true,
             source: RuleSource::Official,
@@ -315,6 +344,7 @@ mod tests {
                 r"\bnew\s+Function\s*\(".to_string(),
             ],
             file_extensions: vec![],
+            exclude_patterns: vec![],
             remediation: None,
             enabled: true,
             source: RuleSource::Official,
@@ -341,6 +371,7 @@ mod tests {
             category: FindingCategory::CredentialAccess,
             patterns: vec![r"AKIA[0-9A-Z]{16}".to_string()],
             file_extensions: vec![],
+            exclude_patterns: vec![],
             remediation: Some("Remove hardcoded keys".to_string()),
             enabled: true,
             source: RuleSource::Community,
@@ -372,5 +403,45 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_exclude_patterns() {
+        let rule = Rule {
+            id: "test-exclude".to_string(),
+            title: "IP with excludes".to_string(),
+            description: "Test exclude patterns".to_string(),
+            severity: Severity::Low,
+            category: FindingCategory::DataExfiltration,
+            patterns: vec![r#"['"]([0-9]{1,3}\.){3}[0-9]{1,3}['"]"#.to_string()],
+            file_extensions: vec![],
+            exclude_patterns: vec![
+                r#"['"]127\."#.to_string(),
+                r#"['"]0\.0\.0\.0"#.to_string(),
+                r#"['"]192\.168\."#.to_string(),
+            ],
+            remediation: None,
+            enabled: true,
+            source: RuleSource::Official,
+            metadata: None,
+        };
+
+        let compiled = rule.compile().unwrap();
+
+        // Suspicious public IP — should match
+        assert!(compiled.is_match(r#""45.33.97.12""#));
+        assert!(!compiled.find_matches(r#""45.33.97.12""#).is_empty());
+
+        // Safe IPs — should be excluded
+        assert!(!compiled.is_match(r#""127.0.0.1""#));
+        assert!(!compiled.is_match(r#""0.0.0.0""#));
+        assert!(!compiled.is_match(r#""192.168.1.1""#));
+        assert!(compiled.find_matches(r#""127.0.0.1""#).is_empty());
+
+        // Mixed content: only suspicious IP returned
+        let content = r#"addr = "127.0.0.1"; c2 = "45.33.97.12""#;
+        let matches = compiled.find_matches(content);
+        assert_eq!(matches.len(), 1);
+        assert!(matches[0].as_str().contains("45.33.97.12"));
     }
 }

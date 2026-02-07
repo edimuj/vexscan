@@ -32,11 +32,45 @@
     {
       "id": "NET-002",
       "title": "Suspicious IP address",
-      "description": "Hard-coded IP addresses may indicate C2 communication.",
+      "description": "Hard-coded IP addresses may indicate C2 communication. Well-known safe IPs (localhost, private ranges, public DNS) are excluded.",
       "severity": "low",
       "pattern": "['\"]([0-9]{1,3}\\.){3}[0-9]{1,3}(:[0-9]+)?['\"]",
+      "exclude_patterns": [
+        "['\"]127\\.",
+        "['\"]0\\.0\\.0\\.0",
+        "['\"]10\\.",
+        "['\"]192\\.168\\.",
+        "['\"]172\\.(1[6-9]|2[0-9]|3[01])\\.",
+        "['\"]169\\.254\\.",
+        "['\"]1\\.1\\.1\\.1",
+        "['\"]1\\.0\\.0\\.1",
+        "['\"]8\\.8\\.8\\.8",
+        "['\"]8\\.8\\.4\\.4",
+        "['\"]9\\.9\\.9\\.9",
+        "['\"]255\\."
+      ],
       "file_extensions": [],
-      "remediation": "Review hard-coded IP addresses for legitimacy."
+      "remediation": "Review hard-coded IP addresses for legitimacy.",
+      "test_cases": {
+        "should_match": [
+          "\"45.33.97.12\"",
+          "'203.0.113.50'",
+          "\"185.220.100.240:8080\""
+        ],
+        "should_not_match": [
+          "\"127.0.0.1\"",
+          "\"0.0.0.0\"",
+          "\"10.0.0.1\"",
+          "\"192.168.1.1\"",
+          "\"172.16.0.1\"",
+          "\"169.254.1.1\"",
+          "\"1.1.1.1\"",
+          "\"8.8.8.8\"",
+          "\"8.8.4.4\"",
+          "\"9.9.9.9\"",
+          "\"1.0.0.1\""
+        ]
+      }
     },
     {
       "id": "EXFIL-003",
