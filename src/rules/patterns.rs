@@ -4,6 +4,7 @@ use super::{Rule, RuleSource};
 use crate::types::{FindingCategory, Severity};
 
 /// Returns all built-in security rules.
+#[allow(clippy::vec_init_then_push)]
 pub fn builtin_rules() -> Vec<Rule> {
     let mut rules = Vec::new();
 
@@ -26,12 +27,15 @@ pub fn builtin_rules() -> Vec<Rule> {
     rules.push(Rule {
         id: "EXEC-002".to_string(),
         title: "Function constructor".to_string(),
-        description: "new Function() is equivalent to eval() and can execute arbitrary code.".to_string(),
+        description: "new Function() is equivalent to eval() and can execute arbitrary code."
+            .to_string(),
         severity: Severity::Critical,
         category: FindingCategory::CodeExecution,
         patterns: vec![r"\bnew\s+Function\s*\(".to_string()],
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
-        remediation: Some("Avoid dynamic code generation. Use explicit function definitions.".to_string()),
+        remediation: Some(
+            "Avoid dynamic code generation. Use explicit function definitions.".to_string(),
+        ),
         enabled: true,
         source: RuleSource::Official,
         metadata: None,
@@ -40,12 +44,18 @@ pub fn builtin_rules() -> Vec<Rule> {
     rules.push(Rule {
         id: "EXEC-003".to_string(),
         title: "VM code execution".to_string(),
-        description: "Node.js vm module can execute arbitrary code with various isolation levels.".to_string(),
+        description: "Node.js vm module can execute arbitrary code with various isolation levels."
+            .to_string(),
         severity: Severity::High,
         category: FindingCategory::CodeExecution,
-        patterns: vec![r"\bvm\s*\.\s*(runInContext|runInNewContext|runInThisContext|compileFunction)\s*\(".to_string()],
+        patterns: vec![
+            r"\bvm\s*\.\s*(runInContext|runInNewContext|runInThisContext|compileFunction)\s*\("
+                .to_string(),
+        ],
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
-        remediation: Some("Ensure VM usage is intentional and inputs are strictly validated.".to_string()),
+        remediation: Some(
+            "Ensure VM usage is intentional and inputs are strictly validated.".to_string(),
+        ),
         enabled: true,
         source: RuleSource::Official,
         metadata: None,
@@ -84,12 +94,15 @@ pub fn builtin_rules() -> Vec<Rule> {
     rules.push(Rule {
         id: "SHELL-002".to_string(),
         title: "Shell execution via execa/shelljs".to_string(),
-        description: "Popular shell execution libraries that can run arbitrary commands.".to_string(),
+        description: "Popular shell execution libraries that can run arbitrary commands."
+            .to_string(),
         severity: Severity::High,
         category: FindingCategory::ShellExecution,
         patterns: vec![r"\b(execa|shelljs|\$`|shell\.exec)\s*\(".to_string()],
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
-        remediation: Some("Audit all shell commands being executed and validate inputs.".to_string()),
+        remediation: Some(
+            "Audit all shell commands being executed and validate inputs.".to_string(),
+        ),
         enabled: true,
         source: RuleSource::Official,
         metadata: None,
@@ -128,12 +141,16 @@ pub fn builtin_rules() -> Vec<Rule> {
     rules.push(Rule {
         id: "OBFUSC-001".to_string(),
         title: "Base64 decode (atob)".to_string(),
-        description: "atob() decodes base64 strings, commonly used to hide malicious payloads.".to_string(),
+        description: "atob() decodes base64 strings, commonly used to hide malicious payloads."
+            .to_string(),
         severity: Severity::Medium,
         category: FindingCategory::Obfuscation,
         patterns: vec![r"\batob\s*\(".to_string()],
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
-        remediation: Some("Review what is being decoded. Legitimate uses should have clear, documented purposes.".to_string()),
+        remediation: Some(
+            "Review what is being decoded. Legitimate uses should have clear, documented purposes."
+                .to_string(),
+        ),
         enabled: true,
         source: RuleSource::Official,
         metadata: None,
@@ -142,12 +159,16 @@ pub fn builtin_rules() -> Vec<Rule> {
     rules.push(Rule {
         id: "OBFUSC-002".to_string(),
         title: "Buffer.from base64".to_string(),
-        description: "Buffer.from with base64 encoding is used to decode hidden content.".to_string(),
+        description: "Buffer.from with base64 encoding is used to decode hidden content."
+            .to_string(),
         severity: Severity::Medium,
         category: FindingCategory::Obfuscation,
         patterns: vec![r#"Buffer\s*\.\s*from\s*\([^)]*['"](base64|hex)['"]"#.to_string()],
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
-        remediation: Some("Review what is being decoded and ensure it's not hiding malicious content.".to_string()),
+        remediation: Some(
+            "Review what is being decoded and ensure it's not hiding malicious content."
+                .to_string(),
+        ),
         enabled: true,
         source: RuleSource::Official,
         metadata: None,
@@ -160,7 +181,7 @@ pub fn builtin_rules() -> Vec<Rule> {
         severity: Severity::Medium,
         category: FindingCategory::Obfuscation,
         patterns: vec![r#"['"`][A-Za-z0-9+/=]{100,}['"`]"#.to_string()],
-        file_extensions: vec![],  // All files
+        file_extensions: vec![], // All files
         remediation: Some("Decode and review the content of long encoded strings.".to_string()),
         enabled: true,
         source: RuleSource::Official,
@@ -170,7 +191,9 @@ pub fn builtin_rules() -> Vec<Rule> {
     rules.push(Rule {
         id: "OBFUSC-004".to_string(),
         title: "String.fromCharCode obfuscation".to_string(),
-        description: "String.fromCharCode can be used to build strings that evade pattern matching.".to_string(),
+        description:
+            "String.fromCharCode can be used to build strings that evade pattern matching."
+                .to_string(),
         severity: Severity::Medium,
         category: FindingCategory::Obfuscation,
         patterns: vec![r"String\s*\.\s*fromCharCode\s*\([^)]{10,}\)".to_string()],
@@ -188,7 +211,13 @@ pub fn builtin_rules() -> Vec<Rule> {
         severity: Severity::Low,
         category: FindingCategory::Obfuscation,
         patterns: vec![r#"['"]((\\x[0-9a-fA-F]{2})){5,}['"]"#.to_string()],
-        file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into(), "py".into()],
+        file_extensions: vec![
+            "js".into(),
+            "ts".into(),
+            "mjs".into(),
+            "cjs".into(),
+            "py".into(),
+        ],
         remediation: Some("Convert hex escapes to readable text and review.".to_string()),
         enabled: true,
         source: RuleSource::Official,
@@ -217,7 +246,10 @@ pub fn builtin_rules() -> Vec<Rule> {
         description: "Accessing SSH keys could lead to unauthorized access to systems.".to_string(),
         severity: Severity::Critical,
         category: FindingCategory::SensitiveFileAccess,
-        patterns: vec![r#"['"](~/)?\.ssh/(id_rsa|id_ed25519|id_ecdsa|known_hosts|authorized_keys|config)['"]"#.to_string()],
+        patterns: vec![
+            r#"['"](~/)?\.ssh/(id_rsa|id_ed25519|id_ecdsa|known_hosts|authorized_keys|config)['"]"#
+                .to_string(),
+        ],
         file_extensions: vec![],
         remediation: Some("SSH key access should be strictly audited and justified.".to_string()),
         enabled: true,
@@ -228,7 +260,8 @@ pub fn builtin_rules() -> Vec<Rule> {
     rules.push(Rule {
         id: "FILE-002".to_string(),
         title: "AWS credentials access".to_string(),
-        description: "Accessing AWS credentials could lead to cloud infrastructure compromise.".to_string(),
+        description: "Accessing AWS credentials could lead to cloud infrastructure compromise."
+            .to_string(),
         severity: Severity::Critical,
         category: FindingCategory::SensitiveFileAccess,
         patterns: vec![r#"['"](~/)?\.aws/(credentials|config)['"]"#.to_string()],
@@ -273,7 +306,9 @@ pub fn builtin_rules() -> Vec<Rule> {
         description: "Accessing system credential stores is highly suspicious.".to_string(),
         severity: Severity::Critical,
         category: FindingCategory::CredentialAccess,
-        patterns: vec![r#"['"].*(keychain|credential-store|gnome-keyring|kwallet)['"]"#.to_string()],
+        patterns: vec![
+            r#"['"].*(keychain|credential-store|gnome-keyring|kwallet)['"]"#.to_string(),
+        ],
         file_extensions: vec![],
         remediation: Some("Credential store access must be justified and audited.".to_string()),
         enabled: true,
@@ -334,8 +369,17 @@ pub fn builtin_rules() -> Vec<Rule> {
         severity: Severity::Critical,
         category: FindingCategory::PromptInjection,
         // More specific: requires XML-style tags, brackets, or colon prefix - not camelCase
-        patterns: vec![r"(?i)(<\s*system\s*>|\[SYSTEM\]|^SYSTEM\s*:|---\s*system\s*---|<<\s*system\s*>>)".to_string()],
-        file_extensions: vec!["md".into(), "txt".into(), "json".into(), "yaml".into(), "yml".into()],
+        patterns: vec![
+            r"(?i)(<\s*system\s*>|\[SYSTEM\]|^SYSTEM\s*:|---\s*system\s*---|<<\s*system\s*>>)"
+                .to_string(),
+        ],
+        file_extensions: vec![
+            "md".into(),
+            "txt".into(),
+            "json".into(),
+            "yaml".into(),
+            "yml".into(),
+        ],
         remediation: Some("Remove fake system message injections.".to_string()),
         enabled: true,
         source: RuleSource::Official,
@@ -407,7 +451,8 @@ pub fn builtin_rules() -> Vec<Rule> {
     rules.push(Rule {
         id: "HIDDEN-001".to_string(),
         title: "Zero-width characters".to_string(),
-        description: "Zero-width characters can hide instructions in seemingly empty text.".to_string(),
+        description: "Zero-width characters can hide instructions in seemingly empty text."
+            .to_string(),
         severity: Severity::High,
         category: FindingCategory::HiddenInstructions,
         patterns: vec![r"[\u200B\u200C\u200D\u2060\uFEFF]{3,}".to_string()],
@@ -441,7 +486,10 @@ pub fn builtin_rules() -> Vec<Rule> {
         description: "Patterns associated with cryptocurrency mining.".to_string(),
         severity: Severity::Critical,
         category: FindingCategory::Other("Cryptomining".to_string()),
-        patterns: vec![r"(?i)(coinhive|cryptonight|stratum\+tcp|xmrig|minergate|hashrate|nonce\s*[:=])".to_string()],
+        patterns: vec![
+            r"(?i)(coinhive|cryptonight|stratum\+tcp|xmrig|minergate|hashrate|nonce\s*[:=])"
+                .to_string(),
+        ],
         file_extensions: vec![],
         remediation: Some("Remove cryptocurrency mining code.".to_string()),
         enabled: true,
@@ -483,7 +531,9 @@ pub fn builtin_rules() -> Vec<Rule> {
     rules.push(Rule {
         id: "MDCODE-002".to_string(),
         title: "Eval/exec in markdown code block".to_string(),
-        description: "Markdown code block contains eval/exec which could be extracted and executed.".to_string(),
+        description:
+            "Markdown code block contains eval/exec which could be extracted and executed."
+                .to_string(),
         severity: Severity::High,
         category: FindingCategory::CodeExecution,
         patterns: vec![r"```(?:python|py)\s*\n[^`]*(exec\s*\(|eval\s*\()[^`]*```".to_string()],
@@ -516,7 +566,9 @@ pub fn builtin_rules() -> Vec<Rule> {
         category: FindingCategory::CodeExecution,
         patterns: vec![r"```[^`]*(curl|wget)\s+[^\n]*\|\s*(sudo\s+)?(ba)?sh[^`]*```".to_string()],
         file_extensions: vec!["md".into(), "markdown".into()],
-        remediation: Some("Never pipe remote content directly to shell. Download and inspect first.".to_string()),
+        remediation: Some(
+            "Never pipe remote content directly to shell. Download and inspect first.".to_string(),
+        ),
         enabled: true,
         source: RuleSource::Official,
         metadata: None,
@@ -560,7 +612,10 @@ pub fn builtin_rules() -> Vec<Rule> {
         description: "Bash reverse shell connects back to attacker-controlled server.".to_string(),
         severity: Severity::Critical,
         category: FindingCategory::ShellExecution,
-        patterns: vec![r"(bash\s+-i\s+>&\s*/dev/tcp/|nc\s+(-e|--exec)\s+/bin/(ba)?sh|/dev/tcp/[^/]+/[0-9]+)".to_string()],
+        patterns: vec![
+            r"(bash\s+-i\s+>&\s*/dev/tcp/|nc\s+(-e|--exec)\s+/bin/(ba)?sh|/dev/tcp/[^/]+/[0-9]+)"
+                .to_string(),
+        ],
         file_extensions: vec!["sh".into(), "bash".into(), "zsh".into()],
         remediation: Some("Remove reverse shell code immediately.".to_string()),
         enabled: true,

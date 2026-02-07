@@ -40,9 +40,9 @@ pub use analyzers::{
     AiAnalyzer, AiAnalyzerConfig, AiBackend, AnalyzerConfig, AstAnalyzer, AstAnalyzerConfig,
     StaticAnalyzer,
 };
-pub use deps::{DependencyAnalyzer, DependencyAnalyzerConfig};
 pub use config::Config;
 pub use decoders::Decoder;
+pub use deps::{DependencyAnalyzer, DependencyAnalyzerConfig};
 pub use reporters::{report, OutputFormat};
 pub use rules::{
     loader::{
@@ -56,7 +56,7 @@ pub use types::{truncate, Finding, Platform, ScanReport, ScanResult, Severity};
 
 use adapters::{create_adapter, detect_platform, PlatformAdapter};
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Mutex;
 use std::time::Instant;
 
@@ -151,9 +151,9 @@ impl Scanner {
     }
 
     /// Scan a specific path (file or directory).
-    pub async fn scan_path(&self, path: &PathBuf) -> Result<ScanReport> {
+    pub async fn scan_path(&self, path: &Path) -> Result<ScanReport> {
         let start = Instant::now();
-        let mut report = ScanReport::new(path.clone());
+        let mut report = ScanReport::new(path.to_path_buf());
 
         // Determine platform and adapter
         let platform = self.config.platform.or_else(detect_platform);

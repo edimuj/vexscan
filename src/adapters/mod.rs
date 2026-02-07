@@ -5,7 +5,7 @@ pub mod generic;
 
 use crate::types::Platform;
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// A discovered component to scan.
 #[derive(Debug, Clone)]
@@ -66,7 +66,7 @@ pub trait PlatformAdapter {
     fn discover(&self) -> Result<Vec<DiscoveredComponent>>;
 
     /// Discover components at a specific path.
-    fn discover_at(&self, path: &PathBuf) -> Result<Vec<DiscoveredComponent>>;
+    fn discover_at(&self, path: &Path) -> Result<Vec<DiscoveredComponent>>;
 }
 
 /// Create an adapter for the specified platform.

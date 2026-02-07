@@ -37,9 +37,8 @@ impl StringConcatDetector {
                 let text = node.utf8_text(source.as_bytes()).ok()?;
                 if (text.starts_with('"') && text.ends_with('"'))
                     || (text.starts_with('\'') && text.ends_with('\''))
+                    || (text.starts_with('`') && text.ends_with('`'))
                 {
-                    Some(text[1..text.len() - 1].to_string())
-                } else if text.starts_with('`') && text.ends_with('`') {
                     Some(text[1..text.len() - 1].to_string())
                 } else {
                     None
@@ -127,10 +126,7 @@ impl Detector for StringConcatDetector {
 
         if let Some(resolved) = self.resolve_concat(index, source, 0) {
             if self.lists.is_dangerous_function(&resolved) {
-                let snippet = node
-                    .utf8_text(source.as_bytes())
-                    .unwrap_or("")
-                    .to_string();
+                let snippet = node.utf8_text(source.as_bytes()).unwrap_or("").to_string();
 
                 let start_line = node.start_position().row + 1;
                 let end_line = node.end_position().row + 1;

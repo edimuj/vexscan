@@ -3,7 +3,7 @@
 use super::{ComponentType, DiscoveredComponent, PlatformAdapter};
 use crate::types::Platform;
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 /// Adapter for Claude Code.
@@ -284,7 +284,7 @@ impl PlatformAdapter for ClaudeCodeAdapter {
         Ok(all_components)
     }
 
-    fn discover_at(&self, path: &PathBuf) -> Result<Vec<DiscoveredComponent>> {
+    fn discover_at(&self, path: &Path) -> Result<Vec<DiscoveredComponent>> {
         let mut components = Vec::new();
 
         if path.is_file() {
@@ -293,12 +293,14 @@ impl PlatformAdapter for ClaudeCodeAdapter {
                 "js" | "ts" | "mjs" | "cjs" | "py" => ComponentType::Plugin,
                 "json" | "yaml" | "yml" | "toml" => ComponentType::Config,
                 "md" => ComponentType::Prompt,
-                "sh" | "bash" | "zsh" | "ps1" | "psm1" | "psd1" | "bat" | "cmd" => ComponentType::Hook,
+                "sh" | "bash" | "zsh" | "ps1" | "psm1" | "psd1" | "bat" | "cmd" => {
+                    ComponentType::Hook
+                }
                 _ => ComponentType::Other,
             };
 
             components.push(DiscoveredComponent {
-                path: path.clone(),
+                path: path.to_path_buf(),
                 component_type,
                 name: path
                     .file_name()
@@ -314,12 +316,17 @@ impl PlatformAdapter for ClaudeCodeAdapter {
             {
                 let entry_path = entry.path();
                 if entry_path.is_file() {
-                    let ext = entry_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                    let ext = entry_path
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or("");
                     let component_type = match ext {
                         "js" | "ts" | "mjs" | "cjs" | "py" => ComponentType::Plugin,
                         "json" | "yaml" | "yml" | "toml" => ComponentType::Config,
                         "md" => ComponentType::Prompt,
-                        "sh" | "bash" | "zsh" | "ps1" | "psm1" | "psd1" | "bat" | "cmd" => ComponentType::Hook,
+                        "sh" | "bash" | "zsh" | "ps1" | "psm1" | "psd1" | "bat" | "cmd" => {
+                            ComponentType::Hook
+                        }
                         _ => continue, // Skip unknown file types
                     };
 

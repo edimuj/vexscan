@@ -26,7 +26,11 @@ impl TyposquatDetector {
         let name_lower = name.to_lowercase();
 
         // If the package itself is a popular package, it's not a typosquat
-        if self.popular_packages.iter().any(|p| p.to_lowercase() == name_lower) {
+        if self
+            .popular_packages
+            .iter()
+            .any(|p| p.to_lowercase() == name_lower)
+        {
             return None;
         }
 
@@ -96,9 +100,7 @@ fn levenshtein(a: &str, b: &str) -> usize {
             } else {
                 1
             };
-            curr[j] = (prev[j] + 1)
-                .min(curr[j - 1] + 1)
-                .min(prev[j - 1] + cost);
+            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
         }
         std::mem::swap(&mut prev, &mut curr);
     }
@@ -165,10 +167,13 @@ fn contains_doubled_letter(name: &str, popular: &str) -> bool {
     }
 
     // Handle trailing doubled letter
-    if i < name_chars.len() && !found_double && i + 1 == name_chars.len() {
-        if i > 0 && name_chars[i] == name_chars[i - 1] {
-            return true;
-        }
+    if i < name_chars.len()
+        && !found_double
+        && i + 1 == name_chars.len()
+        && i > 0
+        && name_chars[i] == name_chars[i - 1]
+    {
+        return true;
     }
 
     found_double && j == popular_chars.len()
@@ -191,7 +196,6 @@ static POPULAR_PACKAGES: &[&str] = &[
     "parcel",
     "gulp",
     "grunt",
-
     // === React Ecosystem ===
     "react",
     "react-dom",
@@ -203,18 +207,15 @@ static POPULAR_PACKAGES: &[&str] = &[
     "nextjs",
     "gatsby",
     "create-react-app",
-
     // === Vue Ecosystem ===
     "vue",
     "vuex",
     "vue-router",
     "nuxt",
-
     // === Angular Ecosystem ===
     "angular",
     "@angular/core",
     "@angular/cli",
-
     // === Server/Framework ===
     "express",
     "fastify",
@@ -223,7 +224,6 @@ static POPULAR_PACKAGES: &[&str] = &[
     "nest",
     "nestjs",
     "@nestjs/core",
-
     // === Testing ===
     "jest",
     "mocha",
@@ -233,13 +233,11 @@ static POPULAR_PACKAGES: &[&str] = &[
     "playwright",
     "puppeteer",
     "vitest",
-
     // === Linting/Formatting ===
     "eslint",
     "prettier",
     "tslint",
     "stylelint",
-
     // === Database ===
     "mongoose",
     "sequelize",
@@ -253,7 +251,6 @@ static POPULAR_PACKAGES: &[&str] = &[
     "mongodb",
     "redis",
     "ioredis",
-
     // === HTTP/API ===
     "axios",
     "fetch",
@@ -264,7 +261,6 @@ static POPULAR_PACKAGES: &[&str] = &[
     "graphql",
     "apollo",
     "@apollo/client",
-
     // === Authentication ===
     "passport",
     "jsonwebtoken",
@@ -272,7 +268,6 @@ static POPULAR_PACKAGES: &[&str] = &[
     "bcrypt",
     "bcryptjs",
     "oauth",
-
     // === Utilities ===
     "moment",
     "dayjs",
@@ -298,27 +293,23 @@ static POPULAR_PACKAGES: &[&str] = &[
     "ramda",
     "immutable",
     "immer",
-
     // === Validation ===
     "joi",
     "yup",
     "zod",
     "validator",
     "class-validator",
-
     // === Templating ===
     "handlebars",
     "ejs",
     "pug",
     "mustache",
     "nunjucks",
-
     // === Real-time ===
     "socket.io",
     "socket-io",
     "ws",
     "websocket",
-
     // === Cloud/AWS ===
     "aws-sdk",
     "@aws-sdk/client-s3",
@@ -326,30 +317,25 @@ static POPULAR_PACKAGES: &[&str] = &[
     "firebase-admin",
     "@google-cloud/storage",
     "azure",
-
     // === Email ===
     "nodemailer",
     "sendgrid",
     "@sendgrid/mail",
-
     // === File/Image Processing ===
     "sharp",
     "jimp",
     "multer",
     "formidable",
-
     // === Crypto/Security ===
     "crypto",
     "crypto-js",
     "node-forge",
-
     // === Logging ===
     "winston",
     "bunyan",
     "pino",
     "morgan",
     "log4js",
-
     // === Process/System ===
     "pm2",
     "nodemon",
@@ -358,12 +344,10 @@ static POPULAR_PACKAGES: &[&str] = &[
     "execa",
     "shelljs",
     "cross-spawn",
-
     // === Package Managers ===
     "npm",
     "yarn",
     "pnpm",
-
     // === Popular Libraries ===
     "jquery",
     "bootstrap",
@@ -375,32 +359,27 @@ static POPULAR_PACKAGES: &[&str] = &[
     "less",
     "postcss",
     "autoprefixer",
-
     // === Three.js / Graphics ===
     "three",
     "d3",
     "chart.js",
     "echarts",
-
     // === Mobile ===
     "react-native",
     "expo",
     "ionic",
     "cordova",
-
     // === CLI ===
     "create-react-app",
     "@vue/cli",
     "@angular/cli",
     "yeoman",
     "yo",
-
     // === Monorepo ===
     "lerna",
     "nx",
     "turbo",
     "turborepo",
-
     // === Other Popular ===
     "twilio",
     "stripe",

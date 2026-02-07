@@ -67,10 +67,7 @@ impl Detector for VariableAliasingDetector {
         match scope_tracker.resolve(callee_name) {
             ResolvedValue::DangerousFunction(func_name) => {
                 if callee_name != func_name {
-                    let snippet = node
-                        .utf8_text(source.as_bytes())
-                        .unwrap_or("")
-                        .to_string();
+                    let snippet = node.utf8_text(source.as_bytes()).unwrap_or("").to_string();
 
                     let start_line = node.start_position().row + 1;
                     let end_line = node.end_position().row + 1;
@@ -102,10 +99,8 @@ impl Detector for VariableAliasingDetector {
                 if self.lists.is_dangerous_module(&module) {
                     if let Some(ref exp) = export {
                         if self.lists.is_dangerous_export(&module, exp) {
-                            let snippet = node
-                                .utf8_text(source.as_bytes())
-                                .unwrap_or("")
-                                .to_string();
+                            let snippet =
+                                node.utf8_text(source.as_bytes()).unwrap_or("").to_string();
 
                             let start_line = node.start_position().row + 1;
                             let end_line = node.end_position().row + 1;

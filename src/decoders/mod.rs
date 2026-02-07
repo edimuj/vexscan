@@ -235,7 +235,7 @@ impl Decoder {
 
     fn try_decode_hex(&self, s: &str) -> Option<String> {
         // Ensure even length for hex pairs and minimum length
-        if s.len() % 2 != 0 || s.is_empty() {
+        if !s.len().is_multiple_of(2) || s.is_empty() {
             return None;
         }
 

@@ -164,7 +164,9 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
             writeln!(
                 writer,
                 "{}",
-                "⚠️  Security issues detected! Review findings above.".bright_red().bold()
+                "⚠️  Security issues detected! Review findings above."
+                    .bright_red()
+                    .bold()
             )?;
         } else {
             writeln!(
@@ -174,7 +176,11 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
             )?;
         }
     } else {
-        writeln!(writer, "{}", "✅ No security issues detected.".green().bold())?;
+        writeln!(
+            writer,
+            "{}",
+            "✅ No security issues detected.".green().bold()
+        )?;
     }
     writeln!(writer)?;
 

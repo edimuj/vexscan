@@ -59,7 +59,7 @@ impl DangerousLists {
     pub fn is_dangerous_export(&self, module: &str, export: &str) -> bool {
         self.modules
             .get(module)
-            .map_or(false, |exports| exports.iter().any(|e| e == export))
+            .is_some_and(|exports| exports.iter().any(|e| e == export))
     }
 }
 
@@ -167,11 +167,7 @@ pub fn load_builtin_ast_rules() -> Result<AstRulesConfig> {
 pub fn load_ast_rules() -> Result<(Vec<AstRuleEntry>, Arc<DangerousLists>)> {
     let config = load_builtin_ast_rules()?;
     let lists = Arc::new(config.dangerous_lists);
-    let detectors: Vec<AstRuleEntry> = config
-        .detectors
-        .into_iter()
-        .filter(|d| d.enabled)
-        .collect();
+    let detectors: Vec<AstRuleEntry> = config.detectors.into_iter().filter(|d| d.enabled).collect();
     Ok((detectors, lists))
 }
 
@@ -190,9 +186,7 @@ mod tests {
         assert!(config
             .dangerous_lists
             .is_dangerous_export("child_process", "exec"));
-        assert!(!config
-            .dangerous_lists
-            .is_dangerous_export("os", "platform"));
+        assert!(!config.dangerous_lists.is_dangerous_export("os", "platform"));
     }
 
     #[test]

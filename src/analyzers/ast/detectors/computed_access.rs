@@ -27,9 +27,8 @@ impl ComputedAccessDetector {
         let text = node.utf8_text(source.as_bytes()).ok()?;
         if (text.starts_with('"') && text.ends_with('"'))
             || (text.starts_with('\'') && text.ends_with('\''))
+            || (text.starts_with('`') && text.ends_with('`'))
         {
-            Some(text[1..text.len() - 1].to_string())
-        } else if text.starts_with('`') && text.ends_with('`') {
             Some(text[1..text.len() - 1].to_string())
         } else {
             None
@@ -109,10 +108,7 @@ impl ComputedAccessDetector {
         };
 
         if self.lists.is_dangerous_function(&property) {
-            let snippet = node
-                .utf8_text(source.as_bytes())
-                .unwrap_or("")
-                .to_string();
+            let snippet = node.utf8_text(source.as_bytes()).unwrap_or("").to_string();
 
             let start_line = node.start_position().row + 1;
             let end_line = node.end_position().row + 1;
@@ -128,8 +124,10 @@ impl ComputedAccessDetector {
                     ),
                     self.rule.severity(),
                     self.rule.category(),
-                    Location::new(path.to_path_buf(), start_line, end_line)
-                        .with_columns(node.start_position().column + 1, node.end_position().column + 1),
+                    Location::new(path.to_path_buf(), start_line, end_line).with_columns(
+                        node.start_position().column + 1,
+                        node.end_position().column + 1,
+                    ),
                     snippet,
                 )
                 .with_remediation(&self.rule.remediation)

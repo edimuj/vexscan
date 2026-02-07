@@ -88,10 +88,7 @@ impl Detector for CommaOperatorDetector {
         };
 
         if self.lists.is_dangerous_function(target_name) {
-            let snippet = node
-                .utf8_text(source.as_bytes())
-                .unwrap_or("")
-                .to_string();
+            let snippet = node.utf8_text(source.as_bytes()).unwrap_or("").to_string();
 
             let start_line = node.start_position().row + 1;
             let end_line = node.end_position().row + 1;

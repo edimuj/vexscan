@@ -381,5 +381,4 @@ fn convert_ai_finding(ai_finding: AiFinding, path: &Path) -> Finding {
     .with_metadata("ai_analyzed", "true".to_string())
 }
 
-
 // Need to add async_trait to Cargo.toml

@@ -113,14 +113,11 @@ impl DependencyAnalyzer {
         for (name, version, dep_type) in &all_deps {
             // Check against malicious package database
             if let Some(malicious) = self.malicious_db.lookup(name, version) {
-                result.findings.push(self.create_malicious_finding(
-                    path,
-                    name,
-                    version,
-                    dep_type,
-                    malicious,
-                    &content,
-                ));
+                result.findings.push(
+                    self.create_malicious_finding(
+                        path, name, version, dep_type, malicious, &content,
+                    ),
+                );
             }
 
             // Check for typosquatting
@@ -197,6 +194,7 @@ impl DependencyAnalyzer {
     }
 
     /// Create a finding for potential typosquatting.
+    #[allow(clippy::too_many_arguments)]
     fn create_typosquat_finding(
         &self,
         path: &Path,
@@ -254,7 +252,7 @@ impl DependencyAnalyzer {
             (">/dev/null", "Suppresses output (hiding activity)"),
             ("2>&1", "Redirects stderr (hiding errors)"),
             ("base64", "Base64 encoding/decoding (obfuscation)"),
-            ("$(",  "Command substitution"),
+            ("$(", "Command substitution"),
             ("exec(", "Code execution"),
         ];
 
@@ -263,7 +261,10 @@ impl DependencyAnalyzer {
         for script_name in &install_scripts {
             if let Some(script_content) = package.scripts.get(*script_name) {
                 for (pattern, description) in &dangerous_patterns {
-                    if script_content.to_lowercase().contains(&pattern.to_lowercase()) {
+                    if script_content
+                        .to_lowercase()
+                        .contains(&pattern.to_lowercase())
+                    {
                         let line = find_line_number(content, script_name);
 
                         findings.push(
@@ -322,10 +323,7 @@ mod tests {
     use tempfile::NamedTempFile;
 
     fn create_package_json(content: &str) -> NamedTempFile {
-        let mut file = tempfile::Builder::new()
-            .suffix(".json")
-            .tempfile()
-            .unwrap();
+        let mut file = tempfile::Builder::new().suffix(".json").tempfile().unwrap();
         write!(file, "{}", content).unwrap();
         file
     }

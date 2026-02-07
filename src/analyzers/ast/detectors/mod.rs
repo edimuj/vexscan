@@ -3,19 +3,19 @@
 //! Each detector analyzes specific AST node types to find patterns that
 //! regex-based scanning cannot catch.
 
-mod computed_access;
-mod variable_aliasing;
-mod string_concat;
-mod escape_sequences;
 mod comma_operator;
+mod computed_access;
 mod destructured_alias;
+mod escape_sequences;
+mod string_concat;
+mod variable_aliasing;
 
-pub use computed_access::ComputedAccessDetector;
-pub use variable_aliasing::VariableAliasingDetector;
-pub use string_concat::StringConcatDetector;
-pub use escape_sequences::EscapeSequenceDetector;
 pub use comma_operator::CommaOperatorDetector;
+pub use computed_access::ComputedAccessDetector;
 pub use destructured_alias::DestructuredAliasDetector;
+pub use escape_sequences::EscapeSequenceDetector;
+pub use string_concat::StringConcatDetector;
+pub use variable_aliasing::VariableAliasingDetector;
 
 use crate::types::Finding;
 use std::path::Path;

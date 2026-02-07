@@ -7,24 +7,24 @@ use std::sync::OnceLock;
 /// Extensions that are executable and should NEVER be skipped, regardless of filename.
 const EXECUTABLE_EXTENSIONS: &[&str] = &[
     "js", "mjs", "cjs", "ts", "tsx", "jsx", // JavaScript/TypeScript
-    "py", "pyw", "pyc", "pyo",              // Python
-    "sh", "bash", "zsh", "fish",            // Shell
-    "rb", "erb",                            // Ruby
-    "pl", "pm",                             // Perl
-    "php", "phtml",                         // PHP
-    "lua",                                  // Lua
-    "ps1", "psm1", "psd1",                  // PowerShell
-    "bat", "cmd",                           // Windows batch
-    "jar", "class",                         // Java
-    "exe", "dll", "so", "dylib",            // Binaries
-    "wasm",                                 // WebAssembly
+    "py", "pyw", "pyc", "pyo", // Python
+    "sh", "bash", "zsh", "fish", // Shell
+    "rb", "erb", // Ruby
+    "pl", "pm", // Perl
+    "php", "phtml", // PHP
+    "lua",   // Lua
+    "ps1", "psm1", "psd1", // PowerShell
+    "bat", "cmd", // Windows batch
+    "jar", "class", // Java
+    "exe", "dll", "so", "dylib", // Binaries
+    "wasm",  // WebAssembly
 ];
 
 /// Extensions that are safe to skip (documentation/data only).
 const SAFE_DOC_EXTENSIONS: &[&str] = &[
     "md", "markdown", "txt", "rst", "adoc", // Documentation
-    "log",                                   // Log files
-    "json", "yaml", "yml", "toml",          // Config (but be careful)
+    "log",  // Log files
+    "json", "yaml", "yml", "toml", // Config (but be careful)
 ];
 
 /// Scanner configuration that can be loaded from a file.
@@ -444,15 +444,11 @@ mod tests {
     fn test_should_skip_trusted_package() {
         let config = Config::with_defaults();
 
-        assert!(config.should_skip_path(Path::new(
-            "/project/node_modules/zod/lib/index.js"
-        )));
+        assert!(config.should_skip_path(Path::new("/project/node_modules/zod/lib/index.js")));
         assert!(config.should_skip_path(Path::new(
             "/project/node_modules/@anthropic-ai/sdk/index.js"
         )));
-        assert!(!config.should_skip_path(Path::new(
-            "/project/node_modules/suspicious-pkg/evil.js"
-        )));
+        assert!(!config.should_skip_path(Path::new("/project/node_modules/suspicious-pkg/evil.js")));
     }
 
     #[test]
@@ -460,9 +456,7 @@ mod tests {
         let mut config = Config::with_defaults();
         config.skip_node_modules = true;
 
-        assert!(config.should_skip_path(Path::new(
-            "/project/node_modules/anything/file.js"
-        )));
+        assert!(config.should_skip_path(Path::new("/project/node_modules/anything/file.js")));
     }
 
     #[test]

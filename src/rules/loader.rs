@@ -90,7 +90,10 @@ impl JsonRule {
         } else if let Some(ref pat) = self.pattern {
             vec![pat.clone()]
         } else {
-            tracing::warn!("Rule {} has neither pattern nor patterns; will never match", self.id);
+            tracing::warn!(
+                "Rule {} has neither pattern nor patterns; will never match",
+                self.id
+            );
             vec![]
         };
 
@@ -294,9 +297,7 @@ const EMBEDDED_OFFICIAL: &[&str] = &[
 ];
 
 /// Embedded community rule JSON files (compiled into the binary).
-const EMBEDDED_COMMUNITY: &[&str] = &[
-    include_str!("../../rules/community/cloud-security.json"),
-];
+const EMBEDDED_COMMUNITY: &[&str] = &[include_str!("../../rules/community/cloud-security.json")];
 
 /// Load all built-in rules from embedded JSON (compiled into the binary).
 /// No filesystem access needed — works in distributed binaries.
@@ -376,7 +377,11 @@ impl RuleTestResult {
 
     pub fn passed_tests(&self) -> usize {
         self.should_match_passed.iter().filter(|(_, p)| *p).count()
-            + self.should_not_match_passed.iter().filter(|(_, p)| *p).count()
+            + self
+                .should_not_match_passed
+                .iter()
+                .filter(|(_, p)| *p)
+                .count()
     }
 
     pub fn failed_tests(&self) -> usize {
@@ -427,7 +432,9 @@ pub fn test_rule(rule: &Rule) -> RuleTestResult {
             if !not_matched {
                 result.passed = false;
             }
-            result.should_not_match_passed.push((case.clone(), not_matched));
+            result
+                .should_not_match_passed
+                .push((case.clone(), not_matched));
         }
     }
 
@@ -440,7 +447,9 @@ pub fn test_all_rules(rules: &[Rule]) -> Vec<RuleTestResult> {
 }
 
 /// Test rules from a specific file.
-pub fn test_rules_from_file(path: &Path) -> Result<Vec<RuleTestResult>, Box<dyn std::error::Error>> {
+pub fn test_rules_from_file(
+    path: &Path,
+) -> Result<Vec<RuleTestResult>, Box<dyn std::error::Error>> {
     let rules = load_rules_from_file(path)?;
     Ok(test_all_rules(&rules))
 }

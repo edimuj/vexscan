@@ -1,5 +1,11 @@
 //! CLI entry point for the Vexscan security scanner.
 
+use anyhow::Result;
+use clap::Parser;
+use colored::Colorize;
+use std::io;
+use std::path::PathBuf;
+use tracing_subscriber::EnvFilter;
 use vexscan::{
     cli::{Cli, Commands, RulesSubcommand},
     config::{generate_default_config, Config},
@@ -10,12 +16,6 @@ use vexscan::{
     test_all_rules, test_rules_from_file, truncate, AiAnalyzerConfig, AiBackend, AnalyzerConfig,
     Platform, RuleSource, ScanConfig, Scanner, Severity,
 };
-use anyhow::Result;
-use clap::Parser;
-use colored::Colorize;
-use std::io;
-use std::path::PathBuf;
-use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -193,11 +193,7 @@ async fn main() -> Result<()> {
 
             // Print startup info
             eprintln!("{}", "═".repeat(60).bright_blue());
-            eprintln!(
-                "{}  {} Watch Mode",
-                "👁".bright_blue(),
-                "Vexscan".bold()
-            );
+            eprintln!("{}  {} Watch Mode", "👁".bright_blue(), "Vexscan".bold());
             eprintln!("{}", "═".repeat(60).bright_blue());
             eprintln!();
             eprintln!("{}", "Watching for new plugin installations...".cyan());
@@ -253,7 +249,8 @@ async fn main() -> Result<()> {
             }
 
             // Track seen files to avoid duplicate scans (capped to prevent unbounded growth)
-            let mut seen_files: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+            let mut seen_files: std::collections::HashSet<PathBuf> =
+                std::collections::HashSet::new();
             const MAX_SEEN_FILES: usize = 10_000;
 
             // Event loop
@@ -290,11 +287,7 @@ async fn main() -> Result<()> {
                                 continue;
                             }
 
-                            eprintln!(
-                                "\n{} New file detected: {}",
-                                "📄".cyan(),
-                                path.display()
-                            );
+                            eprintln!("\n{} New file detected: {}", "📄".cyan(), path.display());
 
                             // Scan the file
                             match scanner.scan_path(&path).await {
@@ -340,7 +333,10 @@ async fn main() -> Result<()> {
                                                 .unwrap_or_else(|| "Unknown".to_string());
 
                                             send_desktop_notification(
-                                                &format!("Vexscan: {} issue(s) found", findings_count),
+                                                &format!(
+                                                    "Vexscan: {} issue(s) found",
+                                                    findings_count
+                                                ),
                                                 &format!(
                                                     "{} in {}\nMax severity: {}",
                                                     findings_count,
@@ -352,18 +348,11 @@ async fn main() -> Result<()> {
                                             );
                                         }
                                     } else {
-                                        eprintln!(
-                                            "   {} No issues found",
-                                            "✓".green()
-                                        );
+                                        eprintln!("   {} No issues found", "✓".green());
                                     }
                                 }
                                 Err(e) => {
-                                    eprintln!(
-                                        "   {} Failed to scan: {}",
-                                        "⚠".yellow(),
-                                        e
-                                    );
+                                    eprintln!("   {} Failed to scan: {}", "⚠".yellow(), e);
                                 }
                             }
                         }
@@ -481,7 +470,12 @@ async fn main() -> Result<()> {
                                     result.total_tests()
                                 );
                             } else {
-                                println!("{} {} - {}", status_icon, result.rule_id.cyan(), result.rule_title);
+                                println!(
+                                    "{} {} - {}",
+                                    status_icon,
+                                    result.rule_id.cyan(),
+                                    result.rule_title
+                                );
 
                                 if let Some(ref err) = result.error {
                                     println!("  {} {}", "Error:".red(), err);
@@ -627,8 +621,11 @@ async fn main() -> Result<()> {
                             }
                             if let Some(ref tc) = meta.test_cases {
                                 if !tc.should_match.is_empty() || !tc.should_not_match.is_empty() {
-                                    println!("  Test cases: {} should_match, {} should_not_match",
-                                        tc.should_match.len(), tc.should_not_match.len());
+                                    println!(
+                                        "  Test cases: {} should_match, {} should_not_match",
+                                        tc.should_match.len(),
+                                        tc.should_not_match.len()
+                                    );
                                 }
                             }
                         }
@@ -654,7 +651,8 @@ async fn main() -> Result<()> {
 
                     let mut current_category = String::new();
                     let mut sorted_rules = rules.clone();
-                    sorted_rules.sort_by(|a, b| format!("{}", a.category).cmp(&format!("{}", b.category)));
+                    sorted_rules
+                        .sort_by(|a, b| format!("{}", a.category).cmp(&format!("{}", b.category)));
 
                     for r in sorted_rules {
                         let cat = format!("{}", r.category);
@@ -687,9 +685,18 @@ async fn main() -> Result<()> {
                     println!();
                     println!("Total: {} rules", rules.len());
                     if !official && !community {
-                        let official_count = rules.iter().filter(|r| r.source == RuleSource::Official).count();
-                        let community_count = rules.iter().filter(|r| r.source == RuleSource::Community).count();
-                        println!("  {} official, {} community", official_count, community_count);
+                        let official_count = rules
+                            .iter()
+                            .filter(|r| r.source == RuleSource::Official)
+                            .count();
+                        let community_count = rules
+                            .iter()
+                            .filter(|r| r.source == RuleSource::Community)
+                            .count();
+                        println!(
+                            "  {} official, {} community",
+                            official_count, community_count
+                        );
                     }
                 }
             }
@@ -704,7 +711,10 @@ async fn main() -> Result<()> {
             } else {
                 println!("{}", "Decoded content:".bold());
                 for (i, layer) in layers.iter().enumerate() {
-                    println!("\n{}", format!("Layer {} (depth {})", i + 1, i + 1).underline());
+                    println!(
+                        "\n{}",
+                        format!("Layer {} (depth {})", i + 1, i + 1).underline()
+                    );
                     for decoded in layer {
                         println!("  Encoding: {}", decoded.encoding.to_string().cyan());
                         println!("  Original: {}", truncate(&decoded.original, 60).dimmed());
@@ -753,11 +763,7 @@ async fn main() -> Result<()> {
             }
 
             eprintln!("{}", "═".repeat(60).bright_blue());
-            eprintln!(
-                "{}  {} Install",
-                "📦".bright_blue(),
-                "Vexscan".bold()
-            );
+            eprintln!("{}  {} Install", "📦".bright_blue(), "Vexscan".bold());
             eprintln!("{}", "═".repeat(60).bright_blue());
             eprintln!();
 
@@ -786,7 +792,12 @@ async fn main() -> Result<()> {
             let final_type = install_type.as_deref().unwrap_or(&detected_type);
             let install_name = name.unwrap_or_else(|| source_name.clone());
 
-            eprintln!("{} {} ({})", "Component:".cyan(), install_name.bright_white(), final_type);
+            eprintln!(
+                "{} {} ({})",
+                "Component:".cyan(),
+                install_name.bright_white(),
+                final_type
+            );
             eprintln!();
 
             // Step 3: Security scan
@@ -818,7 +829,8 @@ async fn main() -> Result<()> {
 
             if total > 0 {
                 // Show the scan report
-                let format: OutputFormat = cli.format.parse().map_err(|e| anyhow::anyhow!("{}", e))?;
+                let format: OutputFormat =
+                    cli.format.parse().map_err(|e| anyhow::anyhow!("{}", e))?;
                 let mut stdout = io::stdout().lock();
                 report(&scan_report, format, &mut stdout)?;
                 drop(stdout);
@@ -879,7 +891,8 @@ async fn main() -> Result<()> {
                         eprintln!(
                             "{} ({} low, {} info)",
                             "✓ Minor issues only".green(),
-                            low, info
+                            low,
+                            info
                         );
                     } else {
                         eprintln!("{}", "✓ No security issues found".green().bold());
@@ -960,11 +973,7 @@ async fn main() -> Result<()> {
                 (path, None)
             };
 
-            eprintln!(
-                "{} {}",
-                "Vetting:".bold(),
-                source.bright_cyan()
-            );
+            eprintln!("{} {}", "Vetting:".bold(), source.bright_cyan());
             eprintln!();
 
             // Build filter config
@@ -1048,7 +1057,6 @@ fn is_github_url(s: &str) -> bool {
 
 /// Clone a GitHub repository to a temporary directory.
 fn clone_github_repo(url: &str, branch: Option<&str>) -> Result<tempfile::TempDir> {
-
     // Normalize URL
     let normalized_url = if url.starts_with("github.com/") {
         format!("https://{}", url)
@@ -1084,9 +1092,9 @@ fn clone_github_repo(url: &str, branch: Option<&str>) -> Result<tempfile::TempDi
 
     eprintln!("  {} {}", "Cloning".dimmed(), clone_url.dimmed());
 
-    builder.clone(&clone_url, temp_dir.path()).map_err(|e| {
-        anyhow::anyhow!("Failed to clone repository: {}", e)
-    })?;
+    builder
+        .clone(&clone_url, temp_dir.path())
+        .map_err(|e| anyhow::anyhow!("Failed to clone repository: {}", e))?;
 
     eprintln!("  {} {}", "Cloned to".dimmed(), temp_dir.path().display());
 
@@ -1117,7 +1125,9 @@ fn print_verdict(report: &vexscan::ScanReport, threshold: Severity) {
             eprintln!(
                 "{} {}",
                 "VERDICT:".bold(),
-                "⚠️  HIGH RISK - Review carefully before installing".red().bold()
+                "⚠️  HIGH RISK - Review carefully before installing"
+                    .red()
+                    .bold()
             );
             eprintln!(
                 "         Found {} high severity issue(s).",
@@ -1161,11 +1171,31 @@ fn print_verdict(report: &vexscan::ScanReport, threshold: Severity) {
         eprintln!();
         eprintln!(
             "         Summary: {} critical, {} high, {} medium, {} low, {} info",
-            if critical > 0 { critical.to_string().bright_red().to_string() } else { "0".dimmed().to_string() },
-            if high > 0 { high.to_string().red().to_string() } else { "0".dimmed().to_string() },
-            if medium > 0 { medium.to_string().yellow().to_string() } else { "0".dimmed().to_string() },
-            if low > 0 { low.to_string().blue().to_string() } else { "0".dimmed().to_string() },
-            if info > 0 { info.to_string().white().to_string() } else { "0".dimmed().to_string() },
+            if critical > 0 {
+                critical.to_string().bright_red().to_string()
+            } else {
+                "0".dimmed().to_string()
+            },
+            if high > 0 {
+                high.to_string().red().to_string()
+            } else {
+                "0".dimmed().to_string()
+            },
+            if medium > 0 {
+                medium.to_string().yellow().to_string()
+            } else {
+                "0".dimmed().to_string()
+            },
+            if low > 0 {
+                low.to_string().blue().to_string()
+            } else {
+                "0".dimmed().to_string()
+            },
+            if info > 0 {
+                info.to_string().white().to_string()
+            } else {
+                "0".dimmed().to_string()
+            },
         );
     }
 
@@ -1215,7 +1245,6 @@ fn parse_severity(s: &str) -> Result<Severity> {
     }
 }
 
-
 /// Send a desktop notification (platform-specific).
 fn send_desktop_notification(title: &str, body: &str) {
     #[cfg(target_os = "macos")]
@@ -1257,9 +1286,7 @@ fn extract_repo_name(url: &str) -> String {
     // https://github.com/user/repo
     // https://github.com/user/repo.git
     // git@github.com:user/repo.git
-    let cleaned = url
-        .trim_end_matches('/')
-        .trim_end_matches(".git");
+    let cleaned = url.trim_end_matches('/').trim_end_matches(".git");
 
     cleaned
         .rsplit('/')
@@ -1282,12 +1309,7 @@ fn detect_install_type(path: &std::path::Path) -> String {
         .map(|entries| {
             entries
                 .filter_map(|e| e.ok())
-                .filter(|e| {
-                    e.path()
-                        .extension()
-                        .map(|ext| ext == "md")
-                        .unwrap_or(false)
-                })
+                .filter(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
                 .collect()
         })
         .unwrap_or_default();
@@ -1323,7 +1345,8 @@ fn detect_install_type(path: &std::path::Path) -> String {
 
 /// Get the installation path for a component.
 fn get_install_path(install_type: &str, name: &str) -> Result<PathBuf> {
-    let home_dir = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
+    let home_dir =
+        dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
     let claude_dir = home_dir.join(".claude");
 
     let path = match install_type {
@@ -1386,7 +1409,11 @@ fn find_main_file(dir: &std::path::Path, extension: &str) -> Result<PathBuf> {
             }
         }
     }
-    Err(anyhow::anyhow!("No .{} file found in {}", extension, dir.display()))
+    Err(anyhow::anyhow!(
+        "No .{} file found in {}",
+        extension,
+        dir.display()
+    ))
 }
 
 /// Recursively copy a directory.

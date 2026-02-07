@@ -3,7 +3,7 @@
 use super::{ComponentType, DiscoveredComponent, PlatformAdapter};
 use crate::types::Platform;
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 /// Generic adapter that scans any directory.
@@ -17,7 +17,7 @@ impl GenericAdapter {
         Self {
             extensions: vec![
                 "js", "ts", "mjs", "cjs", // JavaScript/TypeScript
-                "py",   // Python
+                "py",  // Python
                 "json", "yaml", "yml", "toml", // Config
                 "md", "txt", // Documentation/prompts
                 "sh", "bash", "zsh", // Shell scripts
@@ -61,14 +61,14 @@ impl PlatformAdapter for GenericAdapter {
         self.discover_at(&PathBuf::from("."))
     }
 
-    fn discover_at(&self, path: &PathBuf) -> Result<Vec<DiscoveredComponent>> {
+    fn discover_at(&self, path: &Path) -> Result<Vec<DiscoveredComponent>> {
         let mut components = Vec::new();
 
         if path.is_file() {
             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
             if self.extensions.contains(&ext) {
                 components.push(DiscoveredComponent {
-                    path: path.clone(),
+                    path: path.to_path_buf(),
                     component_type: Self::get_component_type(ext),
                     name: path
                         .file_name()
@@ -104,7 +104,10 @@ impl PlatformAdapter for GenericAdapter {
         {
             let entry_path = entry.path();
             if entry_path.is_file() {
-                let ext = entry_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                let ext = entry_path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("");
                 if self.extensions.contains(&ext) {
                     components.push(DiscoveredComponent {
                         path: entry_path.to_path_buf(),

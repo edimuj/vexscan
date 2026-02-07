@@ -72,12 +72,7 @@ impl Detector for DestructuredAliasDetector {
 }
 
 impl DestructuredAliasDetector {
-    fn analyze_require_destructure(
-        &self,
-        node: Node,
-        source: &str,
-        path: &Path,
-    ) -> Vec<Finding> {
+    fn analyze_require_destructure(&self, node: Node, source: &str, path: &Path) -> Vec<Finding> {
         let mut findings = Vec::new();
 
         let name = match node.child_by_field_name("name") {
@@ -167,11 +162,10 @@ impl DestructuredAliasDetector {
                     Err(_) => continue,
                 };
 
-                if self.lists.is_dangerous_export(&module, original_name) && original_name != alias_name {
-                    let snippet = node
-                        .utf8_text(source.as_bytes())
-                        .unwrap_or("")
-                        .to_string();
+                if self.lists.is_dangerous_export(&module, original_name)
+                    && original_name != alias_name
+                {
+                    let snippet = node.utf8_text(source.as_bytes()).unwrap_or("").to_string();
 
                     let start_line = child.start_position().row + 1;
                     let end_line = child.end_position().row + 1;
@@ -187,8 +181,10 @@ impl DestructuredAliasDetector {
                             ),
                             self.rule.severity(),
                             self.rule.category(),
-                            Location::new(path.to_path_buf(), start_line, end_line)
-                                .with_columns(child.start_position().column + 1, child.end_position().column + 1),
+                            Location::new(path.to_path_buf(), start_line, end_line).with_columns(
+                                child.start_position().column + 1,
+                                child.end_position().column + 1,
+                            ),
                             snippet,
                         )
                         .with_remediation(&self.rule.remediation)
@@ -241,10 +237,7 @@ impl DestructuredAliasDetector {
                         if self.lists.is_dangerous_module(&module)
                             && self.lists.is_dangerous_export(&module, original_name)
                         {
-                            let snippet = p
-                                .utf8_text(source.as_bytes())
-                                .unwrap_or("")
-                                .to_string();
+                            let snippet = p.utf8_text(source.as_bytes()).unwrap_or("").to_string();
 
                             let start_line = node.start_position().row + 1;
                             let end_line = node.end_position().row + 1;

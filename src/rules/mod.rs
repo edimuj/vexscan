@@ -143,23 +143,13 @@ impl CompiledRule {
 }
 
 /// Collection of rules that can be loaded and managed.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct RuleSet {
     rules: Vec<CompiledRule>,
     /// Pre-filter: all patterns in a single RegexSet for fast multi-pattern matching.
     regex_set: Option<RegexSet>,
     /// Maps each RegexSet pattern index to its rule index in `self.rules`.
     pattern_to_rule: Vec<usize>,
-}
-
-impl Default for RuleSet {
-    fn default() -> Self {
-        Self {
-            rules: Vec::new(),
-            regex_set: None,
-            pattern_to_rule: Vec::new(),
-        }
-    }
 }
 
 impl RuleSet {
@@ -207,7 +197,10 @@ impl RuleSet {
     }
 
     /// Load rules from JSON files in a directory.
-    pub fn with_rules_from_directory(mut self, dir: &std::path::Path) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn with_rules_from_directory(
+        mut self,
+        dir: &std::path::Path,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let rules = loader::load_rules_from_directory(dir)?;
         for rule in rules {
             if rule.enabled {

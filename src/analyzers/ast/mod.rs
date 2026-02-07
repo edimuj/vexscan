@@ -91,10 +91,7 @@ impl AstAnalyzer {
         }
 
         // Determine file type from extension
-        let ext = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
         let findings = match ext {
             "js" | "mjs" | "cjs" | "jsx" if self.config.enable_javascript => {
@@ -103,9 +100,7 @@ impl AstAnalyzer {
             "ts" | "tsx" | "mts" | "cts" if self.config.enable_javascript => {
                 self.analyze_typescript(content, path)?
             }
-            "py" if self.config.enable_python => {
-                self.analyze_python(content, path)?
-            }
+            "py" if self.config.enable_python => self.analyze_python(content, path)?,
             _ => Vec::new(),
         };
 
@@ -148,12 +143,7 @@ impl AstAnalyzer {
     }
 
     /// Walk the AST and run detectors on each node.
-    fn analyze_tree(
-        &self,
-        root: Node,
-        source: &str,
-        path: &Path,
-    ) -> Result<Vec<Finding>> {
+    fn analyze_tree(&self, root: Node, source: &str, path: &Path) -> Result<Vec<Finding>> {
         let mut findings = Vec::new();
         let mut scope_tracker = ScopeTracker::new(self.config.max_scope_depth, self.lists.clone());
 
@@ -357,10 +347,7 @@ mod tests {
     use tempfile::NamedTempFile;
 
     fn create_temp_file(content: &str, ext: &str) -> NamedTempFile {
-        let mut file = tempfile::Builder::new()
-            .suffix(ext)
-            .tempfile()
-            .unwrap();
+        let mut file = tempfile::Builder::new().suffix(ext).tempfile().unwrap();
         writeln!(file, "{}", content).unwrap();
         file
     }
