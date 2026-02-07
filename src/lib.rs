@@ -41,6 +41,7 @@ pub use analyzers::{
     AiAnalyzer, AiAnalyzerConfig, AiBackend, AnalyzerConfig, AstAnalyzer, AstAnalyzerConfig,
     StaticAnalyzer,
 };
+pub use cache::{ScanCache, ScanProfile};
 pub use config::Config;
 pub use decoders::Decoder;
 pub use deps::{DependencyAnalyzer, DependencyAnalyzerConfig};
@@ -53,7 +54,6 @@ pub use rules::{
     },
     Rule, RuleMetadata, RuleSet, RuleSource, TestCases,
 };
-pub use cache::{ScanCache, ScanProfile};
 pub use types::{truncate, Finding, Platform, ScanReport, ScanResult, Severity};
 
 use adapters::{create_adapter, detect_platform, PlatformAdapter};
@@ -365,7 +365,11 @@ impl Scanner {
             if let Some(ref cache) = self.cache {
                 if let Some(ref hash) = result.content_hash {
                     if let Err(e) = cache.put(hash, &result.findings) {
-                        tracing::debug!("Failed to cache result for {}: {}", component.path.display(), e);
+                        tracing::debug!(
+                            "Failed to cache result for {}: {}",
+                            component.path.display(),
+                            e
+                        );
                     }
                 }
             }

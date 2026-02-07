@@ -27,7 +27,12 @@ pub struct ScanProfile {
 
 impl ScanProfile {
     /// Build a profile from the current scanner configuration.
-    pub fn from_config(enable_ast: bool, enable_deps: bool, enable_entropy: bool, rule_count: usize) -> Self {
+    pub fn from_config(
+        enable_ast: bool,
+        enable_deps: bool,
+        enable_entropy: bool,
+        rule_count: usize,
+    ) -> Self {
         Self {
             enable_ast,
             enable_deps,
@@ -136,9 +141,7 @@ impl ScanCache {
             .map(|entries| {
                 entries
                     .flatten()
-                    .filter(|e| {
-                        e.path().extension().and_then(|ext| ext.to_str()) == Some("json")
-                    })
+                    .filter(|e| e.path().extension().and_then(|ext| ext.to_str()) == Some("json"))
                     .count()
             })
             .unwrap_or(0)

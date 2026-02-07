@@ -260,7 +260,10 @@ async fn main() -> Result<()> {
                 match rx.recv() {
                     Ok(event) => {
                         // Only process Create events
-                        if !matches!(event.kind, notify::EventKind::Create(_) | notify::EventKind::Modify(_)) {
+                        if !matches!(
+                            event.kind,
+                            notify::EventKind::Create(_) | notify::EventKind::Modify(_)
+                        ) {
                             continue;
                         }
 

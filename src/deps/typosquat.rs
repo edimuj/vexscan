@@ -25,8 +25,8 @@ pub struct TyposquatDetector {
 impl TyposquatDetector {
     /// Create a new typosquatting detector.
     pub fn new(threshold: usize) -> Self {
-        let file: PopularPackageFile =
-            serde_json::from_str(POPULAR_JSON).expect("Failed to parse embedded popular-packages.json");
+        let file: PopularPackageFile = serde_json::from_str(POPULAR_JSON)
+            .expect("Failed to parse embedded popular-packages.json");
         Self {
             popular_packages: file.packages,
             threshold,
