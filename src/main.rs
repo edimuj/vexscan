@@ -7,14 +7,14 @@ use std::io;
 use std::path::PathBuf;
 use tracing_subscriber::EnvFilter;
 use vexscan::{
-    cli::{Cli, Commands, RulesSubcommand},
+    cli::{CacheSubcommand, Cli, Commands, RulesSubcommand},
     config::{generate_default_config, Config},
     decoders::Decoder,
     filter_rules_by_author, filter_rules_by_source, filter_rules_by_tag, load_builtin_json_rules,
     reporters::{report, OutputFormat},
     rules::patterns::builtin_rules,
     test_all_rules, test_rules_from_file, truncate, AiAnalyzerConfig, AiBackend, AnalyzerConfig,
-    Platform, RuleSource, ScanConfig, Scanner, Severity,
+    Platform, RuleSource, ScanCache, ScanConfig, ScanProfile, Scanner, Severity,
 };
 
 #[tokio::main]
@@ -51,6 +51,7 @@ async fn main() -> Result<()> {
             third_party_only,
             ast,
             deps,
+            no_cache,
         } => {
             // Parse platform
             let platform: Option<Platform> = platform
@@ -87,6 +88,7 @@ async fn main() -> Result<()> {
                 enable_ai: ai,
                 enable_ast: ast,
                 enable_deps: deps,
+                enable_cache: !no_cache,
                 platform,
                 min_severity,
                 filter_config,
@@ -258,7 +260,7 @@ async fn main() -> Result<()> {
                 match rx.recv() {
                     Ok(event) => {
                         // Only process Create events
-                        if !matches!(event.kind, notify::EventKind::Create(_)) {
+                        if !matches!(event.kind, notify::EventKind::Create(_) | notify::EventKind::Modify(_)) {
                             continue;
                         }
 
@@ -754,6 +756,7 @@ async fn main() -> Result<()> {
             dry_run,
             ast,
             deps,
+            no_cache,
         } => {
             // Validate platform
             if platform != "claude-code" {
@@ -813,6 +816,7 @@ async fn main() -> Result<()> {
                 enable_ai: false,
                 enable_ast: ast,
                 enable_deps: deps,
+                enable_cache: !no_cache,
                 platform: None,
                 min_severity: Severity::Low,
                 filter_config,
@@ -954,6 +958,7 @@ async fn main() -> Result<()> {
             branch,
             ast,
             deps,
+            no_cache,
         } => {
             // Parse severities
             let min_severity = parse_severity(&min_severity)?;
@@ -993,6 +998,7 @@ async fn main() -> Result<()> {
                 enable_ai: false,
                 enable_ast: ast,
                 enable_deps: deps,
+                enable_cache: !no_cache,
                 platform: None,
                 min_severity,
                 filter_config,
@@ -1039,6 +1045,32 @@ async fn main() -> Result<()> {
             if let Some(max_sev) = scan_report.max_severity() {
                 if max_sev >= fail_on_severity {
                     std::process::exit(1);
+                }
+            }
+        }
+
+        Commands::Cache { subcommand } => {
+            // Build a dummy profile just to access the cache directory
+            let profile = ScanProfile::from_config(false, false, false, 0);
+            let cache = ScanCache::new(profile)?;
+
+            match subcommand {
+                CacheSubcommand::Stats => {
+                    let count = cache.entry_count();
+                    let size = cache.total_size_bytes();
+                    let size_str = if size >= 1_048_576 {
+                        format!("{:.1} MB", size as f64 / 1_048_576.0)
+                    } else if size >= 1024 {
+                        format!("{:.1} KB", size as f64 / 1024.0)
+                    } else {
+                        format!("{} bytes", size)
+                    };
+                    println!("Cache entries: {}", count);
+                    println!("Total size:    {}", size_str);
+                }
+                CacheSubcommand::Clear => {
+                    let removed = cache.clear()?;
+                    println!("Cleared {} cache entries.", removed);
                 }
             }
         }

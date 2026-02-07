@@ -3,6 +3,15 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+/// Subcommands for the `cache` command
+#[derive(Subcommand, Debug)]
+pub enum CacheSubcommand {
+    /// Show cache statistics
+    Stats,
+    /// Clear all cached scan results
+    Clear,
+}
+
 /// Subcommands for the `rules` command
 #[derive(Subcommand, Debug)]
 pub enum RulesSubcommand {
@@ -98,6 +107,10 @@ pub enum Commands {
         /// Enable dependency scanning (check package.json for malicious packages)
         #[arg(long)]
         deps: bool,
+
+        /// Disable result caching (rescan everything)
+        #[arg(long)]
+        no_cache: bool,
     },
 
     /// Watch for new plugin/skill installations and scan automatically
@@ -225,6 +238,10 @@ pub enum Commands {
         /// Enable dependency scanning (check package.json for malicious packages)
         #[arg(long)]
         deps: bool,
+
+        /// Disable result caching (rescan everything)
+        #[arg(long)]
+        no_cache: bool,
     },
 
     /// Vet a plugin/skill before installation (scan from GitHub URL or local path)
@@ -270,5 +287,15 @@ pub enum Commands {
         /// Enable dependency scanning (check package.json for malicious packages)
         #[arg(long)]
         deps: bool,
+
+        /// Disable result caching (rescan everything)
+        #[arg(long)]
+        no_cache: bool,
+    },
+
+    /// Manage the scan result cache
+    Cache {
+        #[command(subcommand)]
+        subcommand: CacheSubcommand,
     },
 }

@@ -251,6 +251,11 @@ impl RuleSet {
         &self.rules
     }
 
+    /// Number of loaded rules.
+    pub fn rule_count(&self) -> usize {
+        self.rules.len()
+    }
+
     /// Get rules applicable to a file extension.
     pub fn rules_for_extension(&self, ext: &str) -> Vec<&CompiledRule> {
         self.rules

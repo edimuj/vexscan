@@ -27,6 +27,7 @@
 
 pub mod adapters;
 pub mod analyzers;
+pub mod cache;
 pub mod cli;
 pub mod config;
 pub mod decoders;
@@ -52,6 +53,7 @@ pub use rules::{
     },
     Rule, RuleMetadata, RuleSet, RuleSource, TestCases,
 };
+pub use cache::{ScanCache, ScanProfile};
 pub use types::{truncate, Finding, Platform, ScanReport, ScanResult, Severity};
 
 use adapters::{create_adapter, detect_platform, PlatformAdapter};
@@ -83,6 +85,8 @@ pub struct ScanConfig {
     pub platform: Option<Platform>,
     /// Filter configuration (allowlists, trusted packages).
     pub filter_config: Config,
+    /// Enable result caching (default true, disabled when AI is on).
+    pub enable_cache: bool,
 }
 
 impl Default for ScanConfig {
@@ -98,6 +102,7 @@ impl Default for ScanConfig {
             min_severity: Severity::Low,
             platform: None,
             filter_config: Config::load_default(),
+            enable_cache: true,
         }
     }
 }
@@ -109,6 +114,7 @@ pub struct Scanner {
     ast_analyzer: Option<Mutex<AstAnalyzer>>,
     deps_analyzer: Option<DependencyAnalyzer>,
     ai_analyzer: Option<AiAnalyzer>,
+    cache: Option<ScanCache>,
 }
 
 impl Scanner {
@@ -141,12 +147,31 @@ impl Scanner {
             None
         };
 
+        let cache = if config.enable_cache && !config.enable_ai {
+            let profile = ScanProfile::from_config(
+                config.enable_ast,
+                config.enable_deps,
+                config.static_config.enable_entropy,
+                static_analyzer.rule_count(),
+            );
+            match ScanCache::new(profile) {
+                Ok(c) => Some(c),
+                Err(e) => {
+                    tracing::warn!("Failed to initialize cache: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         Ok(Self {
             config,
             static_analyzer,
             ast_analyzer,
             deps_analyzer,
             ai_analyzer,
+            cache,
         })
     }
 
@@ -188,10 +213,13 @@ impl Scanner {
             .collect();
 
         // Phase 1: Parallel static analysis (CPU-bound, read file once per component)
+        // On cache hit, skip analysis entirely and return cached findings.
         let static_analyzer = &self.static_analyzer;
         let min_severity = self.config.min_severity;
         let filter_config = &self.config.filter_config;
+        let cache = &self.cache;
 
+        // Tuple: (component, content, result, cache_hit)
         let static_results: Vec<_> = std::thread::scope(|s| {
             let handles: Vec<_> = scannable
                 .iter()
@@ -210,14 +238,36 @@ impl Scanner {
                             }
                         };
 
-                        match static_analyzer.scan_content(&content, &component.path) {
-                            Ok(mut result) => {
-                                result.findings.retain(|f| {
-                                    f.severity >= min_severity
-                                        && !filter_config.is_rule_disabled(&f.rule_id)
-                                });
-                                Some((component, content, result))
+                        // Compute content hash for cache lookup
+                        let content_hash = {
+                            use sha2::{Digest, Sha256};
+                            let mut hasher = Sha256::new();
+                            hasher.update(content.as_bytes());
+                            format!("{:x}", hasher.finalize())
+                        };
+
+                        // Check cache
+                        if let Some(ref cache) = cache {
+                            if let Some(mut cached_findings) = cache.get(&content_hash) {
+                                tracing::debug!(
+                                    "Cache hit: {} ({} findings)",
+                                    component.path.display(),
+                                    cached_findings.len()
+                                );
+                                // Fix paths (content may have been cached under a different filename)
+                                for finding in &mut cached_findings {
+                                    finding.location.file = component.path.clone();
+                                }
+                                let mut result = ScanResult::new(component.path.clone());
+                                result.content_hash = Some(content_hash);
+                                result.findings = cached_findings;
+                                return Some((component, content, result, true));
                             }
+                        }
+
+                        // Cache miss — run static analysis
+                        match static_analyzer.scan_content(&content, &component.path) {
+                            Ok(result) => Some((component, content, result, false)),
                             Err(e) => {
                                 tracing::warn!(
                                     "Failed to scan {}: {}",
@@ -238,7 +288,17 @@ impl Scanner {
         });
 
         // Phase 2: Sequential AST + deps analysis (reuses already-read content)
-        for (component, content, mut result) in static_results {
+        for (component, content, mut result, cache_hit) in static_results {
+            if cache_hit {
+                // Apply severity/disabled-rule filter to cached findings
+                result.findings.retain(|f| {
+                    f.severity >= min_severity && !filter_config.is_rule_disabled(&f.rule_id)
+                });
+                report.results.push(result);
+                continue;
+            }
+
+            // Cache miss — run remaining analyzers, then store unfiltered findings
             if let Some(ref ast_analyzer) = self.ast_analyzer {
                 match ast_analyzer
                     .lock()
@@ -246,12 +306,7 @@ impl Scanner {
                     .analyze_content_str(&content, &component.path)
                 {
                     Ok(ast_result) => {
-                        let mut ast_findings: Vec<_> = ast_result
-                            .findings
-                            .into_iter()
-                            .filter(|f| f.severity >= min_severity)
-                            .collect();
-                        result.findings.append(&mut ast_findings);
+                        result.findings.extend(ast_result.findings);
                     }
                     Err(e) => {
                         tracing::warn!(
@@ -272,12 +327,7 @@ impl Scanner {
                 {
                     match deps_analyzer.analyze_file(&component.path) {
                         Ok(deps_result) => {
-                            let mut deps_findings: Vec<_> = deps_result
-                                .findings
-                                .into_iter()
-                                .filter(|f| f.severity >= min_severity)
-                                .collect();
-                            result.findings.append(&mut deps_findings);
+                            result.findings.extend(deps_result.findings);
                         }
                         Err(e) => {
                             tracing::warn!(
@@ -310,6 +360,20 @@ impl Scanner {
                     }
                 }
             }
+
+            // Store unfiltered findings in cache before applying filters
+            if let Some(ref cache) = self.cache {
+                if let Some(ref hash) = result.content_hash {
+                    if let Err(e) = cache.put(hash, &result.findings) {
+                        tracing::debug!("Failed to cache result for {}: {}", component.path.display(), e);
+                    }
+                }
+            }
+
+            // Now apply severity/disabled-rule filter
+            result.findings.retain(|f| {
+                f.severity >= min_severity && !filter_config.is_rule_disabled(&f.rule_id)
+            });
 
             report.results.push(result);
         }

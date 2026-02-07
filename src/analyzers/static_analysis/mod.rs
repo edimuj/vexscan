@@ -249,6 +249,11 @@ impl StaticAnalyzer {
 
         findings
     }
+
+    /// Number of loaded rules (delegates to the underlying RuleSet).
+    pub fn rule_count(&self) -> usize {
+        self.rules.rule_count()
+    }
 }
 
 impl Default for StaticAnalyzer {
