@@ -399,10 +399,9 @@ impl Scanner {
                                     "original_severity".to_string(),
                                     format!("{}", finding.severity),
                                 );
-                                finding.metadata.insert(
-                                    "unreferenced_doc".to_string(),
-                                    "true".to_string(),
-                                );
+                                finding
+                                    .metadata
+                                    .insert("unreferenced_doc".to_string(), "true".to_string());
                                 finding.severity = Severity::Low;
                             }
                         }

