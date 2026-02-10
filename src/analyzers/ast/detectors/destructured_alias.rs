@@ -44,8 +44,8 @@ impl Detector for DestructuredAliasDetector {
         &self.rule.title
     }
 
-    fn handles_node_type(&self, node_type: &str) -> bool {
-        node_type == "variable_declarator" || node_type == "import_specifier"
+    fn handled_node_types(&self) -> &'static [&'static str] {
+        &["variable_declarator", "import_specifier"]
     }
 
     fn analyze(

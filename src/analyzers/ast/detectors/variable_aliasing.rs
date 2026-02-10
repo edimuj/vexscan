@@ -33,8 +33,8 @@ impl Detector for VariableAliasingDetector {
         &self.rule.title
     }
 
-    fn handles_node_type(&self, node_type: &str) -> bool {
-        node_type == "call_expression"
+    fn handled_node_types(&self) -> &'static [&'static str] {
+        &["call_expression"]
     }
 
     fn analyze(

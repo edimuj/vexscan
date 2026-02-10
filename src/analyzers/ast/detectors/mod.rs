@@ -18,6 +18,7 @@ pub use string_concat::StringConcatDetector;
 pub use variable_aliasing::VariableAliasingDetector;
 
 use crate::types::Finding;
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use tree_sitter::Node;
@@ -33,8 +34,8 @@ pub trait Detector: Send + Sync {
     /// Returns the human-readable title for findings from this detector.
     fn title(&self) -> &str;
 
-    /// Check if this detector should analyze a given node type.
-    fn handles_node_type(&self, node_type: &str) -> bool;
+    /// Returns the AST node types this detector handles.
+    fn handled_node_types(&self) -> &'static [&'static str];
 
     /// Analyze a node and return any findings.
     fn analyze(
@@ -46,9 +47,10 @@ pub trait Detector: Send + Sync {
     ) -> Vec<Finding>;
 }
 
-/// Collection of all detectors.
+/// Collection of all detectors, with pre-built node-type → detector index map.
 pub struct DetectorSet {
     detectors: Vec<Box<dyn Detector>>,
+    node_type_map: HashMap<String, Vec<usize>>,
 }
 
 impl DetectorSet {
@@ -80,16 +82,31 @@ impl DetectorSet {
             })
             .collect();
 
-        Self { detectors }
+        // Pre-build node type → detector indices lookup
+        let mut node_type_map: HashMap<String, Vec<usize>> = HashMap::new();
+        for (idx, detector) in detectors.iter().enumerate() {
+            for &node_type in detector.handled_node_types() {
+                node_type_map
+                    .entry(node_type.to_string())
+                    .or_default()
+                    .push(idx);
+            }
+        }
+
+        Self {
+            detectors,
+            node_type_map,
+        }
     }
 
-    /// Get all detectors that handle a specific node type.
-    pub fn for_node_type(&self, node_type: &str) -> Vec<&dyn Detector> {
-        self.detectors
-            .iter()
-            .filter(|d| d.handles_node_type(node_type))
-            .map(|d| d.as_ref())
-            .collect()
+    /// Get detector indices for a node type (zero-allocation lookup).
+    pub fn for_node_type(&self, node_type: &str) -> &[usize] {
+        self.node_type_map.get(node_type).map_or(&[], Vec::as_slice)
+    }
+
+    /// Get a detector by index.
+    pub fn get(&self, idx: usize) -> &dyn Detector {
+        self.detectors[idx].as_ref()
     }
 
     /// Get all detectors.

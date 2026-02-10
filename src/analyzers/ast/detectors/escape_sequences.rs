@@ -131,8 +131,8 @@ impl Detector for EscapeSequenceDetector {
         &self.rule.title
     }
 
-    fn handles_node_type(&self, node_type: &str) -> bool {
-        node_type == "subscript_expression" || node_type == "call_expression"
+    fn handled_node_types(&self) -> &'static [&'static str] {
+        &["subscript_expression", "call_expression"]
     }
 
     fn analyze(

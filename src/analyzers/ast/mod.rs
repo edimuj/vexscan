@@ -28,12 +28,12 @@ use std::time::Instant;
 use tree_sitter::{Node, Parser};
 
 /// AST-based analyzer for detecting obfuscated malicious patterns.
+///
+/// Holds only immutable shared data (detectors, dangerous lists, config).
+/// Parsers are created per-call since tree-sitter `Parser` is `!Send`.
+/// This makes `AstAnalyzer` `Send + Sync`, enabling parallel AST analysis.
 pub struct AstAnalyzer {
     config: AstAnalyzerConfig,
-    js_parser: Parser,
-    ts_parser: Parser,
-    #[allow(dead_code)]
-    py_parser: Parser,
     detectors: DetectorSet,
     lists: Arc<DangerousLists>,
 }
@@ -46,36 +46,24 @@ impl AstAnalyzer {
 
     /// Create an AST analyzer with custom configuration.
     pub fn with_config(config: AstAnalyzerConfig) -> Result<Self> {
-        let mut js_parser = Parser::new();
-        js_parser.set_language(&tree_sitter_javascript::LANGUAGE.into())?;
-
-        let mut ts_parser = Parser::new();
-        ts_parser.set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())?;
-
-        let mut py_parser = Parser::new();
-        py_parser.set_language(&tree_sitter_python::LANGUAGE.into())?;
-
         let (rule_entries, lists) = rules::load_ast_rules()?;
         let detectors = DetectorSet::from_rules(&rule_entries, lists.clone());
 
         Ok(Self {
             config,
-            js_parser,
-            ts_parser,
-            py_parser,
             detectors,
             lists,
         })
     }
 
     /// Analyze a file and return findings.
-    pub fn analyze_file(&mut self, path: &Path) -> Result<ScanResult> {
+    pub fn analyze_file(&self, path: &Path) -> Result<ScanResult> {
         let content = std::fs::read_to_string(path)?;
         self.analyze_content_str(&content, path)
     }
 
     /// Analyze pre-read content and return findings.
-    pub fn analyze_content_str(&mut self, content: &str, path: &Path) -> Result<ScanResult> {
+    pub fn analyze_content_str(&self, content: &str, path: &Path) -> Result<ScanResult> {
         let start = Instant::now();
         let mut result = ScanResult::new(path.to_path_buf());
 
@@ -93,14 +81,23 @@ impl AstAnalyzer {
         // Determine file type from extension
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
+        // Create only the parser needed for this file type (cheap: ~2μs)
         let findings = match ext {
             "js" | "mjs" | "cjs" | "jsx" if self.config.enable_javascript => {
-                self.analyze_javascript(content, path)?
+                let mut parser = Parser::new();
+                parser.set_language(&tree_sitter_javascript::LANGUAGE.into())?;
+                self.analyze_with_parser(&mut parser, content, path)?
             }
             "ts" | "tsx" | "mts" | "cts" if self.config.enable_javascript => {
-                self.analyze_typescript(content, path)?
+                let mut parser = Parser::new();
+                parser.set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())?;
+                self.analyze_with_parser(&mut parser, content, path)?
             }
-            "py" if self.config.enable_python => self.analyze_python(content, path)?,
+            "py" if self.config.enable_python => {
+                let mut parser = Parser::new();
+                parser.set_language(&tree_sitter_python::LANGUAGE.into())?;
+                self.analyze_with_parser(&mut parser, content, path)?
+            }
             _ => Vec::new(),
         };
 
@@ -110,35 +107,18 @@ impl AstAnalyzer {
         Ok(result)
     }
 
-    /// Analyze JavaScript content.
-    fn analyze_javascript(&mut self, content: &str, path: &Path) -> Result<Vec<Finding>> {
-        let tree = match self.js_parser.parse(content, None) {
+    /// Parse content with the given parser and run detectors.
+    fn analyze_with_parser(
+        &self,
+        parser: &mut Parser,
+        content: &str,
+        path: &Path,
+    ) -> Result<Vec<Finding>> {
+        let tree = match parser.parse(content, None) {
             Some(t) => t,
             None => return Ok(Vec::new()),
         };
 
-        self.analyze_tree(tree.root_node(), content, path)
-    }
-
-    /// Analyze TypeScript content.
-    fn analyze_typescript(&mut self, content: &str, path: &Path) -> Result<Vec<Finding>> {
-        let tree = match self.ts_parser.parse(content, None) {
-            Some(t) => t,
-            None => return Ok(Vec::new()),
-        };
-
-        self.analyze_tree(tree.root_node(), content, path)
-    }
-
-    /// Analyze Python content.
-    fn analyze_python(&mut self, content: &str, path: &Path) -> Result<Vec<Finding>> {
-        let tree = match self.py_parser.parse(content, None) {
-            Some(t) => t,
-            None => return Ok(Vec::new()),
-        };
-
-        // Python analysis is more limited for now
-        // TODO: Add Python-specific detectors
         self.analyze_tree(tree.root_node(), content, path)
     }
 
@@ -182,9 +162,12 @@ impl AstAnalyzer {
         // Track variable bindings for aliasing detection
         self.track_bindings(node, source, scope_tracker);
 
-        // Run all detectors that handle this node type
-        for detector in self.detectors.for_node_type(node_type) {
-            let detector_findings = detector.analyze(node, source, path, scope_tracker);
+        // Run all detectors that handle this node type (zero-alloc lookup)
+        for &idx in self.detectors.for_node_type(node_type) {
+            let detector_findings =
+                self.detectors
+                    .get(idx)
+                    .analyze(node, source, path, scope_tracker);
             findings.extend(detector_findings);
         }
 
