@@ -111,7 +111,9 @@ impl ScanCache {
         };
 
         let json = serde_json::to_string(&entry)?;
-        let tmp_path = self.cache_dir.join(format!("{}.tmp", content_hash));
+        let tmp_path = self
+            .cache_dir
+            .join(format!("{}.{}.tmp", content_hash, std::process::id()));
         let final_path = self.cache_dir.join(format!("{}.json", content_hash));
 
         std::fs::write(&tmp_path, json)?;

@@ -187,7 +187,7 @@ fn extract_references(content: &str, source_dir: &Path, scan_root: &Path) -> Vec
     for pattern in patterns {
         for caps in pattern.captures_iter(content) {
             // Try each capture group (different patterns put the path in different groups)
-            let path_str = (1..=caps.len())
+            let path_str = (1..caps.len())
                 .filter_map(|i| caps.get(i))
                 .next()
                 .map(|m| m.as_str());

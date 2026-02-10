@@ -74,11 +74,17 @@ impl StaticAnalyzer {
     /// Scan a single file and return findings.
     pub fn scan_file(&self, path: &Path) -> Result<ScanResult> {
         let content = std::fs::read_to_string(path)?;
-        self.scan_content(&content, path)
+        self.scan_content(&content, path, None)
     }
 
     /// Scan pre-read content and return findings.
-    pub fn scan_content(&self, content: &str, path: &Path) -> Result<ScanResult> {
+    /// If `content_hash` is provided, skips recomputing SHA-256.
+    pub fn scan_content(
+        &self,
+        content: &str,
+        path: &Path,
+        content_hash: Option<String>,
+    ) -> Result<ScanResult> {
         let start = Instant::now();
         let mut result = ScanResult::new(path.to_path_buf());
 
@@ -93,26 +99,34 @@ impl StaticAnalyzer {
             return Ok(result);
         }
 
-        // Calculate hash
-        let mut hasher = Sha256::new();
-        hasher.update(content.as_bytes());
-        result.content_hash = Some(format!("{:x}", hasher.finalize()));
+        // Use pre-computed hash or calculate
+        result.content_hash = Some(match content_hash {
+            Some(hash) => hash,
+            None => {
+                let mut hasher = Sha256::new();
+                hasher.update(content.as_bytes());
+                format!("{:x}", hasher.finalize())
+            }
+        });
 
         // Get file extension
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
+        // Build line index once for all analysis passes
+        let line_index = LineIndex::new(content);
+
         // Run pattern matching
-        let mut findings = self.analyze_content(content, path, ext);
+        let mut findings = self.analyze_content(content, path, ext, &line_index);
 
         // Analyze decoded content
         if self.config.analyze_decoded {
-            let decoded_findings = self.analyze_decoded_content(content, path, ext);
+            let decoded_findings = self.analyze_decoded_content(content, path, ext, &line_index);
             findings.extend(decoded_findings);
         }
 
         // Check for high-entropy strings (only if enabled)
         if self.config.enable_entropy {
-            let entropy_findings = self.analyze_entropy(content, path);
+            let entropy_findings = self.analyze_entropy(content, path, &line_index);
             findings.extend(entropy_findings);
         }
 
@@ -123,9 +137,14 @@ impl StaticAnalyzer {
     }
 
     /// Analyze raw content with rules using RegexSet pre-filtering.
-    fn analyze_content(&self, content: &str, path: &Path, ext: &str) -> Vec<Finding> {
+    fn analyze_content(
+        &self,
+        content: &str,
+        path: &Path,
+        ext: &str,
+        line_index: &LineIndex,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
-        let line_index = LineIndex::new(content);
 
         // Use RegexSet pre-filter: single-pass identifies which rules match,
         // then only extract positions from those rules.
@@ -162,9 +181,10 @@ impl StaticAnalyzer {
                     && !rule.rule.id.starts_with("MDCODE-")
                     && finding.severity > Severity::Low
                 {
-                    finding.metadata.entry("original_severity".to_string()).or_insert_with(
-                        || format!("{}", finding.severity),
-                    );
+                    finding
+                        .metadata
+                        .entry("original_severity".to_string())
+                        .or_insert_with(|| format!("{}", finding.severity));
                     finding.severity = Severity::Low;
                 }
 
@@ -176,9 +196,14 @@ impl StaticAnalyzer {
     }
 
     /// Analyze decoded content for hidden payloads.
-    fn analyze_decoded_content(&self, content: &str, path: &Path, ext: &str) -> Vec<Finding> {
+    fn analyze_decoded_content(
+        &self,
+        content: &str,
+        path: &Path,
+        ext: &str,
+        line_index: &LineIndex,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
-        let line_index = LineIndex::new(content);
 
         // Find and decode all encoded content
         let decoded_layers = self
@@ -191,7 +216,9 @@ impl StaticAnalyzer {
                 let (start_line, _) = line_index.offset_to_line_col(decoded.offset);
 
                 // Check if the decoded content contains suspicious patterns
-                let decoded_findings = self.analyze_content(&decoded.decoded, path, ext);
+                let decoded_line_index = LineIndex::new(&decoded.decoded);
+                let decoded_findings =
+                    self.analyze_content(&decoded.decoded, path, ext, &decoded_line_index);
 
                 if !decoded_findings.is_empty() {
                     // Create a finding for the obfuscated malicious content
@@ -229,9 +256,8 @@ impl StaticAnalyzer {
     }
 
     /// Analyze strings for suspicious entropy levels.
-    fn analyze_entropy(&self, content: &str, path: &Path) -> Vec<Finding> {
+    fn analyze_entropy(&self, content: &str, path: &Path, line_index: &LineIndex) -> Vec<Finding> {
         let mut findings = Vec::new();
-        let line_index = LineIndex::new(content);
 
         for cap in self.entropy_pattern.captures_iter(content) {
             if let Some(m) = cap.get(1) {
@@ -254,7 +280,7 @@ impl StaticAnalyzer {
                         Severity::Low,
                         FindingCategory::Obfuscation,
                         Location::new(path.to_path_buf(), start_line, start_line)
-                            .with_columns(start_col, start_col + s.len()),
+                            .with_columns(start_col, start_col + s.chars().count()),
                         truncate(s, 80),
                     )
                     .with_metadata("entropy", format!("{:.2}", entropy));

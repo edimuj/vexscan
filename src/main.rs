@@ -12,7 +12,6 @@ use vexscan::{
     decoders::Decoder,
     filter_rules_by_author, filter_rules_by_source, filter_rules_by_tag, load_builtin_json_rules,
     reporters::{report, OutputFormat},
-    rules::patterns::builtin_rules,
     test_all_rules, test_rules_from_file, truncate, AiAnalyzerConfig, AiBackend, AnalyzerConfig,
     Platform, RuleSource, ScanCache, ScanConfig, ScanProfile, Scanner, Severity,
 };
@@ -310,7 +309,12 @@ async fn run() -> Result<()> {
                                 continue;
                             }
                             if seen_files.len() >= MAX_SEEN_FILES {
-                                seen_files.clear();
+                                // Evict half instead of clearing everything to reduce duplicate scans
+                                let to_remove: Vec<_> =
+                                    seen_files.iter().take(MAX_SEEN_FILES / 2).cloned().collect();
+                                for key in &to_remove {
+                                    seen_files.remove(key);
+                                }
                             }
                             seen_files.insert(path.clone());
 
@@ -593,13 +597,7 @@ async fn run() -> Result<()> {
             } else if community && !official {
                 filter_rules_by_source(&load_builtin_json_rules(), RuleSource::Community)
             } else {
-                // Fall back to compiled rules if no JSON rules, or use JSON rules
-                let json_rules = load_builtin_json_rules();
-                if json_rules.is_empty() {
-                    builtin_rules()
-                } else {
-                    json_rules
-                }
+                load_builtin_json_rules()
             };
 
             // Apply author filter

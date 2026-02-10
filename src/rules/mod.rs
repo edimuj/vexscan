@@ -6,7 +6,7 @@ pub mod patterns;
 use crate::types::{FindingCategory, Severity};
 use regex::{Regex, RegexSet};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 /// Source of a rule (official or community).
@@ -178,6 +178,10 @@ pub struct RuleSet {
     regex_set: Option<RegexSet>,
     /// Maps each RegexSet pattern index to its rule index in `self.rules`.
     pattern_to_rule: Vec<usize>,
+    /// Rule indices that apply to all extensions (empty file_extensions).
+    universal_rules: Vec<usize>,
+    /// Rule indices keyed by file extension (pre-computed at build time).
+    extension_rules: HashMap<String, Vec<usize>>,
 }
 
 impl RuleSet {
@@ -185,7 +189,7 @@ impl RuleSet {
         Self::default()
     }
 
-    /// Build the RegexSet pre-filter from all current rules.
+    /// Build the RegexSet pre-filter and extension index from all current rules.
     fn build_regex_set(&mut self) {
         let mut all_patterns = Vec::new();
         let mut mapping = Vec::new();
@@ -199,25 +203,29 @@ impl RuleSet {
 
         self.pattern_to_rule = mapping;
         self.regex_set = RegexSet::new(all_patterns).ok();
-    }
 
-    /// Load the built-in rules from JSON files (preferred) or compiled patterns (fallback).
-    pub fn with_builtin_rules(mut self) -> Result<Self, regex::Error> {
-        // Try JSON rules first
-        let json_rules = loader::load_builtin_json_rules();
-
-        if !json_rules.is_empty() {
-            for rule in json_rules {
-                if rule.enabled {
-                    self.rules.push(rule.compile()?);
+        // Pre-compute per-extension rule indices
+        self.universal_rules.clear();
+        self.extension_rules.clear();
+        for (idx, rule) in self.rules.iter().enumerate() {
+            if rule.rule.file_extensions.is_empty() {
+                self.universal_rules.push(idx);
+            } else {
+                for ext in &rule.rule.file_extensions {
+                    self.extension_rules
+                        .entry(ext.to_lowercase())
+                        .or_default()
+                        .push(idx);
                 }
             }
-        } else {
-            // Fall back to compiled patterns
-            for rule in patterns::builtin_rules() {
-                if rule.enabled {
-                    self.rules.push(rule.compile()?);
-                }
+        }
+    }
+
+    /// Load the built-in rules from embedded JSON files.
+    pub fn with_builtin_rules(mut self) -> Result<Self, regex::Error> {
+        for rule in loader::load_builtin_json_rules() {
+            if rule.enabled {
+                self.rules.push(rule.compile()?);
             }
         }
         self.build_regex_set();
@@ -271,15 +279,6 @@ impl RuleSet {
         content: &'a str,
         ext: &str,
     ) -> Vec<(&'a CompiledRule, Vec<regex::Match<'a>>)> {
-        // Determine which rule indices apply to this extension
-        let applicable: Vec<usize> = self
-            .rules
-            .iter()
-            .enumerate()
-            .filter(|(_, r)| r.rule.applies_to_extension(ext))
-            .map(|(i, _)| i)
-            .collect();
-
         // Use RegexSet pre-filter to find which rules have any match
         let matching_rule_indices: HashSet<usize> = if let Some(ref regex_set) = self.regex_set {
             regex_set
@@ -288,13 +287,19 @@ impl RuleSet {
                 .map(|pattern_idx| self.pattern_to_rule[pattern_idx])
                 .collect()
         } else {
-            // Fallback: all applicable rules are candidates
-            applicable.iter().copied().collect()
+            // Fallback: all rules are candidates
+            (0..self.rules.len()).collect()
         };
 
+        // Combine universal rules with extension-specific rules (pre-computed at init)
+        let ext_lower = ext.to_lowercase();
+        let ext_specific = self.extension_rules.get(&ext_lower);
+
         // Only extract match positions from rules that actually hit
-        applicable
-            .into_iter()
+        self.universal_rules
+            .iter()
+            .chain(ext_specific.into_iter().flatten())
+            .copied()
             .filter(|idx| matching_rule_indices.contains(idx))
             .filter_map(|idx| {
                 let rule = &self.rules[idx];

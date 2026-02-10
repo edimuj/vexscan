@@ -64,7 +64,6 @@ pub use types::{truncate, Finding, Platform, ScanReport, ScanResult, Severity};
 use adapters::{create_adapter, detect_platform, PlatformAdapter};
 use anyhow::Result;
 use std::path::Path;
-use std::sync::Mutex;
 use std::time::Instant;
 
 /// Configuration for the scanner.
@@ -122,7 +121,7 @@ impl Default for ScanConfig {
 pub struct Scanner {
     config: ScanConfig,
     static_analyzer: StaticAnalyzer,
-    ast_analyzer: Option<Mutex<AstAnalyzer>>,
+    ast_analyzer: Option<AstAnalyzer>,
     deps_analyzer: Option<DependencyAnalyzer>,
     ai_analyzer: Option<AiAnalyzer>,
     cache: Option<ScanCache>,
@@ -141,7 +140,7 @@ impl Scanner {
 
         let ast_analyzer = if config.enable_ast {
             let ast_config = config.ast_config.clone().unwrap_or_default();
-            Some(Mutex::new(AstAnalyzer::with_config(ast_config)?))
+            Some(AstAnalyzer::with_config(ast_config)?)
         } else {
             None
         };
@@ -229,48 +228,48 @@ impl Scanner {
             );
         }
 
-        // Filter components and read file contents once
+        // Filter components and classify scope once (avoids re-classifying in Phase 2)
         let installed_only = self.config.installed_only;
         let scannable: Vec<_> = components
             .into_iter()
-            .filter(|c| {
+            .filter_map(|c| {
                 if self.config.filter_config.should_skip_path(&c.path) {
                     tracing::debug!("Skipping (allowlisted): {}", c.path.display());
-                    return false;
+                    return None;
                 }
                 if self.config.filter_config.third_party_only
                     && self.config.filter_config.is_trusted_source(&c.path)
                 {
                     tracing::debug!("Skipping (trusted source): {}", c.path.display());
-                    return false;
+                    return None;
                 }
+                let file_scope = scope_map.classify(&c.path, path);
                 // Skip dev-only files when --installed-only is set
                 // (but keep agent-reachable files even if dev-only)
-                if installed_only {
-                    let file_scope = scope_map.classify(&c.path, path);
-                    if file_scope == scope::InstallScope::DevOnly
-                        && !ref_graph.is_agent_reachable(&c.path)
-                    {
-                        tracing::debug!("Skipping (dev-only): {}", c.path.display());
-                        return false;
-                    }
+                if installed_only
+                    && file_scope == scope::InstallScope::DevOnly
+                    && !ref_graph.is_agent_reachable(&c.path)
+                {
+                    tracing::debug!("Skipping (dev-only): {}", c.path.display());
+                    return None;
                 }
-                true
+                Some((c, file_scope))
             })
             .collect();
 
-        // Phase 1: Parallel static analysis (CPU-bound, read file once per component)
+        // Phase 1: Parallel static + AST analysis (CPU-bound, read file once per component)
         // On cache hit, skip analysis entirely and return cached findings.
         let static_analyzer = &self.static_analyzer;
+        let ast_analyzer = &self.ast_analyzer;
         let min_severity = self.config.min_severity;
         let filter_config = &self.config.filter_config;
         let cache = &self.cache;
 
-        // Tuple: (component, content, result, cache_hit)
+        // Tuple: (component, content, result, cache_hit, file_scope)
         let static_results: Vec<_> = std::thread::scope(|s| {
             let handles: Vec<_> = scannable
                 .iter()
-                .map(|component| {
+                .map(|(component, file_scope)| {
                     s.spawn(move || {
                         tracing::debug!("Scanning: {}", component.path.display());
                         let content = match std::fs::read_to_string(&component.path) {
@@ -308,22 +307,44 @@ impl Scanner {
                                 let mut result = ScanResult::new(component.path.clone());
                                 result.content_hash = Some(content_hash);
                                 result.findings = cached_findings;
-                                return Some((component, content, result, true));
+                                return Some((component, content, result, true, *file_scope));
                             }
                         }
 
-                        // Cache miss — run static analysis
-                        match static_analyzer.scan_content(&content, &component.path) {
-                            Ok(result) => Some((component, content, result, false)),
-                            Err(e) => {
-                                tracing::warn!(
-                                    "Failed to scan {}: {}",
-                                    component.path.display(),
-                                    e
-                                );
-                                None
+                        // Cache miss — run static analysis (pass pre-computed hash)
+                        let mut result = match static_analyzer.scan_content(
+                            &content,
+                            &component.path,
+                            Some(content_hash),
+                        ) {
+                                Ok(result) => result,
+                                Err(e) => {
+                                    tracing::warn!(
+                                        "Failed to scan {}: {}",
+                                        component.path.display(),
+                                        e
+                                    );
+                                    return None;
+                                }
+                            };
+
+                        // AST analysis runs in the same thread (per-call parser, no Mutex)
+                        if let Some(ref ast) = ast_analyzer {
+                            match ast.analyze_content_str(&content, &component.path) {
+                                Ok(ast_result) => {
+                                    result.findings.extend(ast_result.findings);
+                                }
+                                Err(e) => {
+                                    tracing::warn!(
+                                        "AST analysis failed for {}: {}",
+                                        component.path.display(),
+                                        e
+                                    );
+                                }
                             }
                         }
+
+                        Some((component, content, result, false, *file_scope))
                     })
                 })
                 .collect();
@@ -334,11 +355,10 @@ impl Scanner {
                 .collect()
         });
 
-        // Phase 2: Sequential AST + deps analysis (reuses already-read content)
+        // Phase 2: Sequential post-processing (reuses already-read content + pre-computed scope)
         let include_dev = self.config.include_dev;
-        for (component, content, mut result, cache_hit) in static_results {
-            // Classify file scope — elevate agent-reachable dev-only files
-            let mut file_scope = scope_map.classify(&component.path, path);
+        for (component, content, mut result, cache_hit, mut file_scope) in static_results {
+            // Elevate agent-reachable dev-only files
             let is_agent_reachable = ref_graph.is_agent_reachable(&component.path);
             if is_agent_reachable && file_scope == scope::InstallScope::DevOnly {
                 file_scope = scope::InstallScope::Installed;
@@ -355,7 +375,7 @@ impl Scanner {
             }
 
             // Add agent-reachable metadata to findings
-            if is_agent_reachable {
+            if is_agent_reachable && !result.findings.is_empty() {
                 let refs = ref_graph.referenced_by(&component.path);
                 let ref_names: String = refs
                     .iter()
@@ -377,9 +397,10 @@ impl Scanner {
             for finding in &mut result.findings {
                 if let Some(domain) = self.trusted_domains.check_snippet(&finding.snippet) {
                     if finding.severity > Severity::Info {
-                        finding.metadata.entry("original_severity".to_string()).or_insert_with(
-                            || format!("{}", finding.severity),
-                        );
+                        finding
+                            .metadata
+                            .entry("original_severity".to_string())
+                            .or_insert_with(|| format!("{}", finding.severity));
                         finding
                             .metadata
                             .insert("trusted_domain".to_string(), domain);
@@ -438,26 +459,7 @@ impl Scanner {
                 continue;
             }
 
-            // Cache miss — run remaining analyzers, then store unfiltered findings
-            if let Some(ref ast_analyzer) = self.ast_analyzer {
-                match ast_analyzer
-                    .lock()
-                    .unwrap()
-                    .analyze_content_str(&content, &component.path)
-                {
-                    Ok(ast_result) => {
-                        result.findings.extend(ast_result.findings);
-                    }
-                    Err(e) => {
-                        tracing::warn!(
-                            "AST analysis failed for {}: {}",
-                            component.path.display(),
-                            e
-                        );
-                    }
-                }
-            }
-
+            // Cache miss — run remaining analyzers (AST already done in Phase 1)
             if let Some(ref deps_analyzer) = self.deps_analyzer {
                 if component
                     .path
@@ -520,9 +522,10 @@ impl Scanner {
                     if finding.severity > Severity::Low
                         && !scope::is_scope_cap_exempt(&finding.rule_id)
                     {
-                        finding.metadata.entry("original_severity".to_string()).or_insert_with(
-                            || format!("{}", finding.severity),
-                        );
+                        finding
+                            .metadata
+                            .entry("original_severity".to_string())
+                            .or_insert_with(|| format!("{}", finding.severity));
                         finding
                             .metadata
                             .insert("install_scope".to_string(), "dev_only".to_string());
@@ -544,6 +547,8 @@ impl Scanner {
     }
 
     /// Scan all installed components for the detected/specified platform.
+    /// Note: re-detects platform even though scan_path() also detects it.
+    /// Acceptable — detect_platform() is cheap (directory marker checks).
     pub async fn scan_platform(&self) -> Result<ScanReport> {
         let platform = self.config.platform.or_else(detect_platform);
 

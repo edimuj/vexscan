@@ -3,7 +3,7 @@
 //! Malware often uses encoding to hide malicious payloads. This module
 //! provides recursive decoding to uncover hidden content.
 
-use regex::Regex;
+use regex::{Regex, RegexSet};
 use std::collections::HashSet;
 
 /// Result of attempting to decode content.
@@ -48,6 +48,8 @@ pub struct Decoder {
     unicode_pattern: Regex,
     charcode_pattern: Regex,
     url_pattern: Regex,
+    /// Pre-filter: single-pass check for which encoding types are present.
+    pre_filter: RegexSet,
 }
 
 impl Default for Decoder {
@@ -56,45 +58,104 @@ impl Default for Decoder {
     }
 }
 
+// RegexSet indices for the pre-filter (must match order in pre_filter construction)
+const IDX_BASE64: usize = 0;
+const IDX_HEX: usize = 1;
+const IDX_UNICODE: usize = 2;
+const IDX_CHARCODE: usize = 3;
+const IDX_URL: usize = 4;
+
 impl Decoder {
     pub fn new() -> Self {
+        let base64_pat = r#"['"`][A-Za-z0-9+/]{20,}={0,2}['"`]"#;
+        let hex_pat = r#"['"`][0-9a-fA-F]{20,}['"`]"#;
+        let unicode_pat = r"(?:\\u[0-9a-fA-F]{4}){4,}";
+        let charcode_pat = r"String\s*\.\s*fromCharCode\s*\(\s*(?:\d+\s*,?\s*){3,}\)";
+        let url_pat = r"(?:%[0-9a-fA-F]{2}){5,}";
+
         Self {
-            // Match base64 strings (at least 20 chars to reduce false positives)
             base64_pattern: Regex::new(r#"['"`]([A-Za-z0-9+/]{20,}={0,2})['"`]"#).unwrap(),
-            // Match hex strings like "48656c6c6f"
             hex_pattern: Regex::new(r#"['"`]([0-9a-fA-F]{20,})['"`]"#).unwrap(),
-            // Match unicode escape sequences like \u0048\u0065
             unicode_pattern: Regex::new(r"((?:\\u[0-9a-fA-F]{4}){4,})").unwrap(),
-            // Match String.fromCharCode(72, 101, 108, 108, 111)
             charcode_pattern: Regex::new(
                 r"String\s*\.\s*fromCharCode\s*\(\s*((?:\d+\s*,?\s*){3,})\)",
             )
             .unwrap(),
-            // Match URL encoded strings like %48%65%6c%6c%6f
             url_pattern: Regex::new(r"((?:%[0-9a-fA-F]{2}){5,})").unwrap(),
+            pre_filter: RegexSet::new([base64_pat, hex_pat, unicode_pat, charcode_pat, url_pat])
+                .unwrap(),
         }
     }
 
     /// Find all encoded content in the given text.
     pub fn find_encoded(&self, content: &str) -> Vec<DecodedContent> {
+        // Single-pass pre-filter: determine which encoding types are present
+        let active = self.pre_filter.matches(content);
+        if !active.matched_any() {
+            return Vec::new();
+        }
+
         let mut results = Vec::new();
         let mut seen_offsets: HashSet<usize> = HashSet::new();
 
-        // Find base64
-        for cap in self.base64_pattern.captures_iter(content) {
-            if let Some(m) = cap.get(1) {
-                let offset = m.start();
-                if seen_offsets.contains(&offset) {
-                    continue;
+        // Only run individual regex passes for encoding types the pre-filter detected
+        if active.matched(IDX_BASE64) {
+            for cap in self.base64_pattern.captures_iter(content) {
+                if let Some(m) = cap.get(1) {
+                    let offset = m.start();
+                    if seen_offsets.contains(&offset) {
+                        continue;
+                    }
+                    if let Some(decoded) = self.try_decode_base64(m.as_str()) {
+                        if is_printable_text(&decoded) {
+                            seen_offsets.insert(offset);
+                            results.push(DecodedContent {
+                                original: m.as_str().to_string(),
+                                decoded,
+                                encoding: EncodingType::Base64,
+                                offset,
+                            });
+                        }
+                    }
                 }
-                if let Some(decoded) = self.try_decode_base64(m.as_str()) {
-                    // Only include if decoded content looks like text
-                    if is_printable_text(&decoded) {
+            }
+        }
+
+        if active.matched(IDX_HEX) {
+            for cap in self.hex_pattern.captures_iter(content) {
+                if let Some(m) = cap.get(1) {
+                    let offset = m.start();
+                    if seen_offsets.contains(&offset) {
+                        continue;
+                    }
+                    if let Some(decoded) = self.try_decode_hex(m.as_str()) {
+                        if is_printable_text(&decoded) {
+                            seen_offsets.insert(offset);
+                            results.push(DecodedContent {
+                                original: m.as_str().to_string(),
+                                decoded,
+                                encoding: EncodingType::Hex,
+                                offset,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        if active.matched(IDX_UNICODE) {
+            for cap in self.unicode_pattern.captures_iter(content) {
+                if let Some(m) = cap.get(1) {
+                    let offset = m.start();
+                    if seen_offsets.contains(&offset) {
+                        continue;
+                    }
+                    if let Some(decoded) = self.try_decode_unicode(m.as_str()) {
                         seen_offsets.insert(offset);
                         results.push(DecodedContent {
                             original: m.as_str().to_string(),
                             decoded,
-                            encoding: EncodingType::Base64,
+                            encoding: EncodingType::Unicode,
                             offset,
                         });
                     }
@@ -102,20 +163,19 @@ impl Decoder {
             }
         }
 
-        // Find hex strings
-        for cap in self.hex_pattern.captures_iter(content) {
-            if let Some(m) = cap.get(1) {
-                let offset = m.start();
-                if seen_offsets.contains(&offset) {
-                    continue;
-                }
-                if let Some(decoded) = self.try_decode_hex(m.as_str()) {
-                    if is_printable_text(&decoded) {
+        if active.matched(IDX_CHARCODE) {
+            for cap in self.charcode_pattern.captures_iter(content) {
+                if let Some(m) = cap.get(1) {
+                    let offset = cap.get(0).map(|c| c.start()).unwrap_or(0);
+                    if seen_offsets.contains(&offset) {
+                        continue;
+                    }
+                    if let Some(decoded) = self.try_decode_charcode(m.as_str()) {
                         seen_offsets.insert(offset);
                         results.push(DecodedContent {
-                            original: m.as_str().to_string(),
+                            original: cap.get(0).map(|c| c.as_str()).unwrap_or("").to_string(),
                             decoded,
-                            encoding: EncodingType::Hex,
+                            encoding: EncodingType::CharCode,
                             offset,
                         });
                     }
@@ -123,60 +183,23 @@ impl Decoder {
             }
         }
 
-        // Find unicode escapes
-        for cap in self.unicode_pattern.captures_iter(content) {
-            if let Some(m) = cap.get(1) {
-                let offset = m.start();
-                if seen_offsets.contains(&offset) {
-                    continue;
-                }
-                if let Some(decoded) = self.try_decode_unicode(m.as_str()) {
-                    seen_offsets.insert(offset);
-                    results.push(DecodedContent {
-                        original: m.as_str().to_string(),
-                        decoded,
-                        encoding: EncodingType::Unicode,
-                        offset,
-                    });
-                }
-            }
-        }
-
-        // Find charcode
-        for cap in self.charcode_pattern.captures_iter(content) {
-            if let Some(m) = cap.get(1) {
-                let offset = cap.get(0).map(|c| c.start()).unwrap_or(0);
-                if seen_offsets.contains(&offset) {
-                    continue;
-                }
-                if let Some(decoded) = self.try_decode_charcode(m.as_str()) {
-                    seen_offsets.insert(offset);
-                    results.push(DecodedContent {
-                        original: cap.get(0).map(|c| c.as_str()).unwrap_or("").to_string(),
-                        decoded,
-                        encoding: EncodingType::CharCode,
-                        offset,
-                    });
-                }
-            }
-        }
-
-        // Find URL encoded
-        for cap in self.url_pattern.captures_iter(content) {
-            if let Some(m) = cap.get(1) {
-                let offset = m.start();
-                if seen_offsets.contains(&offset) {
-                    continue;
-                }
-                if let Some(decoded) = self.try_decode_url(m.as_str()) {
-                    if is_printable_text(&decoded) {
-                        seen_offsets.insert(offset);
-                        results.push(DecodedContent {
-                            original: m.as_str().to_string(),
-                            decoded,
-                            encoding: EncodingType::UrlEncoded,
-                            offset,
-                        });
+        if active.matched(IDX_URL) {
+            for cap in self.url_pattern.captures_iter(content) {
+                if let Some(m) = cap.get(1) {
+                    let offset = m.start();
+                    if seen_offsets.contains(&offset) {
+                        continue;
+                    }
+                    if let Some(decoded) = self.try_decode_url(m.as_str()) {
+                        if is_printable_text(&decoded) {
+                            seen_offsets.insert(offset);
+                            results.push(DecodedContent {
+                                original: m.as_str().to_string(),
+                                decoded,
+                                encoding: EncodingType::UrlEncoded,
+                                offset,
+                            });
+                        }
                     }
                 }
             }
@@ -204,9 +227,7 @@ impl Decoder {
             sorted.sort_by(|a, b| b.offset.cmp(&a.offset));
             for d in &sorted {
                 let end = d.offset + d.original.len();
-                if end <= new_content.len()
-                    && new_content.get(d.offset..end) == Some(&d.original)
-                {
+                if end <= new_content.len() && new_content.get(d.offset..end) == Some(&d.original) {
                     new_content.replace_range(d.offset..end, &d.decoded);
                 }
             }
@@ -273,6 +294,8 @@ impl Decoder {
                         result.push(decoded_char);
                     }
                 }
+            } else {
+                result.push(c);
             }
         }
 
