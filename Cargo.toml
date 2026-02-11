@@ -1,6 +1,6 @@
 [package]
 name = "vexscan"
-version = "0.9.0"
+version = "0.10.0"
 edition = "2021"
 description = "Security scanner for AI agent plugins, skills, and MCP servers"
 license = "Apache-2.0"

@@ -293,6 +293,16 @@ impl StaticAnalyzer {
         findings
     }
 
+    /// Load external rules from a directory, tagging them as External.
+    /// Returns the number of rules loaded, or an error.
+    pub fn load_external_rules_dir(
+        &mut self,
+        dir: &std::path::Path,
+    ) -> Result<usize, Box<dyn std::error::Error>> {
+        self.rules
+            .add_rules_from_directory(dir, Some(crate::rules::RuleSource::External))
+    }
+
     /// Number of loaded rules (delegates to the underlying RuleSet).
     pub fn rule_count(&self) -> usize {
         self.rules.rule_count()

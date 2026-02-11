@@ -40,6 +40,10 @@ pub struct Cli {
     #[arg(short, long, global = true)]
     pub verbose: bool,
 
+    /// Suppress informational output (only show results and errors)
+    #[arg(short, long, global = true)]
+    pub quiet: bool,
+
     /// Output format
     #[arg(short = 'f', long, global = true, default_value = "cli")]
     pub format: String,
@@ -82,7 +86,7 @@ pub enum Commands {
 
         /// Fail with exit code 1 if any findings at this severity or above
         #[arg(long, default_value = "high")]
-        fail_on: Option<String>,
+        fail_on: String,
 
         /// Skip node_modules directories entirely (focus on actual code)
         #[arg(long)]
@@ -172,6 +176,10 @@ pub enum Commands {
         /// Show only community rules
         #[arg(long)]
         community: bool,
+
+        /// Show only external (user-loaded) rules
+        #[arg(long)]
+        external: bool,
 
         /// Filter rules by author (partial match)
         #[arg(long)]

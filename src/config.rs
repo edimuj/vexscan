@@ -1,7 +1,7 @@
 //! Configuration for the scanner, including allowlists and trusted packages.
 
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 /// Extensions that are executable and should NEVER be skipped, regardless of filename.
@@ -57,6 +57,11 @@ pub struct Config {
     /// Only scan third-party/unknown sources (skip official and trusted).
     #[serde(default)]
     pub third_party_only: bool,
+
+    /// Additional directories to load rules from at runtime.
+    /// Default: ~/.vexscan/rules/ (if it exists).
+    #[serde(default)]
+    pub extra_rules_dirs: Vec<PathBuf>,
 
     /// Pre-compiled glob patterns for skip_paths (lazily initialized).
     #[serde(skip)]
@@ -168,8 +173,48 @@ impl Config {
             entropy_threshold: 5.5,
             disabled_rules: vec![],
             third_party_only: false,
+            extra_rules_dirs: Self::default_extra_rules_dirs(),
             compiled_skip_globs: OnceLock::new(),
         }
+    }
+
+    /// Resolve default extra rules directories (convention: ~/.vexscan/rules/).
+    fn default_extra_rules_dirs() -> Vec<PathBuf> {
+        if let Some(home) = dirs::home_dir() {
+            let dir = home.join(".vexscan").join("rules");
+            if dir.is_dir() {
+                return vec![dir];
+            }
+        }
+        vec![]
+    }
+
+    /// Resolve ~ prefixes in extra_rules_dirs paths.
+    pub fn resolved_extra_rules_dirs(&self) -> Vec<PathBuf> {
+        let home = dirs::home_dir();
+        let mut dirs = self
+            .extra_rules_dirs
+            .iter()
+            .map(|p| {
+                let s = p.to_string_lossy();
+                if s.starts_with("~/") || s == "~" {
+                    if let Some(ref h) = home {
+                        return h.join(s.strip_prefix("~/").unwrap_or(""));
+                    }
+                }
+                p.clone()
+            })
+            .collect::<Vec<_>>();
+
+        // Always include ~/.vexscan/rules/ if it exists (zero-config convention)
+        if let Some(ref h) = home {
+            let convention_dir = h.join(".vexscan").join("rules");
+            if convention_dir.is_dir() && !dirs.contains(&convention_dir) {
+                dirs.push(convention_dir);
+            }
+        }
+
+        dirs
     }
 
     /// Get the pre-compiled GlobSet for skip_paths, compiling on first access.
@@ -432,6 +477,11 @@ entropy_threshold = 5.5
 disabled_rules = [
     # "ENTROPY-001",  # Uncomment to disable entropy checks
 ]
+
+# Additional directories to load rules from at runtime.
+# ~/.vexscan/rules/ is always checked automatically (zero-config).
+# Add extra directories here for organization-specific rules.
+# extra_rules_dirs = ["/path/to/custom/rules"]
 "#
     .to_string()
 }

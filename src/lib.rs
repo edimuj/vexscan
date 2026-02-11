@@ -63,7 +63,7 @@ pub use types::{truncate, Finding, Platform, ScanReport, ScanResult, Severity};
 
 use adapters::{create_adapter, detect_platform, PlatformAdapter};
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 /// Configuration for the scanner.
@@ -95,10 +95,14 @@ pub struct ScanConfig {
     pub installed_only: bool,
     /// Scan all files at full severity (disable scope-based severity capping).
     pub include_dev: bool,
+    /// Additional directories to load rules from at runtime.
+    pub extra_rules_dirs: Vec<PathBuf>,
 }
 
 impl Default for ScanConfig {
     fn default() -> Self {
+        let filter_config = Config::load_default();
+        let extra_rules_dirs = filter_config.resolved_extra_rules_dirs();
         Self {
             enable_ai: false,
             ai_config: None,
@@ -109,10 +113,11 @@ impl Default for ScanConfig {
             static_config: AnalyzerConfig::default(),
             min_severity: Severity::Low,
             platform: None,
-            filter_config: Config::load_default(),
+            filter_config,
             enable_cache: true,
             installed_only: false,
             include_dev: false,
+            extra_rules_dirs,
         }
     }
 }
@@ -136,7 +141,34 @@ impl Scanner {
 
     /// Create a scanner with custom configuration.
     pub fn with_config(config: ScanConfig) -> Result<Self> {
-        let static_analyzer = StaticAnalyzer::with_config(config.static_config.clone())?;
+        let mut static_analyzer = StaticAnalyzer::with_config(config.static_config.clone())?;
+
+        // Load external rules from configured directories
+        let mut external_rule_count = 0;
+        for dir in &config.extra_rules_dirs {
+            if dir.is_dir() {
+                match static_analyzer.load_external_rules_dir(dir) {
+                    Ok(count) => {
+                        external_rule_count += count;
+                        tracing::debug!("Loaded {} external rules from {}", count, dir.display());
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to load rules from {}: {}", dir.display(), e);
+                    }
+                }
+            }
+        }
+        if external_rule_count > 0 {
+            tracing::info!(
+                "Loaded {} external rules from {} dir(s)",
+                external_rule_count,
+                config
+                    .extra_rules_dirs
+                    .iter()
+                    .filter(|d| d.is_dir())
+                    .count()
+            );
+        }
 
         let ast_analyzer = if config.enable_ast {
             let ast_config = config.ast_config.clone().unwrap_or_default();
@@ -317,16 +349,16 @@ impl Scanner {
                             &component.path,
                             Some(content_hash),
                         ) {
-                                Ok(result) => result,
-                                Err(e) => {
-                                    tracing::warn!(
-                                        "Failed to scan {}: {}",
-                                        component.path.display(),
-                                        e
-                                    );
-                                    return None;
-                                }
-                            };
+                            Ok(result) => result,
+                            Err(e) => {
+                                tracing::warn!(
+                                    "Failed to scan {}: {}",
+                                    component.path.display(),
+                                    e
+                                );
+                                return None;
+                            }
+                        };
 
                         // AST analysis runs in the same thread (per-call parser, no Mutex)
                         if let Some(ref ast) = ast_analyzer {
@@ -543,6 +575,7 @@ impl Scanner {
         }
 
         report.total_time_ms = start.elapsed().as_millis() as u64;
+        report.risk_score = report.compute_risk_score();
         Ok(report)
     }
 

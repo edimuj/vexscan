@@ -9,13 +9,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
-/// Source of a rule (official or community).
+/// Source of a rule (official, community, or external).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum RuleSource {
     #[default]
     Official,
     Community,
+    External,
 }
 
 impl fmt::Display for RuleSource {
@@ -23,6 +24,7 @@ impl fmt::Display for RuleSource {
         match self {
             RuleSource::Official => write!(f, "official"),
             RuleSource::Community => write!(f, "community"),
+            RuleSource::External => write!(f, "external"),
         }
     }
 }
@@ -245,6 +247,24 @@ impl RuleSet {
         }
         self.build_regex_set();
         Ok(self)
+    }
+
+    /// Load rules from a directory with source tagging (mutable, graceful on error).
+    pub fn add_rules_from_directory(
+        &mut self,
+        dir: &std::path::Path,
+        source_override: Option<RuleSource>,
+    ) -> Result<usize, Box<dyn std::error::Error>> {
+        let rules = loader::load_rules_from_directory_with_source(dir, source_override)?;
+        let mut count = 0;
+        for rule in rules {
+            if rule.enabled {
+                self.rules.push(rule.compile()?);
+                count += 1;
+            }
+        }
+        self.build_regex_set();
+        Ok(count)
     }
 
     /// Add a custom rule.

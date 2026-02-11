@@ -241,6 +241,9 @@ pub struct ScanReport {
     /// Whether dependency scanning was enabled.
     #[serde(default)]
     pub deps_enabled: bool,
+    /// Computed risk score (0-100).
+    #[serde(default)]
+    pub risk_score: u8,
 }
 
 impl ScanReport {
@@ -257,6 +260,7 @@ impl ScanReport {
             rule_count: 0,
             ast_enabled: false,
             deps_enabled: false,
+            risk_score: 0,
         }
     }
 
@@ -266,6 +270,27 @@ impl ScanReport {
 
     pub fn max_severity(&self) -> Option<Severity> {
         self.results.iter().filter_map(|r| r.max_severity()).max()
+    }
+
+    /// Compute a 0-100 risk score from finding severities.
+    pub fn compute_risk_score(&self) -> u8 {
+        let counts = self.findings_count_by_severity();
+        let score: usize = counts.get(&Severity::Critical).unwrap_or(&0) * 40
+            + counts.get(&Severity::High).unwrap_or(&0) * 15
+            + counts.get(&Severity::Medium).unwrap_or(&0) * 5
+            + counts.get(&Severity::Low).unwrap_or(&0) * 2;
+        score.min(100) as u8
+    }
+
+    /// Human-readable risk label for a given score.
+    pub fn risk_label(score: u8) -> &'static str {
+        match score {
+            0 => "Clean",
+            1..=25 => "Low Risk",
+            26..=50 => "Moderate Risk",
+            51..=75 => "High Risk",
+            _ => "Critical Risk",
+        }
     }
 
     pub fn findings_count_by_severity(&self) -> std::collections::HashMap<Severity, usize> {

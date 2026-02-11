@@ -349,6 +349,15 @@ fn test_detects_prompt_injection_system_reveal() {
     );
 }
 
+#[test]
+fn test_detects_prompt_injection_in_code_comments() {
+    assert_detects(
+        "prompt-injection/comment-injection.py",
+        5,
+        "Prompt injection in Python comments/docstrings (INJECT-001, INJECT-002, INJECT-003, INJECT-004, INJECT-007)",
+    );
+}
+
 // ============================================================================
 // SHELL SCRIPT ATTACK TESTS
 // ============================================================================

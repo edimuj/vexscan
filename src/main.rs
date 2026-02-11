@@ -5,7 +5,21 @@ use clap::Parser;
 use colored::Colorize;
 use std::io;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tracing_subscriber::EnvFilter;
+
+/// Global quiet flag — suppresses informational stderr output.
+static QUIET: AtomicBool = AtomicBool::new(false);
+
+/// Print to stderr unless --quiet is set. Use for informational output only.
+/// Errors should always use eprintln! directly.
+macro_rules! info {
+    ($($arg:tt)*) => {
+        if !QUIET.load(Ordering::Relaxed) {
+            eprintln!($($arg)*);
+        }
+    };
+}
 use vexscan::{
     cli::{CacheSubcommand, Cli, Commands, RulesSubcommand},
     config::{generate_default_config, Config},
@@ -26,9 +40,16 @@ async fn main() {
 
 async fn run() -> Result<()> {
     let cli = Cli::parse();
+    QUIET.store(cli.quiet, Ordering::Relaxed);
 
     // Initialize logging (stderr to avoid interfering with JSON output)
-    let log_level = if cli.verbose { "debug" } else { "info" };
+    let log_level = if cli.quiet {
+        "warn"
+    } else if cli.verbose {
+        "debug"
+    } else {
+        "info"
+    };
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| log_level.into()))
         .with_target(false)
@@ -69,7 +90,7 @@ async fn run() -> Result<()> {
 
             // Parse severity
             let min_severity = parse_severity(&min_severity)?;
-            let fail_on_severity = fail_on.as_ref().map(|s| parse_severity(s)).transpose()?;
+            let fail_on_severity = parse_severity(&fail_on)?;
 
             // Build filter config from base + CLI overrides
             let mut filter_config = base_config;
@@ -91,6 +112,9 @@ async fn run() -> Result<()> {
                 static_config.enable_entropy = true;
             }
 
+            // Resolve extra rules directories
+            let extra_rules_dirs = filter_config.resolved_extra_rules_dirs();
+
             // Build scan config
             let mut config = ScanConfig {
                 enable_ai: ai,
@@ -103,6 +127,7 @@ async fn run() -> Result<()> {
                 static_config,
                 installed_only,
                 include_dev,
+                extra_rules_dirs,
                 ..Default::default()
             };
 
@@ -142,7 +167,7 @@ async fn run() -> Result<()> {
             if let Some(output_path) = output {
                 let mut file = std::fs::File::create(&output_path)?;
                 report(&scan_report, format, &mut file)?;
-                eprintln!("Report written to: {}", output_path.display());
+                info!("Report written to: {}", output_path.display());
             } else {
                 let mut stdout = io::stdout().lock();
                 report(&scan_report, format, &mut stdout)?;
@@ -150,20 +175,20 @@ async fn run() -> Result<()> {
 
             // Hint about additional analyzers
             if !ast && !deps {
-                eprintln!(
+                info!(
                     "\n{} Use {} for obfuscation detection and {} for supply chain checks.",
                     "Tip:".dimmed(),
                     "--ast".bold(),
                     "--deps".bold()
                 );
             } else if !ast {
-                eprintln!(
+                info!(
                     "\n{} Use {} for obfuscation detection.",
                     "Tip:".dimmed(),
                     "--ast".bold()
                 );
             } else if !deps {
-                eprintln!(
+                info!(
                     "\n{} Use {} for supply chain checks.",
                     "Tip:".dimmed(),
                     "--deps".bold()
@@ -171,11 +196,9 @@ async fn run() -> Result<()> {
             }
 
             // Check fail condition
-            if let Some(fail_severity) = fail_on_severity {
-                if let Some(max_sev) = scan_report.max_severity() {
-                    if max_sev >= fail_severity {
-                        std::process::exit(1);
-                    }
+            if let Some(max_sev) = scan_report.max_severity() {
+                if max_sev >= fail_on_severity {
+                    std::process::exit(1);
                 }
             }
         }
@@ -228,26 +251,27 @@ async fn run() -> Result<()> {
             }
 
             // Print startup info
-            eprintln!("{}", "═".repeat(60).bright_blue());
-            eprintln!("{}  {} Watch Mode", "👁".bright_blue(), "Vexscan".bold());
-            eprintln!("{}", "═".repeat(60).bright_blue());
-            eprintln!();
-            eprintln!("{}", "Watching for new plugin installations...".cyan());
+            info!("{}", "═".repeat(60).bright_blue());
+            info!("{}  {} Watch Mode", "👁".bright_blue(), "Vexscan".bold());
+            info!("{}", "═".repeat(60).bright_blue());
+            info!();
+            info!("{}", "Watching for new plugin installations...".cyan());
             for path in &paths_to_watch {
-                eprintln!("  {} {}", "→".dimmed(), path.display());
+                info!("  {} {}", "→".dimmed(), path.display());
             }
             if third_party_only {
-                eprintln!("  {} Only alerting on third-party plugins", "ℹ".blue());
+                info!("  {} Only alerting on third-party plugins", "ℹ".blue());
             }
-            eprintln!("  {} Minimum severity: {:?}", "ℹ".blue(), min_severity);
+            info!("  {} Minimum severity: {:?}", "ℹ".blue(), min_severity);
             if send_notifications {
-                eprintln!("  {} Desktop notifications enabled", "🔔".yellow());
+                info!("  {} Desktop notifications enabled", "🔔".yellow());
             }
-            eprintln!();
-            eprintln!("{}", "Press Ctrl+C to stop.".dimmed());
-            eprintln!();
+            info!();
+            info!("{}", "Press Ctrl+C to stop.".dimmed());
+            info!();
 
             // Create scanner config
+            let extra_rules_dirs = filter_config.resolved_extra_rules_dirs();
             let scan_config = ScanConfig {
                 enable_ai: false,
                 platform,
@@ -256,6 +280,7 @@ async fn run() -> Result<()> {
                 static_config: AnalyzerConfig::default(),
                 installed_only,
                 include_dev,
+                extra_rules_dirs,
                 ..Default::default()
             };
 
@@ -278,7 +303,7 @@ async fn run() -> Result<()> {
                 if path.exists() {
                     watcher.watch(path, RecursiveMode::Recursive)?;
                 } else {
-                    eprintln!(
+                    info!(
                         "{} Path does not exist, skipping: {}",
                         "⚠".yellow(),
                         path.display()
@@ -310,8 +335,11 @@ async fn run() -> Result<()> {
                             }
                             if seen_files.len() >= MAX_SEEN_FILES {
                                 // Evict half instead of clearing everything to reduce duplicate scans
-                                let to_remove: Vec<_> =
-                                    seen_files.iter().take(MAX_SEEN_FILES / 2).cloned().collect();
+                                let to_remove: Vec<_> = seen_files
+                                    .iter()
+                                    .take(MAX_SEEN_FILES / 2)
+                                    .cloned()
+                                    .collect();
                                 for key in &to_remove {
                                     seen_files.remove(key);
                                 }
@@ -333,7 +361,7 @@ async fn run() -> Result<()> {
                                 continue;
                             }
 
-                            eprintln!("\n{} New file detected: {}", "📄".cyan(), path.display());
+                            info!("\n{} New file detected: {}", "📄".cyan(), path.display());
 
                             // Scan the file
                             match scanner.scan_path(&path).await {
@@ -344,7 +372,7 @@ async fn run() -> Result<()> {
                                         let max_sev = scan_report.max_severity();
 
                                         // Print alert
-                                        eprintln!(
+                                        info!(
                                             "{} {} finding(s) in {}",
                                             "🚨".bright_red(),
                                             findings_count.to_string().bright_red(),
@@ -363,7 +391,7 @@ async fn run() -> Result<()> {
                                                     Severity::Low => "●".blue(),
                                                     Severity::Info => "○".white(),
                                                 };
-                                                eprintln!(
+                                                info!(
                                                     "   {} [{}] {}",
                                                     sev_icon,
                                                     finding.rule_id.dimmed(),
@@ -394,7 +422,7 @@ async fn run() -> Result<()> {
                                             );
                                         }
                                     } else {
-                                        eprintln!("   {} No issues found", "✓".green());
+                                        info!("   {} No issues found", "✓".green());
                                     }
                                 }
                                 Err(e) => {
@@ -446,6 +474,7 @@ async fn run() -> Result<()> {
             rule,
             official,
             community,
+            external,
             author,
             tag,
             json,
@@ -461,7 +490,7 @@ async fn run() -> Result<()> {
                     } => {
                         let results = if let Some(p) = path {
                             // Test specific file
-                            eprintln!("{} {}", "Testing rules from:".cyan(), p.display());
+                            info!("{} {}", "Testing rules from:".cyan(), p.display());
                             match test_rules_from_file(&p) {
                                 Ok(r) => r,
                                 Err(e) => {
@@ -471,7 +500,7 @@ async fn run() -> Result<()> {
                             }
                         } else {
                             // Test all built-in rules
-                            eprintln!("{}", "Testing all built-in rules...".cyan());
+                            info!("{}", "Testing all built-in rules...".cyan());
                             let rules = load_builtin_json_rules();
                             test_all_rules(&rules)
                         };
@@ -591,13 +620,38 @@ async fn run() -> Result<()> {
                 return Ok(());
             }
 
-            // Load rules based on source filter
-            let mut rules = if official && !community {
-                filter_rules_by_source(&load_builtin_json_rules(), RuleSource::Official)
+            // Load built-in rules + external rules from ~/.vexscan/rules/
+            let mut all_rules = load_builtin_json_rules();
+
+            // Load external rules
+            let extra_dirs = base_config.resolved_extra_rules_dirs();
+            for dir in &extra_dirs {
+                if dir.is_dir() {
+                    match vexscan::rules::loader::load_rules_from_directory_with_source(
+                        dir,
+                        Some(RuleSource::External),
+                    ) {
+                        Ok(ext_rules) => all_rules.extend(ext_rules),
+                        Err(e) => {
+                            eprintln!(
+                                "Warning: failed to load rules from {}: {}",
+                                dir.display(),
+                                e
+                            );
+                        }
+                    }
+                }
+            }
+
+            // Apply source filter
+            let mut rules = if external {
+                filter_rules_by_source(&all_rules, RuleSource::External)
+            } else if official && !community {
+                filter_rules_by_source(&all_rules, RuleSource::Official)
             } else if community && !official {
-                filter_rules_by_source(&load_builtin_json_rules(), RuleSource::Community)
+                filter_rules_by_source(&all_rules, RuleSource::Community)
             } else {
-                load_builtin_json_rules()
+                all_rules
             };
 
             // Apply author filter
@@ -679,7 +733,9 @@ async fn run() -> Result<()> {
                 if json {
                     println!("{}", serde_json::to_string_pretty(&rules)?);
                 } else {
-                    let title = if official {
+                    let title = if external {
+                        "External Rules"
+                    } else if official {
                         "Official Rules"
                     } else if community {
                         "Community Rules"
@@ -711,6 +767,7 @@ async fn run() -> Result<()> {
 
                         let source_badge = match r.source {
                             RuleSource::Community => " [community]".dimmed(),
+                            RuleSource::External => " [external]".dimmed(),
                             RuleSource::Official => "".normal(),
                         };
 
@@ -733,10 +790,21 @@ async fn run() -> Result<()> {
                             .iter()
                             .filter(|r| r.source == RuleSource::Community)
                             .count();
-                        println!(
-                            "  {} official, {} community",
-                            official_count, community_count
-                        );
+                        let external_count = rules
+                            .iter()
+                            .filter(|r| r.source == RuleSource::External)
+                            .count();
+                        if external_count > 0 {
+                            println!(
+                                "  {} official, {} community, {} external",
+                                official_count, community_count, external_count
+                            );
+                        } else {
+                            println!(
+                                "  {} official, {} community",
+                                official_count, community_count
+                            );
+                        }
                     }
                 }
             }
@@ -766,11 +834,11 @@ async fn run() -> Result<()> {
 
         Commands::Init { output } => {
             if output.exists() {
-                eprintln!(
+                info!(
                     "{}",
                     format!("Config file already exists: {}", output.display()).yellow()
                 );
-                eprintln!("Use a different path or remove the existing file.");
+                info!("Use a different path or remove the existing file.");
                 std::process::exit(1);
             }
 
@@ -805,14 +873,14 @@ async fn run() -> Result<()> {
                 ));
             }
 
-            eprintln!("{}", "═".repeat(60).bright_blue());
-            eprintln!("{}  {} Install", "📦".bright_blue(), "Vexscan".bold());
-            eprintln!("{}", "═".repeat(60).bright_blue());
-            eprintln!();
+            info!("{}", "═".repeat(60).bright_blue());
+            info!("{}  {} Install", "📦".bright_blue(), "Vexscan".bold());
+            info!("{}", "═".repeat(60).bright_blue());
+            info!();
 
             // Step 1: Fetch the source
             let (scan_path, temp_dir, source_name) = if is_github_url(&source) {
-                eprintln!("{} {}", "Fetching:".cyan(), source);
+                info!("{} {}", "Fetching:".cyan(), source);
                 let temp_dir = clone_github_repo(&source, branch.as_deref())?;
                 let repo_name = extract_repo_name(&source);
                 (temp_dir.path().to_path_buf(), Some(temp_dir), repo_name)
@@ -826,7 +894,7 @@ async fn run() -> Result<()> {
                     .and_then(|n| n.to_str())
                     .unwrap_or("unknown")
                     .to_string();
-                eprintln!("{} {}", "Source:".cyan(), path.display());
+                info!("{} {}", "Source:".cyan(), path.display());
                 (path, None, dir_name)
             };
 
@@ -835,23 +903,24 @@ async fn run() -> Result<()> {
             let final_type = install_type.as_deref().unwrap_or(&detected_type);
             let install_name = name.unwrap_or_else(|| source_name.clone());
 
-            eprintln!(
+            info!(
                 "{} {} ({})",
                 "Component:".cyan(),
                 install_name.bright_white(),
                 final_type
             );
-            eprintln!();
+            info!();
 
             // Step 3: Security scan
-            eprintln!("{}", "Scanning for security issues...".yellow());
-            eprintln!();
+            info!("{}", "Scanning for security issues...".yellow());
+            info!();
 
             let mut filter_config = base_config.clone();
             if skip_deps {
                 filter_config.skip_node_modules = true;
             }
 
+            let extra_rules_dirs = filter_config.resolved_extra_rules_dirs();
             let config = ScanConfig {
                 enable_ai: false,
                 enable_ast: ast,
@@ -863,6 +932,7 @@ async fn run() -> Result<()> {
                 static_config: AnalyzerConfig::default(),
                 installed_only,
                 include_dev,
+                extra_rules_dirs,
                 ..Default::default()
             };
 
@@ -870,8 +940,8 @@ async fn run() -> Result<()> {
             let scan_report = scanner.scan_path(&scan_path).await?;
 
             // Show findings summary
-            let (critical, high, medium, low, info) = count_by_severity(&scan_report);
-            let total = critical + high + medium + low + info;
+            let (critical, high, medium, low, info_count) = count_by_severity(&scan_report);
+            let total = critical + high + medium + low + info_count;
 
             if total > 0 {
                 // Show the scan report
@@ -880,104 +950,104 @@ async fn run() -> Result<()> {
                 let mut stdout = io::stdout().lock();
                 report(&scan_report, format, &mut stdout)?;
                 drop(stdout);
-                eprintln!();
+                info!();
             }
 
             // Step 4: Determine if installation should proceed
             let max_sev = scan_report.max_severity();
             let can_install = match max_sev {
                 Some(Severity::Critical) => {
-                    eprintln!(
+                    info!(
                         "{} {} - Installation blocked",
                         "🚨 CRITICAL ISSUES FOUND".bright_red().bold(),
                         format!("({} critical)", critical).red()
                     );
-                    eprintln!("   This component contains critical security issues and cannot be installed.");
-                    eprintln!("   Review the findings above and contact the author.");
+                    info!("   This component contains critical security issues and cannot be installed.");
+                    info!("   Review the findings above and contact the author.");
                     false
                 }
                 Some(Severity::High) => {
                     if allow_high {
-                        eprintln!(
+                        info!(
                             "{} {} - Proceeding (--allow-high)",
                             "⚠️  HIGH SEVERITY ISSUES".red().bold(),
                             format!("({} high)", high).red()
                         );
                         true
                     } else {
-                        eprintln!(
+                        info!(
                             "{} {} - Installation blocked",
                             "⚠️  HIGH SEVERITY ISSUES".red().bold(),
                             format!("({} high)", high).red()
                         );
-                        eprintln!("   Use --allow-high to install anyway (not recommended).");
+                        info!("   Use --allow-high to install anyway (not recommended).");
                         false
                     }
                 }
                 Some(Severity::Medium) => {
                     if force {
-                        eprintln!(
+                        info!(
                             "{} {} - Proceeding (--force)",
                             "⚡ WARNINGS FOUND".yellow(),
                             format!("({} medium)", medium).yellow()
                         );
                         true
                     } else {
-                        eprintln!(
+                        info!(
                             "{} {}",
                             "⚡ WARNINGS FOUND".yellow(),
                             format!("({} medium)", medium).yellow()
                         );
-                        eprintln!("   Use --force to install anyway.");
+                        info!("   Use --force to install anyway.");
                         false
                     }
                 }
                 Some(Severity::Low) | Some(Severity::Info) | None => {
                     if total > 0 {
-                        eprintln!(
+                        info!(
                             "{} ({} low, {} info)",
                             "✓ Minor issues only".green(),
                             low,
-                            info
+                            info_count
                         );
                     } else {
-                        eprintln!("{}", "✓ No security issues found".green().bold());
+                        info!("{}", "✓ No security issues found".green().bold());
                     }
                     true
                 }
             };
 
             if !can_install {
-                eprintln!();
-                eprintln!("{}", "Installation aborted.".red());
+                info!();
+                info!("{}", "Installation aborted.".red());
                 std::process::exit(1);
             }
 
             // Step 5: Install
-            eprintln!();
+            info!();
 
             if dry_run {
-                eprintln!("{}", "DRY RUN - Would install to:".yellow().bold());
+                info!("{}", "DRY RUN - Would install to:".yellow().bold());
                 let install_path = get_install_path(final_type, &install_name)?;
-                eprintln!("   {}", install_path.display());
-                eprintln!();
-                eprintln!("Run without --dry-run to actually install.");
+                info!("   {}", install_path.display());
+                info!();
+                info!("Run without --dry-run to actually install.");
             } else {
                 let install_path = install_component(&scan_path, final_type, &install_name)?;
-                eprintln!("{}", "═".repeat(60).green());
-                eprintln!(
+                info!("{}", "═".repeat(60).green());
+                info!(
                     "{} Installed {} to:",
                     "✓".green().bold(),
                     install_name.bright_white()
                 );
-                eprintln!("   {}", install_path.display().to_string().green());
-                eprintln!("{}", "═".repeat(60).green());
+                info!("   {}", install_path.display().to_string().green());
+                info!("{}", "═".repeat(60).green());
 
                 // Show usage hint
                 match final_type {
                     "skill" | "command" => {
-                        eprintln!();
-                        eprintln!("{}  Use with: /{}", "💡".yellow(), install_name);
+                        info!();
+                        info!("{}  Use with: /{}", "💡".yellow(), install_name);
                     }
                     _ => {}
                 }
@@ -1010,7 +1080,7 @@ async fn run() -> Result<()> {
 
             // Determine if source is a URL or local path
             let (scan_path, temp_dir) = if is_github_url(&source) {
-                eprintln!("{}", "Fetching from GitHub...".cyan());
+                info!("{}", "Fetching from GitHub...".cyan());
                 let temp_dir = clone_github_repo(&source, branch.as_deref())?;
                 (temp_dir.path().to_path_buf(), Some(temp_dir))
             } else {
@@ -1022,8 +1092,8 @@ async fn run() -> Result<()> {
                 (path, None)
             };
 
-            eprintln!("{} {}", "Vetting:".bold(), source.bright_cyan());
-            eprintln!();
+            info!("{} {}", "Vetting:".bold(), source.bright_cyan());
+            info!();
 
             // Build filter config
             let mut filter_config = base_config;
@@ -1037,6 +1107,9 @@ async fn run() -> Result<()> {
                 static_config.enable_entropy = true;
             }
 
+            // Resolve extra rules directories
+            let extra_rules_dirs = filter_config.resolved_extra_rules_dirs();
+
             // Build scan config
             let config = ScanConfig {
                 enable_ai: false,
@@ -1049,6 +1122,7 @@ async fn run() -> Result<()> {
                 static_config,
                 installed_only,
                 include_dev,
+                extra_rules_dirs,
                 ..Default::default()
             };
 
@@ -1062,14 +1136,14 @@ async fn run() -> Result<()> {
             if let Some(output_path) = output {
                 let mut file = std::fs::File::create(&output_path)?;
                 report(&scan_report, format, &mut file)?;
-                eprintln!("Report written to: {}", output_path.display());
+                info!("Report written to: {}", output_path.display());
             } else {
                 let mut stdout = io::stdout().lock();
                 report(&scan_report, format, &mut stdout)?;
             }
 
             // Print verdict
-            eprintln!();
+            info!();
             print_verdict(&scan_report, fail_on_severity);
 
             // Cleanup temp directory (unless --keep)
@@ -1078,7 +1152,7 @@ async fn run() -> Result<()> {
                     let kept_path = temp.path().to_path_buf();
                     // Leak the temp dir so it doesn't get cleaned up
                     std::mem::forget(temp);
-                    eprintln!(
+                    info!(
                         "\n{} {}",
                         "Repository kept at:".dimmed(),
                         kept_path.display()
@@ -1168,13 +1242,13 @@ fn clone_github_repo(url: &str, branch: Option<&str>) -> Result<tempfile::TempDi
     fetch_opts.depth(1);
     builder.fetch_options(fetch_opts);
 
-    eprintln!("  {} {}", "Cloning".dimmed(), clone_url.dimmed());
+    info!("  {} {}", "Cloning".dimmed(), clone_url.dimmed());
 
     builder
         .clone(&clone_url, temp_dir.path())
         .map_err(|e| anyhow::anyhow!("Failed to clone repository: {}", e))?;
 
-    eprintln!("  {} {}", "Cloned to".dimmed(), temp_dir.path().display());
+    info!("  {} {}", "Cloned to".dimmed(), temp_dir.path().display());
 
     Ok(temp_dir)
 }
@@ -1183,60 +1257,60 @@ fn clone_github_repo(url: &str, branch: Option<&str>) -> Result<tempfile::TempDi
 fn print_verdict(report: &vexscan::ScanReport, threshold: Severity) {
     let max_sev = report.max_severity();
 
-    let (critical, high, medium, low, info) = count_by_severity(report);
+    let (critical, high, medium, low, info_count) = count_by_severity(report);
 
-    eprintln!("{}", "═".repeat(60));
+    info!("{}", "═".repeat(60));
 
     match max_sev {
         Some(sev) if sev >= Severity::Critical => {
-            eprintln!(
+            info!(
                 "{} {}",
                 "VERDICT:".bold(),
                 "🚨 DANGEROUS - DO NOT INSTALL".bright_red().bold()
             );
-            eprintln!(
+            info!(
                 "         Found {} critical issue(s) that may compromise your system.",
                 critical.to_string().bright_red()
             );
         }
         Some(sev) if sev >= Severity::High => {
-            eprintln!(
+            info!(
                 "{} {}",
                 "VERDICT:".bold(),
                 "⚠️  HIGH RISK - Review carefully before installing"
                     .red()
                     .bold()
             );
-            eprintln!(
+            info!(
                 "         Found {} high severity issue(s).",
                 high.to_string().red()
             );
         }
         Some(sev) if sev >= Severity::Medium => {
-            eprintln!(
+            info!(
                 "{} {}",
                 "VERDICT:".bold(),
                 "⚡ WARNINGS - Proceed with caution".yellow().bold()
             );
-            eprintln!(
+            info!(
                 "         Found {} medium severity issue(s).",
                 medium.to_string().yellow()
             );
         }
         Some(sev) if sev >= Severity::Low => {
-            eprintln!(
+            info!(
                 "{} {}",
                 "VERDICT:".bold(),
                 "ℹ️  MINOR ISSUES - Generally safe".blue()
             );
-            eprintln!(
+            info!(
                 "         Found {} low severity and {} info issue(s).",
                 low.to_string().blue(),
-                info.to_string().white()
+                info_count.to_string().white()
             );
         }
         Some(_) | None => {
-            eprintln!(
+            info!(
                 "{} {}",
                 "VERDICT:".bold(),
                 "✅ CLEAN - No issues found".green().bold()
@@ -1245,9 +1319,9 @@ fn print_verdict(report: &vexscan::ScanReport, threshold: Severity) {
     }
 
     // Show summary counts
-    if critical + high + medium + low + info > 0 {
-        eprintln!();
-        eprintln!(
+    if critical + high + medium + low + info_count > 0 {
+        info!();
+        info!(
             "         Summary: {} critical, {} high, {} medium, {} low, {} info",
             if critical > 0 {
                 critical.to_string().bright_red().to_string()
@@ -1269,19 +1343,30 @@ fn print_verdict(report: &vexscan::ScanReport, threshold: Severity) {
             } else {
                 "0".dimmed().to_string()
             },
-            if info > 0 {
-                info.to_string().white().to_string()
+            if info_count > 0 {
+                info_count.to_string().white().to_string()
             } else {
                 "0".dimmed().to_string()
             },
         );
     }
 
-    eprintln!("{}", "═".repeat(60));
+    // Risk score
+    let risk_label = vexscan::ScanReport::risk_label(report.risk_score);
+    let risk_colored = match report.risk_score {
+        0 => format!("{}/100 ({})", report.risk_score, risk_label).green().bold().to_string(),
+        1..=25 => format!("{}/100 ({})", report.risk_score, risk_label).blue().to_string(),
+        26..=50 => format!("{}/100 ({})", report.risk_score, risk_label).yellow().to_string(),
+        51..=75 => format!("{}/100 ({})", report.risk_score, risk_label).red().to_string(),
+        _ => format!("{}/100 ({})", report.risk_score, risk_label).bright_red().bold().to_string(),
+    };
+    info!("         Risk Score: {}", risk_colored);
+
+    info!("{}", "═".repeat(60));
 
     // Note about threshold
     if max_sev.map(|s| s >= threshold).unwrap_or(false) {
-        eprintln!(
+        info!(
             "\n{} Exit code 1 (findings at {} or above)",
             "Note:".dimmed(),
             format!("{:?}", threshold).to_lowercase()
