@@ -245,10 +245,11 @@ impl Scanner {
 
         // Detect installation scope
         let scope_map = scope::detect_scope(path);
+        let manifest_based = scope_map.manifest_based;
         tracing::info!(
             "Project type: {:?}, manifest-based: {}",
             scope_map.project_type,
-            scope_map.manifest_based
+            manifest_based
         );
 
         // Build agent instruction reference graph
@@ -469,7 +470,7 @@ impl Scanner {
                 if file_scope == scope::InstallScope::DevOnly && !include_dev {
                     for finding in &mut result.findings {
                         if finding.severity > Severity::Low
-                            && !scope::is_scope_cap_exempt(&finding.rule_id)
+                            && !scope::is_scope_cap_exempt(&finding.rule_id, manifest_based)
                         {
                             finding.metadata.insert(
                                 "original_severity".to_string(),
@@ -552,7 +553,7 @@ impl Scanner {
             if file_scope == scope::InstallScope::DevOnly && !include_dev {
                 for finding in &mut result.findings {
                     if finding.severity > Severity::Low
-                        && !scope::is_scope_cap_exempt(&finding.rule_id)
+                        && !scope::is_scope_cap_exempt(&finding.rule_id, manifest_based)
                     {
                         finding
                             .metadata

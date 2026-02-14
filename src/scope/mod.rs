@@ -197,7 +197,15 @@ pub fn detect_scope(scan_root: &Path) -> ScopeMap {
 const SCOPE_CAP_EXEMPT_PREFIXES: &[&str] = &["INJECT-", "AUTH-", "HIDDEN-", "MDCODE-"];
 
 /// Check if a rule ID is exempt from scope-based severity capping.
-pub fn is_scope_cap_exempt(rule_id: &str) -> bool {
+///
+/// When `manifest_based` is true, the project has an explicit manifest whitelist
+/// (e.g., npm `files` field) that definitively declares what ships. In that case,
+/// no rules are exempt — if the manifest says the file doesn't ship, it doesn't
+/// reach the user's machine regardless of rule category.
+pub fn is_scope_cap_exempt(rule_id: &str, manifest_based: bool) -> bool {
+    if manifest_based {
+        return false;
+    }
     SCOPE_CAP_EXEMPT_PREFIXES
         .iter()
         .any(|prefix| rule_id.starts_with(prefix))
@@ -392,13 +400,24 @@ mod tests {
     }
 
     #[test]
-    fn test_scope_cap_exempt() {
-        assert!(is_scope_cap_exempt("INJECT-001"));
-        assert!(is_scope_cap_exempt("AUTH-003"));
-        assert!(is_scope_cap_exempt("HIDDEN-002"));
-        assert!(is_scope_cap_exempt("MDCODE-001"));
-        assert!(!is_scope_cap_exempt("EXEC-001"));
-        assert!(!is_scope_cap_exempt("NET-002"));
-        assert!(!is_scope_cap_exempt("PKG-001"));
+    fn test_scope_cap_exempt_no_manifest() {
+        // Without manifest, INJECT/AUTH/HIDDEN/MDCODE are exempt from capping
+        assert!(is_scope_cap_exempt("INJECT-001", false));
+        assert!(is_scope_cap_exempt("AUTH-003", false));
+        assert!(is_scope_cap_exempt("HIDDEN-002", false));
+        assert!(is_scope_cap_exempt("MDCODE-001", false));
+        assert!(!is_scope_cap_exempt("EXEC-001", false));
+        assert!(!is_scope_cap_exempt("NET-002", false));
+        assert!(!is_scope_cap_exempt("PKG-001", false));
+    }
+
+    #[test]
+    fn test_scope_cap_exempt_with_manifest() {
+        // With manifest whitelist, nothing is exempt — manifest is authoritative
+        assert!(!is_scope_cap_exempt("INJECT-001", true));
+        assert!(!is_scope_cap_exempt("AUTH-003", true));
+        assert!(!is_scope_cap_exempt("HIDDEN-002", true));
+        assert!(!is_scope_cap_exempt("MDCODE-001", true));
+        assert!(!is_scope_cap_exempt("EXEC-001", true));
     }
 }
