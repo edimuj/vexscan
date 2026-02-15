@@ -472,6 +472,35 @@ impl Scanner {
                 }
             }
 
+            // Injection detector heuristic: downgrade INJECT/AUTH findings
+            // that appear inside string literals, security tool files, or files
+            // with high injection-pattern density (likely detectors, not attackers).
+            let inject_count = result
+                .findings
+                .iter()
+                .filter(|f| analyzers::injection_context::is_injection_rule(&f.rule_id))
+                .count();
+            for finding in &mut result.findings {
+                if finding.severity > Severity::Low
+                    && analyzers::injection_context::is_injection_rule(&finding.rule_id)
+                {
+                    if let Some(reason) = analyzers::injection_context::is_detection_context(
+                        &finding.snippet,
+                        &component.path,
+                        inject_count,
+                    ) {
+                        finding
+                            .metadata
+                            .entry("original_severity".to_string())
+                            .or_insert_with(|| format!("{}", finding.severity));
+                        finding
+                            .metadata
+                            .insert("injection_context".to_string(), reason.to_string());
+                        finding.severity = Severity::Low;
+                    }
+                }
+            }
+
             // Cap ALL findings to Low on non-instruction, non-agent-reachable
             // markdown/text files. If no agent instruction file or script references
             // this doc, no AI agent will read it — nothing in it is a real threat.
