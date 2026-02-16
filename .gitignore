@@ -29,6 +29,7 @@ Cargo.lock
 
 # Claude
 CLAUDE.md
+.claude-rig
 
 # Private
 .private
