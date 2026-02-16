@@ -3,13 +3,14 @@
 //! These tests ensure Vexscan catches real-world malicious patterns
 //! across different threat categories.
 
+use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
 /// Run vexscan scan on a sample and return the number of findings
 fn scan_sample(path: &str) -> (i32, String) {
     let output = Command::new("cargo")
-        .args(["run", "--quiet", "--", "scan", path, "-f", "json"])
+        .args(["run", "--quiet", "--", "scan", path, "-f", "json", "--min-severity", "low"])
         .env("RUST_LOG", "error")
         .output()
         .expect("Failed to run vexscan");
@@ -417,5 +418,95 @@ fn test_all_samples_detected() {
         count >= 140,
         "Expected at least 140 total findings across all samples, got {}",
         count
+    );
+}
+
+// ============================================================================
+// BINARY FILE SKIPPING TEST
+// ============================================================================
+
+#[test]
+fn test_binary_files_skipped() {
+    use tempfile::tempdir;
+
+    let temp_dir = tempdir().expect("Failed to create temp dir");
+    let temp_path = temp_dir.path();
+
+    // Create a text file with malicious content
+    let js_file = temp_path.join("malicious.js");
+    fs::write(&js_file, "eval(atob('ZXZpbCBjb2RlIGhlcmU='))").expect("Failed to write JS file");
+
+    // Create fake binary files that would cause issues if scanned
+    let png_file = temp_path.join("image.png");
+    fs::write(&png_file, b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR").expect("Failed to write PNG");
+
+    let jpg_file = temp_path.join("photo.jpg");
+    fs::write(&jpg_file, b"\xFF\xD8\xFF\xE0\x00\x10JFIF").expect("Failed to write JPG");
+
+    let exe_file = temp_path.join("binary.exe");
+    fs::write(&exe_file, b"MZ\x90\x00\x03\x00\x00\x00").expect("Failed to write EXE");
+
+    let woff_file = temp_path.join("font.woff2");
+    fs::write(&woff_file, b"wOF2\x00\x01\x00\x00").expect("Failed to write WOFF2");
+
+    // Scan the directory with --min-severity low to catch the findings
+    let output = Command::new("cargo")
+        .args([
+            "run",
+            "--quiet",
+            "--",
+            "scan",
+            temp_path.to_str().unwrap(),
+            "-f",
+            "json",
+            "--min-severity",
+            "low",
+        ])
+        .env("RUST_LOG", "error")
+        .output()
+        .expect("Failed to run vexscan");
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
+    // Find the JSON object in the output
+    let json_start = stdout.find('{').expect("No JSON in output");
+    let json_str = &stdout[json_start..];
+
+    let json: serde_json::Value = serde_json::from_str(json_str)
+        .expect("Failed to parse JSON output");
+
+    let results = json
+        .get("results")
+        .and_then(|r| r.as_array())
+        .expect("No results array");
+
+    // Verify: only 1 file scanned (the .js file)
+    assert_eq!(
+        results.len(),
+        1,
+        "Expected only 1 file to be scanned (malicious.js), got {}. Binary files should be skipped.",
+        results.len()
+    );
+
+    // Verify it's the JS file
+    let scanned_file = results[0]
+        .get("path")
+        .and_then(|f| f.as_str())
+        .expect("No path field in result");
+    assert!(
+        scanned_file.ends_with("malicious.js"),
+        "Expected malicious.js to be scanned, got {}",
+        scanned_file
+    );
+
+    // Verify the JS file has findings (base64 + eval)
+    let findings = results[0]
+        .get("findings")
+        .and_then(|f| f.as_array())
+        .expect("No findings array");
+    assert!(
+        findings.len() >= 1,
+        "Expected findings in malicious.js, got {}",
+        findings.len()
     );
 }

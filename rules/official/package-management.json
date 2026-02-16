@@ -110,7 +110,8 @@
       "severity": "medium",
       "pattern": "\\bnpx\\s+[^-\\s]\\S*",
       "exclude_patterns": [
-        "\\bnpx\\s+(create-react-app|create-next-app|create-vite|create-svelte|create-vue|create-expo-app|create-turbo|tsc|tsx|ts-node|eslint|prettier|jest|vitest|playwright|cypress|storybook|tailwindcss|shadcn|prisma|drizzle-kit|wrangler|vercel|netlify|firebase|supabase|expo|react-native|degit|giget|serve|http-server|live-server|json-server|kill-port|sort-package-json|npm-check-updates|depcheck|license-checker|madge|source-map-explorer)\\b"
+        "\\bnpx\\s+(create-|clawhub|skills|remotion|awal|tsc|tsx|ts-node|eslint|prettier|jest|vitest|playwright|cypress|storybook|tailwindcss|shadcn|prisma|drizzle-kit|wrangler|vercel|netlify|firebase|supabase|expo|react-native|degit|giget|serve|http-server|live-server|json-server|kill-port|sort-package-json|npm-check-updates|depcheck|license-checker|madge|source-map-explorer)\\b",
+        "\\bnpx\\s+(@clawhub/|@openclaw/)\\S+"
       ],
       "file_extensions": ["sh", "bash", "zsh", "md", "txt", "yaml", "yml"],
       "remediation": "Review npx commands carefully. npx downloads and runs packages immediately without installation — verify the package name is correct and trusted.",

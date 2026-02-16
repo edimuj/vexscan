@@ -65,6 +65,11 @@ impl PlatformAdapter for GenericAdapter {
         let mut components = Vec::new();
 
         if path.is_file() {
+            // Skip binary files
+            if super::is_binary_file(path) {
+                return Ok(components);
+            }
+
             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
             if self.extensions.contains(&ext) {
                 components.push(DiscoveredComponent {
@@ -104,6 +109,11 @@ impl PlatformAdapter for GenericAdapter {
         {
             let entry_path = entry.path();
             if entry_path.is_file() {
+                // Skip binary files
+                if super::is_binary_file(entry_path) {
+                    continue;
+                }
+
                 let ext = entry_path
                     .extension()
                     .and_then(|e| e.to_str())

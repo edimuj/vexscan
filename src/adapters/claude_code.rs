@@ -41,6 +41,11 @@ impl ClaudeCodeAdapter {
         {
             let path = entry.path();
             if path.is_file() {
+                // Skip binary files
+                if super::is_binary_file(path) {
+                    continue;
+                }
+
                 if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                     let component_type = match ext {
                         "js" | "ts" | "mjs" | "cjs" => ComponentType::Plugin,
@@ -90,6 +95,11 @@ impl ClaudeCodeAdapter {
             {
                 let path = entry.path();
                 if path.is_file() {
+                    // Skip binary files
+                    if super::is_binary_file(path) {
+                        continue;
+                    }
+
                     components.push(DiscoveredComponent {
                         path: path.to_path_buf(),
                         component_type: ComponentType::Hook,
@@ -198,6 +208,11 @@ impl ClaudeCodeAdapter {
         {
             let path = entry.path();
             if path.is_file() {
+                // Skip binary files
+                if super::is_binary_file(path) {
+                    continue;
+                }
+
                 if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                     // Determine component type based on file extension
                     let component_type = match ext {
@@ -288,6 +303,11 @@ impl PlatformAdapter for ClaudeCodeAdapter {
         let mut components = Vec::new();
 
         if path.is_file() {
+            // Skip binary files
+            if super::is_binary_file(path) {
+                return Ok(components);
+            }
+
             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
             let component_type = match ext {
                 "js" | "ts" | "mjs" | "cjs" | "py" => ComponentType::Plugin,
@@ -316,6 +336,11 @@ impl PlatformAdapter for ClaudeCodeAdapter {
             {
                 let entry_path = entry.path();
                 if entry_path.is_file() {
+                    // Skip binary files
+                    if super::is_binary_file(entry_path) {
+                        continue;
+                    }
+
                     let ext = entry_path
                         .extension()
                         .and_then(|e| e.to_str())

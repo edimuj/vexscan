@@ -29,6 +29,7 @@ pub mod adapters;
 pub mod analyzers;
 pub mod cache;
 pub mod cli;
+pub mod components;
 pub mod config;
 pub mod decoders;
 pub mod deps;
@@ -45,6 +46,7 @@ pub use analyzers::{
     StaticAnalyzer,
 };
 pub use cache::{ScanCache, ScanProfile};
+pub use components::{ComponentIndex, ComponentKind, DetectedComponent};
 pub use config::Config;
 pub use decoders::Decoder;
 pub use deps::{DependencyAnalyzer, DependencyAnalyzerConfig};
@@ -63,7 +65,9 @@ pub use types::{truncate, Finding, Platform, ScanReport, ScanResult, Severity};
 
 use adapters::{create_adapter, detect_platform, PlatformAdapter};
 use anyhow::Result;
+use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
+use std::sync::{atomic::{AtomicUsize, Ordering}, Arc};
 use std::time::Instant;
 
 /// Configuration for the scanner.
@@ -113,7 +117,7 @@ impl Default for ScanConfig {
             enable_deps: false,
             deps_config: None,
             static_config: AnalyzerConfig::default(),
-            min_severity: Severity::Low,
+            min_severity: Severity::High,
             platform: None,
             filter_config,
             enable_cache: true,
@@ -140,6 +144,73 @@ fn resolve_thread_count(max_threads: usize) -> usize {
         default_thread_count()
     } else {
         max_threads
+    }
+}
+
+/// Progress tracker for large scans. Shows progress on stderr when it's a TTY.
+struct ScanProgress {
+    total: usize,
+    processed: AtomicUsize,
+    show_progress: bool,
+    start_time: Instant,
+    last_update: AtomicUsize, // epoch millis of last update
+}
+
+impl ScanProgress {
+    fn new(total: usize) -> Self {
+        Self {
+            total,
+            processed: AtomicUsize::new(0),
+            show_progress: std::io::stderr().is_terminal(),
+            start_time: Instant::now(),
+            last_update: AtomicUsize::new(0),
+        }
+    }
+
+    /// Mark one file as processed and maybe print progress.
+    /// Updates every ~500 files or every 2 seconds, whichever comes first.
+    fn increment(&self) {
+        let count = self.processed.fetch_add(1, Ordering::Relaxed) + 1;
+        if !self.show_progress {
+            return;
+        }
+
+        let elapsed_millis = self.start_time.elapsed().as_millis() as usize;
+        let last = self.last_update.load(Ordering::Relaxed);
+
+        // Update if 2 seconds passed OR every 500 files
+        let should_update = (elapsed_millis - last >= 2000) || (count % 500 == 0);
+
+        if should_update && self.last_update.compare_exchange(last, elapsed_millis, Ordering::Relaxed, Ordering::Relaxed).is_ok() {
+            eprint!("\rScanning... {}/{} files", count, self.total);
+            let _ = std::io::stderr().flush();
+        }
+    }
+
+    /// Print final summary (always shown, even when not a TTY).
+    fn finish(&self) {
+        let elapsed = self.start_time.elapsed();
+        let count = self.processed.load(Ordering::Relaxed);
+
+        let (time_val, time_unit) = if elapsed.as_secs() < 60 {
+            (elapsed.as_secs(), "s")
+        } else {
+            (elapsed.as_secs() / 60, "m")
+        };
+
+        let subsec = if time_unit == "m" {
+            format!("{}s", elapsed.as_secs() % 60)
+        } else {
+            String::new()
+        };
+
+        if self.show_progress {
+            // Clear progress line with \r, then print summary
+            eprintln!("\rScanned {} files in {}{}{}", count, time_val, time_unit, subsec);
+        } else {
+            // When piped/not TTY, just print to stderr without \r
+            eprintln!("Scanned {} files in {}{}{}", count, time_val, time_unit, subsec);
+        }
     }
 }
 
@@ -259,7 +330,27 @@ impl Scanner {
             None => create_adapter(Platform::Generic),
         };
 
-        // Discover components
+        // Detect logical AI components (skills, MCP servers, plugins, etc.)
+        let detected_components = components::detect_components(path);
+        report.components = detected_components;
+        if !report.components.is_empty() {
+            let mut kind_counts: std::collections::HashMap<components::ComponentKind, usize> =
+                std::collections::HashMap::new();
+            for comp in &report.components {
+                *kind_counts.entry(comp.kind).or_insert(0) += 1;
+            }
+            let breakdown: Vec<String> = kind_counts
+                .iter()
+                .map(|(k, v)| format!("{} {}", v, k))
+                .collect();
+            tracing::info!(
+                "Detected {} AI components ({})",
+                report.components.len(),
+                breakdown.join(", ")
+            );
+        }
+
+        // Discover files to scan
         let components = adapter.discover_at(path)?;
 
         tracing::info!("Discovered {} components to scan", components.len());
@@ -323,16 +414,20 @@ impl Scanner {
         let num_threads = resolve_thread_count(self.config.max_threads);
         tracing::info!("Scanning with {} threads", num_threads);
 
+        let progress = Arc::new(ScanProgress::new(scannable.len()));
+
         let static_results: Vec<_> = std::thread::scope(|s| {
             // Chunk work across a fixed number of threads instead of one-per-file
             let chunks: Vec<&[(_, _)]> = scannable.chunks((scannable.len() / num_threads).max(1)).collect();
             let handles: Vec<_> = chunks
                 .into_iter()
                 .map(|chunk| {
+                    let progress = Arc::clone(&progress);
                     s.spawn(move || {
                         let mut results = Vec::with_capacity(chunk.len());
                         for (component, file_scope) in chunk {
                             tracing::debug!("Scanning: {}", component.path.display());
+                            progress.increment();
                             let content = match std::fs::read_to_string(&component.path) {
                                 Ok(c) => c,
                                 Err(e) => {
@@ -418,9 +513,14 @@ impl Scanner {
                 .collect()
         });
 
+        progress.finish();
+
         // Phase 2: Sequential post-processing (reuses already-read content + pre-computed scope)
         let include_dev = self.config.include_dev;
+        let component_index = components::ComponentIndex::new(&report.components);
         for (component, content, mut result, cache_hit, mut file_scope) in static_results {
+            // Assign file to nearest AI component (O(path depth) via HashMap)
+            result.component_idx = component_index.assign(&component.path);
             // Elevate agent-reachable dev-only files
             let is_agent_reachable = ref_graph.is_agent_reachable(&component.path);
             if is_agent_reachable && file_scope == scope::InstallScope::DevOnly {

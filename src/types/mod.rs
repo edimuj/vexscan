@@ -1,5 +1,6 @@
 //! Core type definitions for the Vexscan security scanner.
 
+use crate::components::DetectedComponent;
 use crate::scope::InstallScope;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -181,6 +182,9 @@ pub struct ScanResult {
     /// Installation scope classification.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub install_scope: Option<InstallScope>,
+    /// Index into ScanReport.components (None = ungrouped).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub component_idx: Option<usize>,
 }
 
 impl ScanResult {
@@ -191,6 +195,7 @@ impl ScanResult {
             scan_time_ms: 0,
             content_hash: None,
             install_scope: None,
+            component_idx: None,
         }
     }
 
@@ -244,6 +249,9 @@ pub struct ScanReport {
     /// Computed risk score (0-100).
     #[serde(default)]
     pub risk_score: u8,
+    /// Detected AI components within the scan target.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<DetectedComponent>,
 }
 
 impl ScanReport {
@@ -261,6 +269,7 @@ impl ScanReport {
             ast_enabled: false,
             deps_enabled: false,
             risk_score: 0,
+            components: Vec::new(),
         }
     }
 

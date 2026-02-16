@@ -25,7 +25,7 @@
       "title": "Crypto mining indicators",
       "description": "Patterns associated with cryptocurrency mining.",
       "severity": "critical",
-      "pattern": "(?i)(coinhive|cryptonight|stratum\\+tcp|xmrig|minergate|hashrate|nonce\\s*[:=])",
+      "pattern": "(?i)(coinhive|cryptonight|stratum\\+tcp|xmrig|minergate|hashrate)",
       "file_extensions": [],
       "remediation": "Remove cryptocurrency mining code."
     },

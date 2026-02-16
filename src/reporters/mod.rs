@@ -1,7 +1,8 @@
 //! Output formatters for scan results.
 
+use crate::components::{ComponentKind, DetectedComponent};
 use crate::scope::InstallScope;
-use crate::types::{ScanReport, Severity};
+use crate::types::{ScanReport, ScanResult, Severity};
 use anyhow::Result;
 use colored::Colorize;
 use std::io::Write;
@@ -113,6 +114,38 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
     };
     writeln!(writer, "  Risk score:   {}", risk_colored)?;
     writeln!(writer, "  Scan time:    {}ms", report.total_time_ms)?;
+
+    // Component summary
+    if !report.components.is_empty() {
+        let mut kind_counts: std::collections::HashMap<ComponentKind, usize> =
+            std::collections::HashMap::new();
+        for comp in &report.components {
+            *kind_counts.entry(comp.kind).or_insert(0) += 1;
+        }
+        let breakdown: Vec<String> = kind_counts
+            .iter()
+            .map(|(k, v)| {
+                let label = match k {
+                    ComponentKind::Skill => "skill",
+                    ComponentKind::McpServer => "MCP server",
+                    ComponentKind::Plugin => "plugin",
+                    ComponentKind::NpmPackage => "npm package",
+                    ComponentKind::RustCrate => "Rust crate",
+                };
+                if *v == 1 {
+                    format!("{} {}", v, label)
+                } else {
+                    format!("{} {}s", v, label)
+                }
+            })
+            .collect();
+        writeln!(
+            writer,
+            "  Components:   {} detected ({})",
+            report.components.len(),
+            breakdown.join(", ")
+        )?;
+    }
     writeln!(writer)?;
 
     // Findings by severity
@@ -155,88 +188,76 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
         writeln!(writer, "{}", "Detailed Findings".bold().underline())?;
         writeln!(writer)?;
 
-        for result in &report.results {
-            if result.findings.is_empty() {
-                continue;
+        if report.components.is_empty() {
+            // No components detected — flat output (original behavior)
+            for result in &report.results {
+                if result.findings.is_empty() {
+                    continue;
+                }
+                write_result_findings(result, &report.scan_root, writer)?;
             }
+        } else {
+            // Group findings by component
+            for (comp_idx, comp) in report.components.iter().enumerate() {
+                let comp_results: Vec<&ScanResult> = report
+                    .results
+                    .iter()
+                    .filter(|r| r.component_idx == Some(comp_idx) && !r.findings.is_empty())
+                    .collect();
 
-            let has_agent_reachable = result.findings.iter().any(|f| {
-                f.metadata
-                    .get("agent_reachable")
-                    .map(|v| v == "true")
-                    .unwrap_or(false)
-            });
-            let scope_tag = if has_agent_reachable {
-                format!(" {}", "[agent-reachable]".yellow())
-            } else if result.install_scope == Some(InstallScope::DevOnly) {
-                format!(" {}", "[dev-only]".dimmed())
-            } else {
-                String::new()
-            };
-            writeln!(
-                writer,
-                "{}{}",
-                format!("── {} ──", result.path.display()).bright_blue(),
-                scope_tag
-            )?;
+                if comp_results.is_empty() {
+                    continue;
+                }
 
-            for finding in &result.findings {
-                let severity_indicator = match finding.severity {
-                    Severity::Critical => "▲ CRITICAL".bright_red().bold(),
-                    Severity::High => "▲ HIGH".red().bold(),
-                    Severity::Medium => "● MEDIUM".yellow().bold(),
-                    Severity::Low => "● LOW".blue(),
-                    Severity::Info => "○ INFO".white(),
-                };
+                let file_count = report
+                    .results
+                    .iter()
+                    .filter(|r| r.component_idx == Some(comp_idx))
+                    .count();
+                let finding_count: usize =
+                    comp_results.iter().map(|r| r.findings.len()).sum();
+                let comp_max_sev = comp_results
+                    .iter()
+                    .filter_map(|r| r.max_severity())
+                    .max();
+                let risk_tag = comp_max_sev
+                    .map(|s| format!("{}", s).to_uppercase())
+                    .unwrap_or_else(|| "CLEAN".to_string());
 
-                let scope_tag = if finding
-                    .metadata
-                    .get("agent_reachable")
-                    .map(|v| v == "true")
-                    .unwrap_or(false)
-                {
-                    let via = finding
-                        .metadata
-                        .get("referenced_by")
-                        .map(|refs| format!(" {}", format!("(via {})", refs).dimmed()))
-                        .unwrap_or_default();
-                    format!(" {}{}", "[agent-reachable]".yellow(), via)
-                } else if finding.metadata.get("install_scope").map(|s| s.as_str())
-                    == Some("dev_only")
-                {
-                    format!(" {}", "[dev-only]".dimmed())
-                } else {
-                    String::new()
-                };
+                write_component_header(comp, file_count, finding_count, &risk_tag, writer)?;
 
+                let rel_root = comp
+                    .root
+                    .strip_prefix(&report.scan_root)
+                    .unwrap_or(&comp.root);
+                writeln!(writer, "   Path: {}/", rel_root.display())?;
                 writeln!(writer)?;
-                writeln!(
-                    writer,
-                    "  {} [{}]{}",
-                    severity_indicator, finding.rule_id, scope_tag
-                )?;
-                writeln!(writer, "  {}", finding.title.bold())?;
-                writeln!(
-                    writer,
-                    "  Location: line {}-{}",
-                    finding.location.start_line, finding.location.end_line
-                )?;
-                writeln!(writer, "  {}", finding.description.dimmed())?;
 
-                // Show snippet (truncated, UTF-8 safe)
-                let snippet = if finding.snippet.chars().count() > 100 {
-                    let truncated: String = finding.snippet.chars().take(100).collect();
-                    format!("{}...", truncated)
-                } else {
-                    finding.snippet.clone()
-                };
-                writeln!(writer, "  Code: {}", snippet.bright_black())?;
-
-                if let Some(ref remediation) = finding.remediation {
-                    writeln!(writer, "  Fix: {}", remediation.green())?;
+                for result in comp_results {
+                    write_result_findings(result, &comp.root, writer)?;
                 }
             }
-            writeln!(writer)?;
+
+            // "Other files" bucket
+            let other_results: Vec<&ScanResult> = report
+                .results
+                .iter()
+                .filter(|r| r.component_idx.is_none() && !r.findings.is_empty())
+                .collect();
+
+            if !other_results.is_empty() {
+                writeln!(
+                    writer,
+                    "{}",
+                    "── Other files ─────────────────────────────────"
+                        .bright_black()
+                )?;
+                writeln!(writer)?;
+
+                for result in other_results {
+                    write_result_findings(result, &report.scan_root, writer)?;
+                }
+            }
         }
     }
 
@@ -267,6 +288,118 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
     }
     writeln!(writer)?;
 
+    Ok(())
+}
+
+/// Write the component section header.
+fn write_component_header<W: Write>(
+    comp: &DetectedComponent,
+    file_count: usize,
+    finding_count: usize,
+    risk_tag: &str,
+    writer: &mut W,
+) -> Result<()> {
+    let header = format!("── {}: {} ──", comp.kind, comp.name);
+    let colored_header = match risk_tag {
+        "CRITICAL" => header.bright_red().bold().to_string(),
+        "HIGH" => header.red().bold().to_string(),
+        "MEDIUM" => header.yellow().bold().to_string(),
+        _ => header.bright_blue().to_string(),
+    };
+    writeln!(writer, "{}", colored_header)?;
+    writeln!(
+        writer,
+        "   Files: {} | Findings: {} | Risk: {}",
+        file_count, finding_count, risk_tag
+    )?;
+    Ok(())
+}
+
+/// Write findings for a single scan result (one file).
+fn write_result_findings<W: Write>(
+    result: &ScanResult,
+    strip_prefix: &std::path::Path,
+    writer: &mut W,
+) -> Result<()> {
+    let display_path = result
+        .path
+        .strip_prefix(strip_prefix)
+        .unwrap_or(&result.path);
+
+    let has_agent_reachable = result.findings.iter().any(|f| {
+        f.metadata
+            .get("agent_reachable")
+            .map(|v| v == "true")
+            .unwrap_or(false)
+    });
+    let scope_tag = if has_agent_reachable {
+        format!(" {}", "[agent-reachable]".yellow())
+    } else if result.install_scope == Some(InstallScope::DevOnly) {
+        format!(" {}", "[dev-only]".dimmed())
+    } else {
+        String::new()
+    };
+    writeln!(
+        writer,
+        "{}{}",
+        format!("   ── {} ──", display_path.display()).bright_blue(),
+        scope_tag
+    )?;
+
+    for finding in &result.findings {
+        let severity_indicator = match finding.severity {
+            Severity::Critical => "▲ CRITICAL".bright_red().bold(),
+            Severity::High => "▲ HIGH".red().bold(),
+            Severity::Medium => "● MEDIUM".yellow().bold(),
+            Severity::Low => "● LOW".blue(),
+            Severity::Info => "○ INFO".white(),
+        };
+
+        let scope_tag = if finding
+            .metadata
+            .get("agent_reachable")
+            .map(|v| v == "true")
+            .unwrap_or(false)
+        {
+            let via = finding
+                .metadata
+                .get("referenced_by")
+                .map(|refs| format!(" {}", format!("(via {})", refs).dimmed()))
+                .unwrap_or_default();
+            format!(" {}{}", "[agent-reachable]".yellow(), via)
+        } else if finding.metadata.get("install_scope").map(|s| s.as_str()) == Some("dev_only") {
+            format!(" {}", "[dev-only]".dimmed())
+        } else {
+            String::new()
+        };
+
+        writeln!(writer)?;
+        writeln!(
+            writer,
+            "     {} [{}]{}",
+            severity_indicator, finding.rule_id, scope_tag
+        )?;
+        writeln!(writer, "     {}", finding.title.bold())?;
+        writeln!(
+            writer,
+            "     Location: line {}-{}",
+            finding.location.start_line, finding.location.end_line
+        )?;
+        writeln!(writer, "     {}", finding.description.dimmed())?;
+
+        let snippet = if finding.snippet.chars().count() > 100 {
+            let truncated: String = finding.snippet.chars().take(100).collect();
+            format!("{}...", truncated)
+        } else {
+            finding.snippet.clone()
+        };
+        writeln!(writer, "     Code: {}", snippet.bright_black())?;
+
+        if let Some(ref remediation) = finding.remediation {
+            writeln!(writer, "     Fix: {}", remediation.green())?;
+        }
+    }
+    writeln!(writer)?;
     Ok(())
 }
 

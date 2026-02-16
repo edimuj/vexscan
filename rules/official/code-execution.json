@@ -9,6 +9,13 @@
       "severity": "medium",
       "pattern": "\\beval\\s*\\(",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
+      "exclude_patterns": [
+        "page\\.\\$\\$?eval\\(",
+        "page\\.evaluate\\(",
+        "\\.evaluateHandle\\(",
+        "frame\\.evaluate\\(",
+        "frame\\.\\$\\$?eval\\("
+      ],
       "remediation": "Replace eval() with safer alternatives like JSON.parse() for data or explicit function calls."
     },
     {

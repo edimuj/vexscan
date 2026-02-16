@@ -81,7 +81,7 @@ pub enum Commands {
         output: Option<PathBuf>,
 
         /// Minimum severity to report (info, low, medium, high, critical)
-        #[arg(long, default_value = "low")]
+        #[arg(long, default_value = "high")]
         min_severity: String,
 
         /// Fail with exit code 1 if any findings at this severity or above
@@ -297,7 +297,7 @@ pub enum Commands {
         output: Option<PathBuf>,
 
         /// Minimum severity to report (info, low, medium, high, critical)
-        #[arg(long, default_value = "low")]
+        #[arg(long, default_value = "high")]
         min_severity: String,
 
         /// Fail with exit code 1 if any findings at this severity or above
