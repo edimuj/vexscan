@@ -87,7 +87,7 @@ fn bench_scan_content(c: &mut Criterion) {
             BenchmarkId::new("clean_js", size),
             &content,
             |b, content| {
-                b.iter(|| analyzer.scan_content(black_box(content), black_box(path_js)));
+                b.iter(|| analyzer.scan_content(black_box(content), black_box(path_js), None));
             },
         );
     }
@@ -99,7 +99,7 @@ fn bench_scan_content(c: &mut Criterion) {
             BenchmarkId::new("dirty_js", size),
             &content,
             |b, content| {
-                b.iter(|| analyzer.scan_content(black_box(content), black_box(path_js)));
+                b.iter(|| analyzer.scan_content(black_box(content), black_box(path_js), None));
             },
         );
     }
@@ -107,12 +107,12 @@ fn bench_scan_content(c: &mut Criterion) {
     // Different file types at 1000 lines
     let py_content = clean_py(1000);
     group.bench_function("clean_py_1000", |b| {
-        b.iter(|| analyzer.scan_content(black_box(&py_content), black_box(path_py)));
+        b.iter(|| analyzer.scan_content(black_box(&py_content), black_box(path_py), None));
     });
 
     let md_content = clean_md(1000);
     group.bench_function("clean_md_1000", |b| {
-        b.iter(|| analyzer.scan_content(black_box(&md_content), black_box(path_md)));
+        b.iter(|| analyzer.scan_content(black_box(&md_content), black_box(path_md), None));
     });
 
     group.finish();
@@ -231,12 +231,12 @@ fn bench_real_samples(c: &mut Criterion) {
     group.bench_function("all_samples", |b| {
         b.iter(|| {
             for (name, content) in &files {
-                let _ext = Path::new(name)
+                let _ = Path::new(name)
                     .extension()
                     .and_then(|e| e.to_str())
                     .unwrap_or("");
                 let path = samples_dir.join(name);
-                let _ = analyzer.scan_content(black_box(content), black_box(&path));
+                let _ = analyzer.scan_content(black_box(content), black_box(&path), None);
             }
         });
     });
@@ -251,7 +251,7 @@ fn bench_real_samples(c: &mut Criterion) {
         let label = name.replace('/', "_").replace('\\', "_");
 
         group.bench_function(&label, |b| {
-            b.iter(|| analyzer.scan_content(black_box(content), black_box(&path)));
+            b.iter(|| analyzer.scan_content(black_box(content), black_box(&path), None));
         });
     }
 
