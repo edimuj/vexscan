@@ -100,20 +100,13 @@ pub fn detect_platform() -> Option<Platform> {
 /// These files are not text and cannot be meaningfully regex-scanned.
 static BINARY_EXTENSIONS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     HashSet::from([
-        // Images
         "png", "jpg", "jpeg", "gif", "bmp", "ico", "svg", "webp", "tiff", "tif", "psd", "raw",
-        "heic", "heif", "avif", // Fonts
-        "woff", "woff2", "ttf", "otf", "eot", // Audio/Video
-        "mp3", "mp4", "avi", "mov", "wmv", "flv", "wav", "ogg", "webm", "m4a", "aac", "flac", "mkv",
-        "mpeg", "mpg", // Archives
-        "zip", "tar", "gz", "bz2", "7z", "rar", "jar", "war", "ear", "xz", "lz", "lzma", "tgz",
-        "tbz2", // Documents (binary formats)
-        "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp",
-        // Executables/Libraries
-        "exe", "dll", "so", "dylib", "o", "obj", "a", "lib", // Compiled/Binary code
-        "class", "pyc", "pyo", "wasm", "bin", "dat", "dex", // Databases
-        "db", "sqlite", "sqlite3", "mdb", // Lock/Cache files
-        "lock", "cache",
+        "heic", "heif", "avif", "woff", "woff2", "ttf", "otf", "eot", "mp3", "mp4", "avi", "mov",
+        "wmv", "flv", "wav", "ogg", "webm", "m4a", "aac", "flac", "mkv", "mpeg", "mpg", "zip",
+        "tar", "gz", "bz2", "7z", "rar", "jar", "war", "ear", "xz", "lz", "lzma", "tgz", "tbz2",
+        "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "exe", "dll",
+        "so", "dylib", "o", "obj", "a", "lib", "class", "pyc", "pyo", "wasm", "bin", "dat", "dex",
+        "db", "sqlite", "sqlite3", "mdb", "lock", "cache",
     ])
 });
 
