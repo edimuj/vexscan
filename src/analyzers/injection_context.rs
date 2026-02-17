@@ -177,8 +177,7 @@ fn has_detection_keyword_with_string(line: &str) -> bool {
         return false;
     }
     // Check for string literal markers
-    let has_string = line.contains('"') || line.contains('\'');
-    has_string
+    line.contains('"') || line.contains('\'')
 }
 
 /// Check if a rule ID is an INJECT or AUTH rule that should be considered
