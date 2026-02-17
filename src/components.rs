@@ -92,13 +92,12 @@ pub fn detect_components(scan_root: &Path) -> Vec<DetectedComponent> {
 
         match file_name {
             "SKILL.md" => {
-                let name = parse_skill_name(path)
-                    .unwrap_or_else(|| dir_name_fallback(&dir));
+                let name = parse_skill_name(path).unwrap_or_else(|| dir_name_fallback(&dir));
                 candidates.push((dir, ComponentKind::Skill, name, path.to_path_buf()));
             }
             "package.json" => {
-                let pkg_name = parse_package_json_name(path)
-                    .unwrap_or_else(|| dir_name_fallback(&dir));
+                let pkg_name =
+                    parse_package_json_name(path).unwrap_or_else(|| dir_name_fallback(&dir));
 
                 if has_mcp_sdk_dep(path) {
                     candidates.push((
@@ -123,16 +122,14 @@ pub fn detect_components(scan_root: &Path) -> Vec<DetectedComponent> {
                 // Plugin detected via its own manifest (name from sibling package.json)
                 let pkg_json = dir.join("package.json");
                 let name = if pkg_json.exists() {
-                    parse_package_json_name(&pkg_json)
-                        .unwrap_or_else(|| dir_name_fallback(&dir))
+                    parse_package_json_name(&pkg_json).unwrap_or_else(|| dir_name_fallback(&dir))
                 } else {
                     dir_name_fallback(&dir)
                 };
                 candidates.push((dir, ComponentKind::Plugin, name, path.to_path_buf()));
             }
             "Cargo.toml" => {
-                let name = parse_cargo_name(path)
-                    .unwrap_or_else(|| dir_name_fallback(&dir));
+                let name = parse_cargo_name(path).unwrap_or_else(|| dir_name_fallback(&dir));
                 candidates.push((dir, ComponentKind::RustCrate, name, path.to_path_buf()));
             }
             _ => {}
@@ -353,10 +350,7 @@ mod tests {
                     "my-plugin/package.json",
                     r#"{"name": "@exelerus/my-plugin"}"#,
                 ),
-                (
-                    "my-plugin/openclaw.plugin.json",
-                    r#"{"kind": "tool"}"#,
-                ),
+                ("my-plugin/openclaw.plugin.json", r#"{"kind": "tool"}"#),
             ],
         );
 
@@ -420,7 +414,10 @@ mod tests {
         setup_dir(
             tmp.path(),
             &[
-                ("Cargo.toml", "[package]\nname = \"root-crate\"\nversion = \"0.1.0\"\n"),
+                (
+                    "Cargo.toml",
+                    "[package]\nname = \"root-crate\"\nversion = \"0.1.0\"\n",
+                ),
                 ("skills/review/SKILL.md", "# Review"),
                 ("skills/review/main.js", "// code"),
                 ("src/lib.rs", "// root code"),
@@ -444,10 +441,7 @@ mod tests {
     #[test]
     fn test_ungrouped_file_returns_none() {
         let tmp = tempfile::tempdir().unwrap();
-        setup_dir(
-            tmp.path(),
-            &[("skills/review/SKILL.md", "# Review")],
-        );
+        setup_dir(tmp.path(), &[("skills/review/SKILL.md", "# Review")]);
 
         let components = detect_components(tmp.path());
 
@@ -480,7 +474,10 @@ mod tests {
             &[
                 ("skill-a/SKILL.md", "# Skill A"),
                 ("skill-b/SKILL.md", "# Skill B"),
-                ("mcp/package.json", r#"{"name": "mcp-server", "dependencies": {"@modelcontextprotocol/sdk": "^1.0"}}"#),
+                (
+                    "mcp/package.json",
+                    r#"{"name": "mcp-server", "dependencies": {"@modelcontextprotocol/sdk": "^1.0"}}"#,
+                ),
             ],
         );
 

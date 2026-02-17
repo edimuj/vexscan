@@ -10,7 +10,17 @@ use std::process::Command;
 /// Run vexscan scan on a sample and return the number of findings
 fn scan_sample(path: &str) -> (i32, String) {
     let output = Command::new("cargo")
-        .args(["run", "--quiet", "--", "scan", path, "-f", "json", "--min-severity", "low"])
+        .args([
+            "run",
+            "--quiet",
+            "--",
+            "scan",
+            path,
+            "-f",
+            "json",
+            "--min-severity",
+            "low",
+        ])
         .env("RUST_LOG", "error")
         .output()
         .expect("Failed to run vexscan");
@@ -472,8 +482,8 @@ fn test_binary_files_skipped() {
     let json_start = stdout.find('{').expect("No JSON in output");
     let json_str = &stdout[json_start..];
 
-    let json: serde_json::Value = serde_json::from_str(json_str)
-        .expect("Failed to parse JSON output");
+    let json: serde_json::Value =
+        serde_json::from_str(json_str).expect("Failed to parse JSON output");
 
     let results = json
         .get("results")

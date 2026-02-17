@@ -214,12 +214,8 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
                     .iter()
                     .filter(|r| r.component_idx == Some(comp_idx))
                     .count();
-                let finding_count: usize =
-                    comp_results.iter().map(|r| r.findings.len()).sum();
-                let comp_max_sev = comp_results
-                    .iter()
-                    .filter_map(|r| r.max_severity())
-                    .max();
+                let finding_count: usize = comp_results.iter().map(|r| r.findings.len()).sum();
+                let comp_max_sev = comp_results.iter().filter_map(|r| r.max_severity()).max();
                 let risk_tag = comp_max_sev
                     .map(|s| format!("{}", s).to_uppercase())
                     .unwrap_or_else(|| "CLEAN".to_string());
@@ -249,8 +245,7 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
                 writeln!(
                     writer,
                     "{}",
-                    "── Other files ─────────────────────────────────"
-                        .bright_black()
+                    "── Other files ─────────────────────────────────".bright_black()
                 )?;
                 writeln!(writer)?;
 

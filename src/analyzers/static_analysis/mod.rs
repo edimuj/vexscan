@@ -148,11 +148,11 @@ impl StaticAnalyzer {
 
         // Use RegexSet pre-filter: single-pass identifies which rules match,
         // then only extract positions from those rules.
-        let filename = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
-        for (rule, matches) in self.rules.find_matches_for_file(content, ext, Some(filename)) {
+        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        for (rule, matches) in self
+            .rules
+            .find_matches_for_file(content, ext, Some(filename))
+        {
             for mat in matches {
                 let (start_line, start_col) = line_index.offset_to_line_col(mat.start());
                 let (end_line, end_col) = line_index.offset_to_line_col(mat.end());

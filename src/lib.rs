@@ -67,7 +67,10 @@ use adapters::{create_adapter, detect_platform, PlatformAdapter};
 use anyhow::Result;
 use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{atomic::{AtomicUsize, Ordering}, Arc};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+};
 use std::time::Instant;
 
 /// Configuration for the scanner.
@@ -181,7 +184,12 @@ impl ScanProgress {
         // Update if 2 seconds passed OR every 500 files
         let should_update = (elapsed_millis - last >= 2000) || (count % 500 == 0);
 
-        if should_update && self.last_update.compare_exchange(last, elapsed_millis, Ordering::Relaxed, Ordering::Relaxed).is_ok() {
+        if should_update
+            && self
+                .last_update
+                .compare_exchange(last, elapsed_millis, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+        {
             eprint!("\rScanning... {}/{} files", count, self.total);
             let _ = std::io::stderr().flush();
         }
@@ -206,10 +214,16 @@ impl ScanProgress {
 
         if self.show_progress {
             // Clear progress line with \r, then print summary
-            eprintln!("\rScanned {} files in {}{}{}", count, time_val, time_unit, subsec);
+            eprintln!(
+                "\rScanned {} files in {}{}{}",
+                count, time_val, time_unit, subsec
+            );
         } else {
             // When piped/not TTY, just print to stderr without \r
-            eprintln!("Scanned {} files in {}{}{}", count, time_val, time_unit, subsec);
+            eprintln!(
+                "Scanned {} files in {}{}{}",
+                count, time_val, time_unit, subsec
+            );
         }
     }
 }
@@ -418,7 +432,9 @@ impl Scanner {
 
         let static_results: Vec<_> = std::thread::scope(|s| {
             // Chunk work across a fixed number of threads instead of one-per-file
-            let chunks: Vec<&[(_, _)]> = scannable.chunks((scannable.len() / num_threads).max(1)).collect();
+            let chunks: Vec<&[(_, _)]> = scannable
+                .chunks((scannable.len() / num_threads).max(1))
+                .collect();
             let handles: Vec<_> = chunks
                 .into_iter()
                 .map(|chunk| {
