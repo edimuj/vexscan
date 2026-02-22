@@ -52,6 +52,11 @@ pub struct Cli {
     #[arg(short, long, global = true)]
     pub config: Option<PathBuf>,
 
+    /// Scan context for rule filtering (reduces false positives)
+    /// Rules with matching contexts fire; rules with no context restriction always fire
+    #[arg(long, global = true, value_name = "CONTEXT")]
+    pub context: Option<String>,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -127,6 +132,14 @@ pub enum Commands {
         /// Max parallel threads (default: half of available CPUs, 0 = all CPUs)
         #[arg(short = 'j', long, value_name = "N")]
         jobs: Option<usize>,
+
+        /// Save scan results as a baseline for future diff comparisons
+        #[arg(long, value_name = "FILE")]
+        save_baseline: Option<PathBuf>,
+
+        /// Compare against a baseline, show only new findings
+        #[arg(long, value_name = "FILE")]
+        diff: Option<PathBuf>,
     },
 
     /// Watch for new plugin/skill installations and scan automatically

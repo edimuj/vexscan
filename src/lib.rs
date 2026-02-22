@@ -27,6 +27,7 @@
 
 pub mod adapters;
 pub mod analyzers;
+pub mod baseline;
 pub mod cache;
 pub mod cli;
 pub mod components;
@@ -58,7 +59,7 @@ pub use rules::{
         load_builtin_json_rules, load_rules_from_file, test_all_rules, test_rule,
         test_rules_from_file, RuleTestResult,
     },
-    Rule, RuleMetadata, RuleSet, RuleSource, TestCases,
+    Rule, RuleMetadata, RuleSet, RuleSource, ScanContext, TestCases,
 };
 pub use scope::{detect_scope, InstallScope, ScopeMap};
 pub use trace::ReferenceGraph;
@@ -108,6 +109,8 @@ pub struct ScanConfig {
     pub extra_rules_dirs: Vec<PathBuf>,
     /// Max parallel threads for scanning (0 = all CPUs, default = half CPUs).
     pub max_threads: usize,
+    /// Scan context for rule filtering (None = all rules fire).
+    pub scan_context: Option<rules::ScanContext>,
 }
 
 impl Default for ScanConfig {
@@ -130,6 +133,7 @@ impl Default for ScanConfig {
             include_dev: false,
             extra_rules_dirs,
             max_threads: 0,
+            scan_context: None,
         }
     }
 }
@@ -249,7 +253,19 @@ impl Scanner {
 
     /// Create a scanner with custom configuration.
     pub fn with_config(config: ScanConfig) -> Result<Self> {
-        let mut static_analyzer = StaticAnalyzer::with_config(config.static_config.clone())?;
+        let mut static_config = config.static_config.clone();
+        // Propagate scan context from top-level config to the static analyzer
+        if config.scan_context.is_some() && static_config.scan_context.is_none() {
+            static_config.scan_context = config.scan_context;
+        }
+        // Context filtering happens in the rule matching phase, so cached results
+        // (which store unfiltered findings) would bypass it. Disable caching when
+        // a context is set to ensure consistent filtering.
+        let mut config = config;
+        if config.scan_context.is_some() {
+            config.enable_cache = false;
+        }
+        let mut static_analyzer = StaticAnalyzer::with_config(static_config)?;
 
         // Load external rules from configured directories
         let mut external_rule_count = 0;

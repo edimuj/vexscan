@@ -27,9 +27,23 @@ use vexscan::{
     filter_rules_by_author, filter_rules_by_source, filter_rules_by_tag, load_builtin_json_rules,
     reporters::{report, OutputFormat},
     test_all_rules, test_rules_from_file, truncate, AiAnalyzerConfig, AiBackend, AnalyzerConfig,
-    AstAnalyzer, Platform, RuleSource, ScanCache, ScanConfig, ScanProfile, Scanner, Severity,
-    StaticAnalyzer, TrustEntry, TrustLevel, TrustStore,
+    AstAnalyzer, Platform, RuleSource, ScanCache, ScanConfig, ScanContext, ScanProfile, Scanner,
+    Severity, StaticAnalyzer, TrustEntry, TrustLevel, TrustStore,
 };
+
+fn parse_scan_context(s: &str) -> Result<ScanContext> {
+    match s.to_lowercase().as_str() {
+        "code" => Ok(ScanContext::Code),
+        "config" => Ok(ScanContext::Config),
+        "message" => Ok(ScanContext::Message),
+        "skill" => Ok(ScanContext::Skill),
+        "plugin" => Ok(ScanContext::Plugin),
+        _ => anyhow::bail!(
+            "Unknown scan context '{}'. Valid contexts: code, config, message, skill, plugin",
+            s
+        ),
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -64,6 +78,12 @@ async fn run() -> Result<()> {
         Config::load_default()
     };
 
+    let scan_context = cli
+        .context
+        .as_deref()
+        .map(parse_scan_context)
+        .transpose()?;
+
     match cli.command {
         Commands::Scan {
             path,
@@ -83,6 +103,8 @@ async fn run() -> Result<()> {
             installed_only,
             include_dev,
             jobs,
+            save_baseline,
+            diff,
         } => {
             // Parse platform
             let platform: Option<Platform> = platform
@@ -131,6 +153,7 @@ async fn run() -> Result<()> {
                 include_dev,
                 extra_rules_dirs,
                 max_threads: jobs.unwrap_or(0),
+                scan_context,
                 ..Default::default()
             };
 
@@ -172,6 +195,33 @@ async fn run() -> Result<()> {
                     "Trust:".dimmed(),
                     suppressed
                 );
+            }
+
+            // Snapshot full report before diff (for --save-baseline)
+            let full_report = if save_baseline.is_some() {
+                Some(scan_report.clone())
+            } else {
+                None
+            };
+
+            // Apply baseline diff
+            if let Some(ref baseline_path) = diff {
+                let baseline = vexscan::baseline::load(baseline_path)?;
+                let result = vexscan::baseline::diff(scan_report, &baseline);
+                info!(
+                    "{} {} file(s) unchanged, {} finding(s) suppressed by baseline",
+                    "Baseline:".dimmed(),
+                    result.files_unchanged,
+                    result.findings_suppressed,
+                );
+                scan_report = result.report;
+            }
+
+            // Save baseline (full report, not the diffed one)
+            if let Some(ref baseline_path) = save_baseline {
+                let to_save = full_report.as_ref().unwrap_or(&scan_report);
+                vexscan::baseline::save(to_save, baseline_path)?;
+                info!("Baseline saved to: {}", baseline_path.display());
             }
 
             // Output format
@@ -295,6 +345,7 @@ async fn run() -> Result<()> {
                 installed_only,
                 include_dev,
                 extra_rules_dirs,
+                scan_context,
                 ..Default::default()
             };
 
@@ -956,6 +1007,7 @@ async fn run() -> Result<()> {
                 include_dev,
                 extra_rules_dirs,
                 max_threads: jobs.unwrap_or(0),
+                scan_context,
                 ..Default::default()
             };
 
@@ -1159,6 +1211,7 @@ async fn run() -> Result<()> {
                 include_dev,
                 extra_rules_dirs,
                 max_threads: jobs.unwrap_or(0),
+                scan_context,
                 ..Default::default()
             };
 
@@ -1259,8 +1312,14 @@ async fn run() -> Result<()> {
             // Synthetic path for rule filtering by file extension
             let synthetic_path = PathBuf::from(format!("<stdin>.{}", r#type));
 
-            // Static analysis
-            let analyzer = StaticAnalyzer::new()?;
+            // Static analysis (with context if provided)
+            let analyzer = if let Some(ctx) = scan_context {
+                let mut cfg = AnalyzerConfig::default();
+                cfg.scan_context = Some(ctx);
+                StaticAnalyzer::with_config(cfg)?
+            } else {
+                StaticAnalyzer::new()?
+            };
             let mut result = analyzer.scan_content(&text, &synthetic_path, None)?;
 
             // AST analysis (if enabled and type is a supported language)
