@@ -345,6 +345,34 @@ pub enum Commands {
         jobs: Option<usize>,
     },
 
+    /// Check text for security patterns (prompt injection, exfiltration, etc.)
+    Check {
+        /// Text to check (reads from stdin if --stdin is used)
+        #[arg(value_name = "TEXT")]
+        input: Option<String>,
+
+        /// Read input from stdin instead of argument
+        #[arg(long)]
+        stdin: bool,
+
+        /// File type hint for rule filtering (default: md)
+        /// Controls which rules apply. Examples: md, js, ts, py, sh, json
+        #[arg(long, default_value = "md", value_name = "TYPE")]
+        r#type: String,
+
+        /// Minimum severity to report (info, low, medium, high, critical)
+        #[arg(long, default_value = "low")]
+        min_severity: String,
+
+        /// Fail with exit code 1 if findings at this severity or above
+        #[arg(long, default_value = "high")]
+        fail_on: String,
+
+        /// Enable AST-based analysis for obfuscation detection
+        #[arg(long)]
+        ast: bool,
+    },
+
     /// Manage the scan result cache
     Cache {
         #[command(subcommand)]

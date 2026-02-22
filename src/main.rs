@@ -27,7 +27,8 @@ use vexscan::{
     filter_rules_by_author, filter_rules_by_source, filter_rules_by_tag, load_builtin_json_rules,
     reporters::{report, OutputFormat},
     test_all_rules, test_rules_from_file, truncate, AiAnalyzerConfig, AiBackend, AnalyzerConfig,
-    Platform, RuleSource, ScanCache, ScanConfig, ScanProfile, Scanner, Severity,
+    AstAnalyzer, Platform, RuleSource, ScanCache, ScanConfig, ScanProfile, Scanner, Severity,
+    StaticAnalyzer,
 };
 
 #[tokio::main]
@@ -1175,6 +1176,102 @@ async fn run() -> Result<()> {
             }
 
             // Exit with appropriate code
+            if let Some(max_sev) = scan_report.max_severity() {
+                if max_sev >= fail_on_severity {
+                    std::process::exit(1);
+                }
+            }
+        }
+
+        Commands::Check {
+            input,
+            stdin,
+            r#type,
+            min_severity,
+            fail_on,
+            ast,
+        } => {
+            // Validate: need either positional text or --stdin, not both
+            let text = match (input, stdin) {
+                (Some(text), false) => text,
+                (None, true) => {
+                    let text = io::read_to_string(io::stdin())?;
+                    if text.trim().is_empty() {
+                        eprintln!("{}: No input received on stdin", "Error".bright_red().bold());
+                        std::process::exit(1);
+                    }
+                    text
+                }
+                (Some(_), true) => {
+                    eprintln!(
+                        "{}: Cannot use both positional TEXT and --stdin",
+                        "Error".bright_red().bold()
+                    );
+                    std::process::exit(1);
+                }
+                (None, false) => {
+                    eprintln!(
+                        "{}: Provide text as argument or use --stdin\n\n  {} vexscan check \"text to scan\"\n  {} echo \"text\" | vexscan check --stdin",
+                        "Error".bright_red().bold(),
+                        "Usage:".bold(),
+                        "      ".bold(),
+                    );
+                    std::process::exit(1);
+                }
+            };
+
+            let min_severity = parse_severity(&min_severity)?;
+            let fail_on_severity = parse_severity(&fail_on)?;
+
+            // Synthetic path for rule filtering by file extension
+            let synthetic_path = PathBuf::from(format!("<stdin>.{}", r#type));
+
+            // Static analysis
+            let analyzer = StaticAnalyzer::new()?;
+            let mut result = analyzer.scan_content(&text, &synthetic_path, None)?;
+
+            // AST analysis (if enabled and type is a supported language)
+            if ast {
+                match AstAnalyzer::new() {
+                    Ok(ast_analyzer) => {
+                        match ast_analyzer.analyze_content_str(&text, &synthetic_path) {
+                            Ok(ast_result) => {
+                                result.findings.extend(ast_result.findings);
+                            }
+                            Err(e) => {
+                                tracing::debug!("AST analysis skipped: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::debug!("AST analyzer init failed: {}", e);
+                    }
+                }
+            }
+
+            // Filter by min_severity
+            result
+                .findings
+                .retain(|f| f.severity >= min_severity);
+
+            // Build report
+            let mut scan_report = vexscan::ScanReport::new(PathBuf::from("<stdin>"));
+            scan_report.results.push(result);
+            scan_report.rule_count = analyzer.rule_count();
+            scan_report.ast_enabled = ast;
+            scan_report.risk_score = scan_report.compute_risk_score();
+
+            // Output
+            let format: OutputFormat = cli.format.parse().map_err(|e| anyhow::anyhow!("{}", e))?;
+            let mut stdout = io::stdout().lock();
+            report(&scan_report, format, &mut stdout)?;
+
+            // Verdict (CLI format only)
+            if matches!(format, OutputFormat::Cli) {
+                print_verdict(&scan_report, fail_on_severity);
+            }
+
+            // Exit code
             if let Some(max_sev) = scan_report.max_severity() {
                 if max_sev >= fail_on_severity {
                     std::process::exit(1);
