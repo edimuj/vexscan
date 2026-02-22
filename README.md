@@ -49,7 +49,7 @@ AI agents execute code, access files, and make network requests on your behalf. 
 
 You wouldn't install a random browser extension without looking at it first. Same logic here, except the attack surface is worse — agents have broader system access than a browser tab.
 
-Vexscan has 120+ detection rules that flag these patterns, plus multi-layer encoding detection for payloads hidden in base64, hex, and unicode escapes.
+Vexscan has 160+ detection rules that flag these patterns, plus multi-layer encoding detection for payloads hidden in base64, hex, and unicode escapes.
 
 ## Installation
 
@@ -159,7 +159,9 @@ vexscan scan ~/.claude --third-party-only   # Only scan untrusted plugins
 |----------------------------|--------------------------------------|
 | `vexscan vet <source>`     | Vet a plugin before installation     |
 | `vexscan scan <path>`      | Scan files or directories            |
+| `vexscan check`            | Scan text/stdin for injection        |
 | `vexscan install <source>` | Vet and install in one step          |
+| `vexscan trust <sub>`      | Manage trust store                   |
 | `vexscan watch`            | Monitor for new plugin installations |
 | `vexscan rules`            | List and inspect detection rules     |
 | `vexscan decode <string>`  | Decode obfuscated strings            |
@@ -174,6 +176,9 @@ vexscan scan ~/.claude --third-party-only   # Only scan untrusted plugins
 -f json|sarif|markdown # Output format
 --fail-on <severity>   # Exit code control for CI (critical, high, medium, low)
 --third-party-only     # Only scan untrusted plugins
+--context <type>       # Scan context: code, config, message, skill, plugin
+--save-baseline <file> # Save scan results as baseline for future diffs
+--diff <file>          # Show only new findings compared to baseline
 ```
 
 <details>
@@ -215,13 +220,17 @@ vexscan scan <path>                   # Scan path
 vexscan scan <path> --ast             # Enable AST analysis
 vexscan scan <path> --deps            # Enable dependency scanning
 vexscan scan <path> -f sarif          # SARIF for GitHub integration
+vexscan scan <path> --context message # Only fire message-relevant rules
+vexscan scan <path> --save-baseline b.json        # Save baseline
+vexscan scan <path> --diff b.json                  # Show only new findings
+vexscan scan <path> --diff b.json --save-baseline b.json  # Diff and update
 ```
 
 </details>
 
 ## Detection rules
 
-120+ rules across these categories:
+160+ rules across these categories, each annotated with scan contexts for targeted filtering:
 
 | Category             | Examples                                            |
 |----------------------|-----------------------------------------------------|

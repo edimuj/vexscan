@@ -17,8 +17,12 @@
 
 - **Automatic Scanning**: Scans third-party extensions on startup
 - **Pre-Install Vetting**: Vet extensions before installing with `openclaw vexscan vet`
+- **Message Scanning**: Scans inbound messages for prompt injection in real-time
+- **Trust Store**: Suppress reviewed findings with auditable trust decisions
+- **Context-Aware Rules**: 160+ rules annotated with scan contexts to reduce false positives
+- **Baseline/Diff**: Save scan baselines and see only new findings on re-scans
 - **AI-Integrated**: The AI assistant can scan code on your behalf
-- **Smart Filtering**: Skips official extensions, focuses on untrusted code
+- **Slash Commands**: `/scan`, `/vet`, `/check`, `/trust` for instant operations
 
 ## Installation
 
@@ -55,9 +59,6 @@ git clone https://github.com/edimuj/vexscan && cd vexscan && cargo install --pat
 # Scan installed extensions
 openclaw vexscan scan
 
-# Scan specific path
-openclaw vexscan scan ~/.openclaw/extensions
-
 # Vet before installing
 openclaw vexscan vet https://github.com/user/cool-extension
 
@@ -69,28 +70,36 @@ openclaw vexscan install ./local-extension --link       # symlink for dev
 openclaw vexscan install @org/extension --force         # allow medium findings
 openclaw vexscan install @org/extension --dry-run       # vet only, don't install
 
+# Trust store
+openclaw vexscan trust list
+openclaw vexscan trust show /path/to/extension
+openclaw vexscan trust accept /path/to/ext --rules EXEC-001,REMOTE-002
+openclaw vexscan trust revoke my-extension
+
 # List detection rules
 openclaw vexscan rules
 ```
 
-### AI Tool Usage
+### Slash Commands
 
-The AI assistant can use Vexscan directly:
-
-```
-User: "Is this extension safe? https://github.com/user/extension"
-AI: *uses vexscan tool to vet the extension*
-```
-
-```
-User: "Check my extensions for security issues"
-AI: *uses vexscan tool to scan ~/.openclaw/extensions*
+```bash
+/scan                    # Quick scan of extensions directory
+/scan /path/to/dir       # Scan specific path
+/vet https://github.com/user/ext   # Vet a plugin
+/check "some suspicious text"      # Check text for injection patterns
+/trust                   # List trust entries
+/trust show /path        # Show trust status
 ```
 
-```
-User: "Install this extension: @org/cool-plugin"
-AI: *uses vexscan install action to vet and install*
-```
+### AI Tool Actions
+
+The AI assistant can use Vexscan directly through tool calls:
+
+- `scan` — Scan a path for security issues
+- `vet` — Vet an extension before installing
+- `install` — Vet and install in one step
+- `trust_list` / `trust_show` / `trust_accept` / `trust_full` / `trust_revoke` / `trust_quarantine` — Manage trust store
+- `status` — Check plugin status and config
 
 ## Configuration
 
@@ -110,16 +119,17 @@ Configure in your `openclaw.json`:
 }
 ```
 
-| Option           | Default  | Description                                 |
-|------------------|----------|---------------------------------------------|
-| `enabled`        | `true`   | Enable security scanning                    |
-| `scanOnInstall`  | `true`   | Scan on startup                             |
-| `minSeverity`    | `medium` | Minimum severity to report                  |
-| `thirdPartyOnly` | `true`   | Only scan non-official extensions           |
-| `skipDeps`       | `true`   | Skip node_modules to reduce false positives |
-| `ast`            | `true`   | AST analysis for obfuscation detection      |
-| `deps`           | `true`   | Dependency scanning for supply chain attacks|
-| `cliPath`        | (auto)   | Path to vexscan binary                      |
+| Option           | Default  | Description                                        |
+|------------------|----------|----------------------------------------------------|
+| `enabled`        | `true`   | Enable security scanning                           |
+| `scanOnInstall`  | `true`   | Scan on startup                                    |
+| `scanMessages`   | `true`   | Scan inbound messages for prompt injection         |
+| `minSeverity`    | `medium` | Minimum severity to report                         |
+| `thirdPartyOnly` | `true`   | Only scan non-official extensions                  |
+| `skipDeps`       | `true`   | Skip node_modules to reduce false positives        |
+| `ast`            | `true`   | AST analysis for obfuscation detection             |
+| `deps`           | `true`   | Dependency scanning for supply chain attacks       |
+| `cliPath`        | (auto)   | Path to vexscan binary                             |
 
 ## What It Detects
 

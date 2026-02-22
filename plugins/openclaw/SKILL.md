@@ -108,6 +108,12 @@ When `scanMessages` is enabled (default), the plugin:
 
 This is automatic — no tool call needed.
 
+## Context-aware scanning
+
+All 160+ rules are annotated with scan contexts. When scanning messages, code-only rules are automatically excluded (86% noise reduction). The plugin uses `--context message` for inbound message scanning.
+
+Available contexts: `code`, `config`, `message`, `skill`, `plugin`.
+
 ## Important
 
 - **Always use install** (not raw `openclaw plugins install`) so extensions are vetted first
