@@ -67,6 +67,28 @@
           },
           "description": "File extensions to apply this rule to (empty = all files)"
         },
+        "file_names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Specific filenames this rule applies to (empty = all files)"
+        },
+        "contexts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["code", "config", "message", "skill", "plugin"]
+          },
+          "description": "Scan contexts this rule applies to (empty = all contexts). Use with --context flag."
+        },
+        "exclude_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Regex patterns that exclude a match when the matched text also matches an exclude pattern"
+        },
         "remediation": {
           "type": "string",
           "description": "Guidance on how to fix issues found by this rule"

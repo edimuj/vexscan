@@ -9,6 +9,23 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
+/// Scan context — what kind of content is being scanned.
+/// Rules can opt in to specific contexts; rules with no context restriction fire everywhere.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ScanContext {
+    /// Source code files (js, ts, py, sh, etc.)
+    Code,
+    /// Configuration files (json, toml, yaml, plugin manifests)
+    Config,
+    /// Agent messages, user input, prompt text
+    Message,
+    /// Skill definitions (SKILL.md, frontmatter)
+    Skill,
+    /// Plugin files and manifests
+    Plugin,
+}
+
 /// Source of a rule (official, community, or external).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -85,6 +102,10 @@ pub struct Rule {
     /// When both file_extensions and file_names are set, both must match.
     #[serde(default)]
     pub file_names: Vec<String>,
+    /// Scan contexts this rule applies to (empty = all contexts).
+    /// When set, the rule only fires when scanning content of these types.
+    #[serde(default)]
+    pub contexts: Vec<ScanContext>,
     /// Patterns that exclude a match (e.g. safe IP ranges). If a match also
     /// matches any exclude pattern, it is silently dropped.
     #[serde(default)]
@@ -143,6 +164,15 @@ impl Rule {
         self.file_names
             .iter()
             .any(|n| n.eq_ignore_ascii_case(filename))
+    }
+
+    /// Check if this rule applies to a given scan context.
+    /// Empty `contexts` means the rule applies in all contexts.
+    pub fn applies_to_context(&self, context: Option<ScanContext>) -> bool {
+        match context {
+            None => true,
+            Some(ctx) => self.contexts.is_empty() || self.contexts.contains(&ctx),
+        }
     }
 }
 
@@ -323,6 +353,19 @@ impl RuleSet {
         ext: &str,
         filename: Option<&str>,
     ) -> Vec<(&'a CompiledRule, Vec<regex::Match<'a>>)> {
+        self.find_matches_for_file_in_context(content, ext, filename, None)
+    }
+
+    /// Like `find_matches_for_file` but also filters rules by scan context.
+    /// Rules with no `contexts` restriction always fire. Rules with `contexts`
+    /// only fire when the scan context matches.
+    pub fn find_matches_for_file_in_context<'a>(
+        &'a self,
+        content: &'a str,
+        ext: &str,
+        filename: Option<&str>,
+        context: Option<ScanContext>,
+    ) -> Vec<(&'a CompiledRule, Vec<regex::Match<'a>>)> {
         // Use RegexSet pre-filter to find which rules have any match
         let matching_rule_indices: HashSet<usize> = if let Some(ref regex_set) = self.regex_set {
             regex_set
@@ -352,6 +395,7 @@ impl RuleSet {
                     None => true,
                 }
             })
+            .filter(|idx| self.rules[*idx].rule.applies_to_context(context))
             .filter_map(|idx| {
                 let rule = &self.rules[idx];
                 let matches = rule.find_matches(content);
@@ -380,6 +424,7 @@ mod tests {
             patterns: vec![r"eval\s*\(".to_string()],
             file_extensions: vec!["js".to_string(), "ts".to_string()],
             file_names: vec![],
+            contexts: vec![],
             exclude_patterns: vec![],
             remediation: None,
             enabled: true,
@@ -407,6 +452,7 @@ mod tests {
             ],
             file_extensions: vec![],
             file_names: vec![],
+            contexts: vec![],
             exclude_patterns: vec![],
             remediation: None,
             enabled: true,
@@ -435,6 +481,7 @@ mod tests {
             patterns: vec![r"AKIA[0-9A-Z]{16}".to_string()],
             file_extensions: vec![],
             file_names: vec![],
+            contexts: vec![],
             exclude_patterns: vec![],
             remediation: Some("Remove hardcoded keys".to_string()),
             enabled: true,
@@ -480,6 +527,7 @@ mod tests {
             patterns: vec![r#"['"]([0-9]{1,3}\.){3}[0-9]{1,3}['"]"#.to_string()],
             file_extensions: vec![],
             file_names: vec![],
+            contexts: vec![],
             exclude_patterns: vec![
                 r#"['"]127\."#.to_string(),
                 r#"['"]0\.0\.0\.0"#.to_string(),
@@ -521,6 +569,7 @@ mod tests {
             patterns: vec!["test".to_string()],
             file_extensions: vec![],
             file_names: vec![],
+            contexts: vec![],
             exclude_patterns: vec![],
             remediation: None,
             enabled: true,
@@ -543,6 +592,7 @@ mod tests {
             patterns: vec!["test".to_string()],
             file_extensions: vec!["json".to_string()],
             file_names: vec!["mcp.json".to_string(), ".mcp.json".to_string()],
+            contexts: vec![],
             exclude_patterns: vec![],
             remediation: None,
             enabled: true,
@@ -570,6 +620,7 @@ mod tests {
             patterns: vec![r#""url"\s*:\s*"https?://[^"]+""#.to_string()],
             file_extensions: vec!["json".to_string()],
             file_names: vec!["mcp.json".to_string()],
+            contexts: vec![],
             exclude_patterns: vec![],
             remediation: None,
             enabled: true,

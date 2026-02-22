@@ -66,6 +66,54 @@ declare module "openclaw/plugin-sdk" {
     handler: (ctx: PluginCommandContext) => PluginCommandResult | Promise<PluginCommandResult>;
   };
 
+  // Hook event types
+
+  type PluginHookMessageReceivedEvent = {
+    from: string;
+    content: string;
+    timestamp?: number;
+    metadata?: Record<string, unknown>;
+  };
+
+  type PluginHookMessageContext = {
+    channelId: string;
+    accountId?: string;
+    conversationId?: string;
+  };
+
+  type PluginHookBeforeAgentStartEvent = {
+    prompt: string;
+    messages?: unknown[];
+  };
+
+  type PluginHookAgentContext = {
+    agentId?: string;
+    sessionKey?: string;
+    workspaceDir?: string;
+    messageProvider?: string;
+  };
+
+  type PluginHookBeforeAgentStartResult = {
+    systemPrompt?: string;
+    prependContext?: string;
+  };
+
+  type PluginHookName =
+    | "before_agent_start"
+    | "agent_end"
+    | "before_compaction"
+    | "after_compaction"
+    | "message_received"
+    | "message_sending"
+    | "message_sent"
+    | "before_tool_call"
+    | "after_tool_call"
+    | "tool_result_persist"
+    | "session_start"
+    | "session_end"
+    | "gateway_start"
+    | "gateway_stop";
+
   type OpenClawPluginApi = {
     id: string;
     name: string;
@@ -91,7 +139,7 @@ declare module "openclaw/plugin-sdk" {
     registerCommand: (command: OpenClawPluginCommandDefinition) => void;
     registerService: (service: OpenClawPluginService) => void;
     registerHook: (events: string | string[], handler: (...args: any[]) => any, opts?: any) => void;
-    on: (hookName: string, handler: (...args: any[]) => any, opts?: { priority?: number }) => void;
+    on: (hookName: PluginHookName, handler: (...args: any[]) => any, opts?: { priority?: number }) => void;
     resolvePath: (input: string) => string;
   };
 
@@ -105,6 +153,12 @@ declare module "openclaw/plugin-sdk" {
     OpenClawPluginToolContext,
     OpenClawPluginService,
     AgentTool,
+    PluginHookName,
+    PluginHookMessageReceivedEvent,
+    PluginHookMessageContext,
+    PluginHookBeforeAgentStartEvent,
+    PluginHookAgentContext,
+    PluginHookBeforeAgentStartResult,
   };
   export { emptyPluginConfigSchema };
 }

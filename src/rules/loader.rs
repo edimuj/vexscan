@@ -2,7 +2,7 @@
 //!
 //! Loads rules from JSON files in the rules/ directory and subdirectories.
 
-use super::{Rule, RuleMetadata, RuleSource, TestCases};
+use super::{Rule, RuleMetadata, RuleSource, ScanContext, TestCases};
 use crate::types::{FindingCategory, Severity};
 use serde::Deserialize;
 use std::path::Path;
@@ -40,6 +40,8 @@ struct JsonRule {
     file_extensions: Vec<String>,
     #[serde(default)]
     file_names: Vec<String>,
+    #[serde(default)]
+    contexts: Vec<ScanContext>,
     #[serde(default)]
     exclude_patterns: Vec<String>,
     remediation: Option<String>,
@@ -110,6 +112,7 @@ impl JsonRule {
             patterns,
             file_extensions: self.file_extensions.clone(),
             file_names: self.file_names.clone(),
+            contexts: self.contexts.clone(),
             exclude_patterns: self.exclude_patterns.clone(),
             remediation: self.remediation.clone(),
             enabled: self.enabled,
@@ -302,6 +305,7 @@ const EMBEDDED_OFFICIAL: &[&str] = &[
     include_str!("../../rules/official/batch-scripts.json"),
     include_str!("../../rules/official/mcp-configuration.json"),
     include_str!("../../rules/official/persistence.json"),
+    include_str!("../../rules/official/openclaw.json"),
 ];
 
 /// Embedded community rule JSON files (compiled into the binary).

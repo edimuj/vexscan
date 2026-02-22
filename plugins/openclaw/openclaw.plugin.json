@@ -43,6 +43,11 @@
         "default": true,
         "description": "Enable dependency scanning for supply chain attacks"
       },
+      "scanMessages": {
+        "type": "boolean",
+        "default": true,
+        "description": "Scan inbound messages for prompt injection patterns"
+      },
       "cliPath": {
         "type": "string",
         "description": "Path to vexscan CLI binary (auto-detected if not set)"
