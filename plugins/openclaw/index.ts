@@ -1,6 +1,6 @@
 import { Type, type Static } from "@sinclair/typebox";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
-import { execCommand, execVexscan, findVexscan, installVexscan } from "./src/cli-wrapper.js";
+import { execCommand, execVexscan, execVexscanWithStdin, findVexscan, installVexscan } from "./src/cli-wrapper.js";
 import type { ScanResult, VetResult } from "./src/types.js";
 
 // --- Config schema (TypeBox) ---
@@ -607,6 +607,142 @@ const vexscanPlugin = {
       },
       { commands: ["vexscan"] },
     );
+
+    // Register slash commands (zero-LLM, instant)
+    api.registerCommand({
+      name: "scan",
+      description: "Quick security scan of extensions directory",
+      acceptsArgs: true,
+      handler: async (ctx) => {
+        try {
+          const cli = await ensureCli();
+          const scanPath = ctx.args || "~/.openclaw/extensions";
+          const args = ["scan", scanPath, "-f", "json", "--min-severity", config.minSeverity];
+          if (config.ast) args.push("--ast");
+          if (config.deps) args.push("--deps");
+          if (config.skipDeps) args.push("--skip-deps");
+
+          const result = await execVexscan(cli, args);
+          const parsed = JSON.parse(result.stdout) as ScanResult;
+          const findings = parsed.total_findings || 0;
+          const maxSev = parsed.max_severity || null;
+          const bySev = parsed.findings_by_severity || {};
+          const sevLine = Object.entries(bySev)
+            .filter(([, n]) => n > 0)
+            .map(([s, n]) => `${n} ${s}`)
+            .join(", ");
+
+          if (!findings) {
+            return { text: `✓ No security issues found in ${scanPath}` };
+          }
+          return {
+            text: `⚠ ${findings} finding(s) in ${scanPath} (max: ${maxSev})\n${sevLine}\nRun \`openclaw vexscan scan ${scanPath}\` for full report.`,
+          };
+        } catch (err) {
+          return { text: `Error: ${err instanceof Error ? err.message : err}`, isError: true };
+        }
+      },
+    });
+
+    api.registerCommand({
+      name: "vet",
+      description: "Vet a plugin/skill before installing",
+      acceptsArgs: true,
+      handler: async (ctx) => {
+        if (!ctx.args) return { text: "Usage: /vet <github-url-or-npm-package>" };
+        try {
+          const cli = await ensureCli();
+          const args = ["vet", ctx.args, "-f", "json"];
+          if (config.ast) args.push("--ast");
+          if (config.deps) args.push("--deps");
+          if (config.skipDeps) args.push("--skip-deps");
+
+          const result = await execVexscan(cli, args);
+          const parsed = JSON.parse(result.stdout) as VetResult;
+          const findings = parsed.total_findings || 0;
+          const maxSev = parsed.max_severity || null;
+          const verdict = getVerdict(findings, maxSev);
+
+          return { text: `${verdict === "clean" ? "✓" : "⚠"} ${ctx.args}: ${getVerdictMessage(verdict, findings, maxSev)}` };
+        } catch (err) {
+          return { text: `Error: ${err instanceof Error ? err.message : err}`, isError: true };
+        }
+      },
+    });
+
+    api.registerCommand({
+      name: "check",
+      description: "Check text for prompt injection patterns",
+      acceptsArgs: true,
+      handler: async (ctx) => {
+        if (!ctx.args) return { text: "Usage: /check <text to analyze>" };
+        try {
+          const cli = await ensureCli();
+          const result = await execVexscanWithStdin(cli, ["check", "--stdin", "-f", "json"], ctx.args);
+          const parsed = JSON.parse(result.stdout) as ScanResult;
+          const findings = parsed.total_findings || 0;
+
+          if (!findings) {
+            return { text: "✓ No prompt injection or malicious patterns detected." };
+          }
+          const maxSev = parsed.max_severity || null;
+          return { text: `⚠ ${findings} finding(s) detected (max: ${maxSev}). Review the text carefully.` };
+        } catch (err) {
+          return { text: `Error: ${err instanceof Error ? err.message : err}`, isError: true };
+        }
+      },
+    });
+
+    api.registerCommand({
+      name: "trust",
+      description: "Manage trust store (list/show/accept/full/revoke/quarantine)",
+      acceptsArgs: true,
+      handler: async (ctx) => {
+        try {
+          const cli = await ensureCli();
+          const parts = ctx.args?.split(/\s+/) || [];
+          const sub = parts[0];
+
+          if (!sub || sub === "list") {
+            const result = await execVexscan(cli, ["trust", "list"]);
+            return { text: result.stdout.trim() || "No trust entries." };
+          }
+
+          if (sub === "show" && parts[1]) {
+            const result = await execVexscan(cli, ["trust", "show", parts[1]]);
+            return { text: result.stdout.trim() };
+          }
+
+          if (sub === "revoke" && parts[1]) {
+            const result = await execVexscan(cli, ["trust", "revoke", parts[1]]);
+            return { text: result.stdout.trim() };
+          }
+
+          if (sub === "quarantine" && parts[1]) {
+            const result = await execVexscan(cli, ["trust", "quarantine", parts[1]]);
+            return { text: result.stdout.trim() };
+          }
+
+          if (sub === "full" && parts[1]) {
+            const args = ["trust", "full", parts[1]];
+            const result = await execVexscan(cli, args);
+            return { text: result.stdout.trim() };
+          }
+
+          if (sub === "accept" && parts[1] && parts[2]) {
+            const args = ["trust", "accept", parts[1], "--rules", parts[2]];
+            const result = await execVexscan(cli, args);
+            return { text: result.stdout.trim() };
+          }
+
+          return {
+            text: "Usage: /trust [list|show <path>|accept <path> <rules>|full <path>|revoke <name>|quarantine <path>]",
+          };
+        } catch (err) {
+          return { text: `Error: ${err instanceof Error ? err.message : err}`, isError: true };
+        }
+      },
+    });
 
     // Register startup service for initial scan
     if (config.scanOnInstall) {

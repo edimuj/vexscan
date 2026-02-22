@@ -173,3 +173,44 @@ export async function execVexscan(cliPath: string, args: string[]): Promise<Exec
     });
   });
 }
+
+/**
+ * Execute vexscan CLI with stdin input
+ */
+export async function execVexscanWithStdin(
+  cliPath: string,
+  args: string[],
+  input: string,
+): Promise<ExecResult> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(cliPath, args, {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on("close", (code) => {
+      resolve({
+        stdout,
+        stderr,
+        exitCode: code ?? 0,
+      });
+    });
+
+    proc.on("error", (err) => {
+      reject(err);
+    });
+
+    proc.stdin.write(input);
+    proc.stdin.end();
+  });
+}

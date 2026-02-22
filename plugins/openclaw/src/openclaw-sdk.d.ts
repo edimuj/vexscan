@@ -41,6 +41,31 @@ declare module "openclaw/plugin-sdk" {
     stop(): Promise<void>;
   };
 
+  type PluginCommandContext = {
+    senderId?: string;
+    channel: string;
+    isAuthorizedSender: boolean;
+    args?: string;
+    commandBody: string;
+    config: any;
+  };
+
+  type PluginCommandResult = {
+    text?: string;
+    mediaUrl?: string;
+    mediaUrls?: string[];
+    isError?: boolean;
+    channelData?: Record<string, unknown>;
+  };
+
+  type OpenClawPluginCommandDefinition = {
+    name: string;
+    description: string;
+    acceptsArgs?: boolean;
+    requireAuth?: boolean;
+    handler: (ctx: PluginCommandContext) => PluginCommandResult | Promise<PluginCommandResult>;
+  };
+
   type OpenClawPluginApi = {
     id: string;
     name: string;
@@ -63,6 +88,7 @@ declare module "openclaw/plugin-sdk" {
       registrar: (ctx: { program: any }) => void,
       opts?: { commands?: string[] },
     ) => void;
+    registerCommand: (command: OpenClawPluginCommandDefinition) => void;
     registerService: (service: OpenClawPluginService) => void;
     registerHook: (events: string | string[], handler: (...args: any[]) => any, opts?: any) => void;
     on: (hookName: string, handler: (...args: any[]) => any, opts?: { priority?: number }) => void;
