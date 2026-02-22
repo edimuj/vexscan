@@ -84,7 +84,22 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
     } else {
         writeln!(writer, "  Files scanned: {}", report.results.len())?;
     }
-    writeln!(writer, "  Total findings: {}", report.total_findings())?;
+    let total_active = report
+        .results
+        .iter()
+        .flat_map(|r| &r.findings)
+        .filter(|f| f.suppressed_by.is_none())
+        .count();
+    let total_suppressed = report.total_findings() - total_active;
+    if total_suppressed > 0 {
+        writeln!(
+            writer,
+            "  Total findings: {} ({} suppressed)",
+            total_active, total_suppressed
+        )?;
+    } else {
+        writeln!(writer, "  Total findings: {}", total_active)?;
+    }
     writeln!(
         writer,
         "  Rules active:  {} (AST: {}, Deps: {})",
@@ -148,8 +163,18 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
     }
     writeln!(writer)?;
 
-    // Findings by severity
-    let counts = report.findings_count_by_severity();
+    // Findings by severity (count only active, non-suppressed findings)
+    let counts = {
+        let mut c = std::collections::HashMap::new();
+        for result in &report.results {
+            for finding in &result.findings {
+                if finding.suppressed_by.is_none() {
+                    *c.entry(finding.severity).or_insert(0usize) += 1;
+                }
+            }
+        }
+        c
+    };
     writeln!(writer, "{}", "Findings by Severity".bold().underline())?;
     writeln!(
         writer,
@@ -256,9 +281,9 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
         }
     }
 
-    // Exit status indicator
+    // Exit status indicator (based on non-suppressed findings only)
     writeln!(writer)?;
-    if let Some(max_sev) = report.max_severity() {
+    if let Some(max_sev) = report.max_active_severity() {
         if max_sev >= Severity::High {
             writeln!(
                 writer,
@@ -341,7 +366,13 @@ fn write_result_findings<W: Write>(
         scope_tag
     )?;
 
+    let mut suppressed_count = 0usize;
     for finding in &result.findings {
+        if finding.suppressed_by.is_some() {
+            suppressed_count += 1;
+            continue;
+        }
+
         let severity_indicator = match finding.severity {
             Severity::Critical => "▲ CRITICAL".bright_red().bold(),
             Severity::High => "▲ HIGH".red().bold(),
@@ -393,6 +424,13 @@ fn write_result_findings<W: Write>(
         if let Some(ref remediation) = finding.remediation {
             writeln!(writer, "     Fix: {}", remediation.green())?;
         }
+    }
+    if suppressed_count > 0 {
+        writeln!(
+            writer,
+            "     {}",
+            format!("({} suppressed by trust store)", suppressed_count).dimmed()
+        )?;
     }
     writeln!(writer)?;
     Ok(())

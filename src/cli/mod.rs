@@ -373,9 +373,64 @@ pub enum Commands {
         ast: bool,
     },
 
+    /// Manage the trust store (suppress reviewed findings)
+    Trust {
+        #[command(subcommand)]
+        subcommand: TrustSubcommand,
+    },
+
     /// Manage the scan result cache
     Cache {
         #[command(subcommand)]
         subcommand: CacheSubcommand,
+    },
+}
+
+/// Subcommands for the `trust` command
+#[derive(Subcommand, Debug)]
+pub enum TrustSubcommand {
+    /// Accept specific findings for a component (suppress on future scans)
+    Accept {
+        /// Path to the component directory
+        path: PathBuf,
+
+        /// Comma-separated rule IDs to accept (e.g., INJECT-001,EXEC-002)
+        #[arg(long, value_delimiter = ',')]
+        rules: Vec<String>,
+
+        /// Optional notes about why this was accepted
+        #[arg(long)]
+        notes: Option<String>,
+    },
+
+    /// Accept ALL findings for a component (full trust)
+    Full {
+        /// Path to the component directory
+        path: PathBuf,
+
+        /// Optional notes about why this was fully trusted
+        #[arg(long)]
+        notes: Option<String>,
+    },
+
+    /// Quarantine a component (inject critical finding on future scans)
+    Quarantine {
+        /// Path to the component directory
+        path: PathBuf,
+    },
+
+    /// List all trust store entries
+    List,
+
+    /// Revoke trust for a component
+    Revoke {
+        /// Component name or key (e.g., "my-plugin" or "skill:my-plugin")
+        name: String,
+    },
+
+    /// Show trust status for a component
+    Show {
+        /// Path to the component directory
+        path: PathBuf,
     },
 }

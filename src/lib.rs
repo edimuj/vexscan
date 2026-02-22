@@ -38,6 +38,7 @@ pub mod reporters;
 pub mod rules;
 pub mod scope;
 pub mod trace;
+pub mod trust;
 pub mod types;
 
 // Re-exports for convenience
@@ -61,6 +62,7 @@ pub use rules::{
 };
 pub use scope::{detect_scope, InstallScope, ScopeMap};
 pub use trace::ReferenceGraph;
+pub use trust::{TrustEntry, TrustLevel, TrustStore};
 pub use types::{truncate, Finding, Platform, ScanReport, ScanResult, Severity};
 
 use adapters::{create_adapter, detect_platform, PlatformAdapter};

@@ -21,14 +21,14 @@ macro_rules! info {
     };
 }
 use vexscan::{
-    cli::{CacheSubcommand, Cli, Commands, RulesSubcommand},
+    cli::{CacheSubcommand, Cli, Commands, RulesSubcommand, TrustSubcommand},
     config::{generate_default_config, Config},
     decoders::Decoder,
     filter_rules_by_author, filter_rules_by_source, filter_rules_by_tag, load_builtin_json_rules,
     reporters::{report, OutputFormat},
     test_all_rules, test_rules_from_file, truncate, AiAnalyzerConfig, AiBackend, AnalyzerConfig,
     AstAnalyzer, Platform, RuleSource, ScanCache, ScanConfig, ScanProfile, Scanner, Severity,
-    StaticAnalyzer,
+    StaticAnalyzer, TrustEntry, TrustLevel, TrustStore,
 };
 
 #[tokio::main]
@@ -161,7 +161,18 @@ async fn run() -> Result<()> {
 
             // Run scanner
             let scanner = Scanner::with_config(config)?;
-            let scan_report = scanner.scan_path(&path).await?;
+            let mut scan_report = scanner.scan_path(&path).await?;
+
+            // Apply trust store (suppress reviewed findings)
+            let trust_store = TrustStore::load().unwrap_or_default();
+            let suppressed = trust_store.apply_to_report(&mut scan_report);
+            if suppressed > 0 {
+                info!(
+                    "{} {} finding(s) suppressed by trust store",
+                    "Trust:".dimmed(),
+                    suppressed
+                );
+            }
 
             // Output format
             let format: OutputFormat = cli.format.parse().map_err(|e| anyhow::anyhow!("{}", e))?;
@@ -198,8 +209,8 @@ async fn run() -> Result<()> {
                 );
             }
 
-            // Check fail condition
-            if let Some(max_sev) = scan_report.max_severity() {
+            // Check fail condition (ignore suppressed findings)
+            if let Some(max_sev) = scan_report.max_active_severity() {
                 if max_sev >= fail_on_severity {
                     std::process::exit(1);
                 }
@@ -949,10 +960,21 @@ async fn run() -> Result<()> {
             };
 
             let scanner = Scanner::with_config(config)?;
-            let scan_report = scanner.scan_path(&scan_path).await?;
+            let mut scan_report = scanner.scan_path(&scan_path).await?;
 
-            // Show findings summary
-            let (critical, high, medium, low, info_count) = count_by_severity(&scan_report);
+            // Apply trust store
+            let trust_store = TrustStore::load().unwrap_or_default();
+            let suppressed = trust_store.apply_to_report(&mut scan_report);
+            if suppressed > 0 {
+                info!(
+                    "{} {} finding(s) suppressed by trust store",
+                    "Trust:".dimmed(),
+                    suppressed
+                );
+            }
+
+            // Show findings summary (active findings only)
+            let (critical, high, medium, low, info_count) = count_active_by_severity(&scan_report);
             let total = critical + high + medium + low + info_count;
 
             if total > 0 {
@@ -965,8 +987,8 @@ async fn run() -> Result<()> {
                 info!();
             }
 
-            // Step 4: Determine if installation should proceed
-            let max_sev = scan_report.max_severity();
+            // Step 4: Determine if installation should proceed (ignore suppressed)
+            let max_sev = scan_report.max_active_severity();
             let can_install = match max_sev {
                 Some(Severity::Critical) => {
                     info!(
@@ -1142,7 +1164,18 @@ async fn run() -> Result<()> {
 
             // Run scanner
             let scanner = Scanner::with_config(config)?;
-            let scan_report = scanner.scan_path(&scan_path).await?;
+            let mut scan_report = scanner.scan_path(&scan_path).await?;
+
+            // Apply trust store
+            let trust_store = TrustStore::load().unwrap_or_default();
+            let suppressed = trust_store.apply_to_report(&mut scan_report);
+            if suppressed > 0 {
+                info!(
+                    "{} {} finding(s) suppressed by trust store",
+                    "Trust:".dimmed(),
+                    suppressed
+                );
+            }
 
             // Output results
             let format: OutputFormat = cli.format.parse().map_err(|e| anyhow::anyhow!("{}", e))?;
@@ -1175,8 +1208,8 @@ async fn run() -> Result<()> {
                 // If not keep, temp_dir drops and cleans up automatically
             }
 
-            // Exit with appropriate code
-            if let Some(max_sev) = scan_report.max_severity() {
+            // Exit with appropriate code (ignore suppressed findings)
+            if let Some(max_sev) = scan_report.max_active_severity() {
                 if max_sev >= fail_on_severity {
                     std::process::exit(1);
                 }
@@ -1279,6 +1312,277 @@ async fn run() -> Result<()> {
             }
         }
 
+        Commands::Trust { subcommand } => {
+            match subcommand {
+                TrustSubcommand::Accept { path, rules, notes } => {
+                    if rules.is_empty() {
+                        eprintln!(
+                            "{}: --rules is required. Use 'trust full' to accept all findings.",
+                            "Error".bright_red().bold()
+                        );
+                        std::process::exit(1);
+                    }
+
+                    let components = vexscan::components::detect_components(&path);
+                    if components.is_empty() {
+                        eprintln!(
+                            "{}: No AI component detected at {}",
+                            "Error".bright_red().bold(),
+                            path.display()
+                        );
+                        std::process::exit(1);
+                    }
+
+                    let comp = &components[0];
+                    let hash = vexscan::trust::hash_component_dir(&comp.root)?;
+                    let kind = vexscan::trust::component_kind_key(comp);
+
+                    let entry = TrustEntry {
+                        name: comp.name.clone(),
+                        kind: kind.clone(),
+                        component_hash: hash,
+                        trust_level: TrustLevel::Accepted,
+                        accepted_rules: rules.clone(),
+                        decided_at: chrono::Utc::now(),
+                        scanner_version: env!("CARGO_PKG_VERSION").to_string(),
+                        notes,
+                    };
+
+                    let key = entry.key();
+                    let mut store = TrustStore::load().unwrap_or_default();
+                    store.add(entry);
+                    store.save()?;
+
+                    println!(
+                        "{} Accepted {} for {} (rules: {})",
+                        "✓".green().bold(),
+                        key.bright_cyan(),
+                        comp.name,
+                        rules.join(", ")
+                    );
+                }
+
+                TrustSubcommand::Full { path, notes } => {
+                    let components = vexscan::components::detect_components(&path);
+                    if components.is_empty() {
+                        eprintln!(
+                            "{}: No AI component detected at {}",
+                            "Error".bright_red().bold(),
+                            path.display()
+                        );
+                        std::process::exit(1);
+                    }
+
+                    let comp = &components[0];
+                    let hash = vexscan::trust::hash_component_dir(&comp.root)?;
+                    let kind = vexscan::trust::component_kind_key(comp);
+
+                    let entry = TrustEntry {
+                        name: comp.name.clone(),
+                        kind: kind.clone(),
+                        component_hash: hash,
+                        trust_level: TrustLevel::Accepted,
+                        accepted_rules: vec![], // empty = all rules
+                        decided_at: chrono::Utc::now(),
+                        scanner_version: env!("CARGO_PKG_VERSION").to_string(),
+                        notes,
+                    };
+
+                    let key = entry.key();
+                    let mut store = TrustStore::load().unwrap_or_default();
+                    store.add(entry);
+                    store.save()?;
+
+                    println!(
+                        "{} Fully trusted {} (all findings suppressed)",
+                        "✓".green().bold(),
+                        key.bright_cyan()
+                    );
+                }
+
+                TrustSubcommand::Quarantine { path } => {
+                    let components = vexscan::components::detect_components(&path);
+                    if components.is_empty() {
+                        eprintln!(
+                            "{}: No AI component detected at {}",
+                            "Error".bright_red().bold(),
+                            path.display()
+                        );
+                        std::process::exit(1);
+                    }
+
+                    let comp = &components[0];
+                    let hash = vexscan::trust::hash_component_dir(&comp.root)?;
+                    let kind = vexscan::trust::component_kind_key(comp);
+
+                    let entry = TrustEntry {
+                        name: comp.name.clone(),
+                        kind: kind.clone(),
+                        component_hash: hash,
+                        trust_level: TrustLevel::Quarantined,
+                        accepted_rules: vec![],
+                        decided_at: chrono::Utc::now(),
+                        scanner_version: env!("CARGO_PKG_VERSION").to_string(),
+                        notes: None,
+                    };
+
+                    let key = entry.key();
+                    let mut store = TrustStore::load().unwrap_or_default();
+                    store.add(entry);
+                    store.save()?;
+
+                    println!(
+                        "{} Quarantined {} — will inject critical finding on future scans",
+                        "🚫".red(),
+                        key.bright_cyan()
+                    );
+                }
+
+                TrustSubcommand::List => {
+                    let store = TrustStore::load().unwrap_or_default();
+
+                    if store.entries.is_empty() {
+                        println!("Trust store is empty. Use 'vexscan trust accept' or 'trust full' to add entries.");
+                        return Ok(());
+                    }
+
+                    println!("{}", "Trust Store Entries".bold().underline());
+                    println!();
+
+                    let mut keys: Vec<&String> = store.entries.keys().collect();
+                    keys.sort();
+
+                    for key in keys {
+                        let entry = &store.entries[key];
+                        let level_str = match entry.trust_level {
+                            TrustLevel::Accepted => "accepted".green().to_string(),
+                            TrustLevel::Quarantined => "QUARANTINED".bright_red().bold().to_string(),
+                        };
+
+                        let rules_str = if entry.accepted_rules.is_empty() {
+                            "all rules".dimmed().to_string()
+                        } else {
+                            entry.accepted_rules.join(", ")
+                        };
+
+                        println!(
+                            "  {} [{}] rules: {} | hash: {}.. | {}",
+                            key.bright_cyan(),
+                            level_str,
+                            rules_str,
+                            &entry.component_hash[..8],
+                            entry.decided_at.format("%Y-%m-%d %H:%M")
+                        );
+
+                        if let Some(ref notes) = entry.notes {
+                            println!("    {}", format!("Notes: {}", notes).dimmed());
+                        }
+                    }
+                    println!();
+                    println!("Total: {} entries", store.entries.len());
+                }
+
+                TrustSubcommand::Revoke { name } => {
+                    let mut store = TrustStore::load().unwrap_or_default();
+
+                    // Try exact key first, then bare name match
+                    let key = if store.entries.contains_key(&name) {
+                        name.clone()
+                    } else {
+                        // Search for bare name match
+                        store
+                            .entries
+                            .keys()
+                            .find(|k| k.ends_with(&format!(":{}", name)))
+                            .cloned()
+                            .unwrap_or(name.clone())
+                    };
+
+                    if store.revoke(&key) {
+                        store.save()?;
+                        println!(
+                            "{} Revoked trust for {}",
+                            "✓".green().bold(),
+                            key.bright_cyan()
+                        );
+                    } else {
+                        eprintln!(
+                            "{}: No trust entry found for '{}'",
+                            "Error".bright_red().bold(),
+                            name
+                        );
+                        std::process::exit(1);
+                    }
+                }
+
+                TrustSubcommand::Show { path } => {
+                    let components = vexscan::components::detect_components(&path);
+                    if components.is_empty() {
+                        eprintln!(
+                            "{}: No AI component detected at {}",
+                            "Error".bright_red().bold(),
+                            path.display()
+                        );
+                        std::process::exit(1);
+                    }
+
+                    let store = TrustStore::load().unwrap_or_default();
+
+                    for comp in &components {
+                        let kind = vexscan::trust::component_kind_key(comp);
+                        let current_hash = vexscan::trust::hash_component_dir(&comp.root)?;
+
+                        println!(
+                            "{} {} ({})",
+                            "Component:".bold(),
+                            comp.name.bright_cyan(),
+                            comp.kind
+                        );
+                        println!("  Path: {}", comp.root.display());
+                        println!("  Hash: {}", &current_hash[..16]);
+
+                        match store.get(&kind, &comp.name) {
+                            Some(entry) => {
+                                let level_str = match entry.trust_level {
+                                    TrustLevel::Accepted => "Accepted".green().to_string(),
+                                    TrustLevel::Quarantined => {
+                                        "QUARANTINED".bright_red().bold().to_string()
+                                    }
+                                };
+                                println!("  Trust: {}", level_str);
+
+                                if current_hash == entry.component_hash {
+                                    println!("  Hash:  {} (matches)", "valid".green());
+                                } else {
+                                    println!(
+                                        "  Hash:  {} (stored: {}..)",
+                                        "STALE — component changed since trust was granted"
+                                            .yellow()
+                                            .bold(),
+                                        &entry.component_hash[..8]
+                                    );
+                                }
+
+                                if entry.accepted_rules.is_empty() {
+                                    println!("  Rules: all (full trust)");
+                                } else {
+                                    println!("  Rules: {}", entry.accepted_rules.join(", "));
+                                }
+                                println!("  Since: {}", entry.decided_at.format("%Y-%m-%d %H:%M"));
+                                if let Some(ref notes) = entry.notes {
+                                    println!("  Notes: {}", notes);
+                                }
+                            }
+                            None => {
+                                println!("  Trust: {} (not in trust store)", "none".dimmed());
+                            }
+                        }
+                        println!();
+                    }
+                }
+            }
+        }
+
         Commands::Cache { subcommand } => {
             // Build a dummy profile just to access the cache directory
             let profile = ScanProfile::from_config(false, false, false, 0);
@@ -1365,9 +1669,9 @@ fn clone_github_repo(url: &str, branch: Option<&str>) -> Result<tempfile::TempDi
 
 /// Print the verdict based on scan results.
 fn print_verdict(report: &vexscan::ScanReport, threshold: Severity) {
-    let max_sev = report.max_severity();
+    let max_sev = report.max_active_severity();
 
-    let (critical, high, medium, low, info_count) = count_by_severity(report);
+    let (critical, high, medium, low, info_count) = count_active_by_severity(report);
 
     info!("{}", "═".repeat(60));
 
@@ -1496,8 +1800,8 @@ fn print_verdict(report: &vexscan::ScanReport, threshold: Severity) {
     }
 }
 
-/// Count findings by severity.
-fn count_by_severity(report: &vexscan::ScanReport) -> (usize, usize, usize, usize, usize) {
+/// Count active (non-suppressed) findings by severity.
+fn count_active_by_severity(report: &vexscan::ScanReport) -> (usize, usize, usize, usize, usize) {
     let mut critical = 0;
     let mut high = 0;
     let mut medium = 0;
@@ -1506,6 +1810,9 @@ fn count_by_severity(report: &vexscan::ScanReport) -> (usize, usize, usize, usiz
 
     for result in &report.results {
         for finding in &result.findings {
+            if finding.suppressed_by.is_some() {
+                continue;
+            }
             match finding.severity {
                 Severity::Critical => critical += 1,
                 Severity::High => high += 1,

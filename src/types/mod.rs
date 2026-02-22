@@ -132,6 +132,9 @@ pub struct Finding {
     /// Additional metadata.
     #[serde(default)]
     pub metadata: std::collections::HashMap<String, String>,
+    /// If set, this finding was suppressed by the trust store (value = trust key).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suppressed_by: Option<String>,
 }
 
 impl Finding {
@@ -154,6 +157,7 @@ impl Finding {
             snippet: snippet.into(),
             remediation: None,
             metadata: std::collections::HashMap::new(),
+            suppressed_by: None,
         }
     }
 
@@ -279,6 +283,16 @@ impl ScanReport {
 
     pub fn max_severity(&self) -> Option<Severity> {
         self.results.iter().filter_map(|r| r.max_severity()).max()
+    }
+
+    /// Highest severity among non-suppressed findings only.
+    pub fn max_active_severity(&self) -> Option<Severity> {
+        self.results
+            .iter()
+            .flat_map(|r| r.findings.iter())
+            .filter(|f| f.suppressed_by.is_none())
+            .map(|f| f.severity)
+            .max()
     }
 
     /// Compute a 0-100 risk score from finding severities.
