@@ -7,6 +7,7 @@
       "title": "URL to executable script in prompt",
       "description": "Prompt contains URL pointing to executable script (.sh, .py, .ps1, etc.). An AI agent following these instructions could download and execute malicious code.",
       "severity": "high",
+      "contexts": ["code", "message", "skill", "plugin"],
       "pattern": "(?i)https?://[^\\s/]+/[^\\s]*\\.(sh|bash|py|ps1|bat|cmd|exe|js|vbs|rb)(\\s|$|\\)|]|>)",
       "file_extensions": ["md", "txt", "yaml", "yml"],
       "exclude_patterns": [
@@ -19,6 +20,7 @@
       "title": "Instruction to download and execute",
       "description": "Natural language instruction telling AI to download and run/execute a script. This is a common attack vector for malicious skills.",
       "severity": "critical",
+      "contexts": ["code", "message", "skill", "plugin"],
       "pattern": "(?i)(download|fetch|get|retrieve|pull)\\s+.{0,50}(and\\s+)?(run|execute|launch|start|invoke|call)|(?i)(run|execute|launch|start)\\s+.{0,30}(from|at)\\s+https?://",
       "file_extensions": ["md", "txt", "yaml", "yml"],
       "remediation": "Do not instruct AI agents to download and execute remote code. Embed trusted code directly or use vetted package managers."
@@ -28,6 +30,7 @@
       "title": "Instruction to fetch remote script",
       "description": "Instruction pattern that asks AI to fetch a URL and run it as a script.",
       "severity": "critical",
+      "contexts": ["code", "message", "skill", "plugin"],
       "pattern": "(?i)(fetch|download|get|curl|wget)\\s+(the\\s+)?(script|file|code|installer|setup|payload)\\s+(from\\s+)?https?://",
       "file_extensions": ["md", "txt", "yaml", "yml"],
       "remediation": "Do not fetch and execute remote scripts. Review and embed code locally."

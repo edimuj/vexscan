@@ -7,11 +7,11 @@
       "title": "Privileged OpenClaw plugin kind",
       "description": "Plugin manifest declares kind 'channel' or 'memory', which grants deep access to message flow and persistent storage. These kinds should only be used by trusted, first-party plugins.",
       "severity": "high",
+      "contexts": ["config", "plugin"],
       "patterns": [
         "\"kind\"\\s*:\\s*\"(channel|memory)\""
       ],
       "file_names": ["openclaw.plugin.json"],
-      "contexts": ["plugin", "config"],
       "remediation": "Verify the plugin genuinely needs channel or memory access. Most third-party plugins should use kind 'tool'.",
       "test_cases": {
         "should_match": [
@@ -31,11 +31,11 @@
       "title": "Plugin config requests sensitive credentials",
       "description": "Plugin configSchema requests fields named token, secret, key, password, api_key, or credential. A tool plugin should not need user credentials in its config unless it's an auth adapter.",
       "severity": "critical",
+      "contexts": ["config", "plugin"],
       "patterns": [
         "\"(token|secret|api_?key|password|credential|private_?key|auth_?token|access_?token)\"\\s*:\\s*\\{[^}]*\"type\"\\s*:\\s*\"string\""
       ],
       "file_names": ["openclaw.plugin.json"],
-      "contexts": ["plugin", "config"],
       "remediation": "Plugins should not collect credentials via configSchema. Use OpenClaw's built-in secret management or OAuth integration instead.",
       "test_cases": {
         "should_match": [
@@ -56,6 +56,7 @@
       "title": "Plugin registers gateway RPC method",
       "description": "Plugin calls registerGatewayMethod() to add custom RPC endpoints to the OpenClaw gateway. This extends the gateway's attack surface and is unusual for tool plugins.",
       "severity": "high",
+      "contexts": ["code", "plugin"],
       "patterns": [
         "\\bregisterGatewayMethod\\s*\\(",
         "\\bapi\\.registerGatewayMethod\\b"
@@ -78,6 +79,7 @@
       "title": "Plugin registers HTTP route",
       "description": "Plugin calls registerHttpRoute() or registerHttpHandler() to expose HTTP endpoints on the gateway. This opens network attack surface that persists beyond the agent session.",
       "severity": "medium",
+      "contexts": ["code", "plugin"],
       "patterns": [
         "\\bregisterHttp(Route|Handler)\\s*\\(",
         "\\bapi\\.registerHttp(Route|Handler)\\b"
@@ -101,6 +103,7 @@
       "title": "Gateway configuration modification",
       "description": "Code that modifies OpenClaw gateway configuration files or uses the gateway tool to change auth, bind address, or security settings. Tampering with gateway config can disable authentication or expose the gateway to the network.",
       "severity": "critical",
+      "contexts": ["code", "plugin"],
       "patterns": [
         "openclaw\\.json[^\\n]*(write|append|open|>)",
         "(write|append|open|>)[^\\n]*openclaw\\.json",
@@ -130,6 +133,7 @@
       "title": "Cron job with external webhook delivery",
       "description": "Cron job definition with delivery mode set to webhook pointing to an external URL. This creates a persistent exfiltration channel that runs on a schedule.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "delivery[^\\n]*webhook[^\\n]*(https?://|\\$\\{|\\$[A-Z])",
         "\"mode\"\\s*:\\s*\"webhook\"[^}]*\"url\"\\s*:\\s*\"https?://",
@@ -155,6 +159,7 @@
       "title": "Unsafe external content flag in cron job",
       "description": "Cron job with allowUnsafeExternalContent set to true. This disables safety wrapping on external content fetched by the cron job, enabling indirect prompt injection.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "allowUnsafeExternalContent\\s*[=:]\\s*true",
         "\"allowUnsafeExternalContent\"\\s*:\\s*true"
@@ -178,13 +183,13 @@
       "title": "Skill with direct tool dispatch",
       "description": "SKILL.md or skill definition using command-dispatch: tool, which bypasses LLM reasoning and directly invokes tools. This reduces the safety layer between user intent and tool execution.",
       "severity": "medium",
+      "contexts": ["skill", "plugin"],
       "patterns": [
         "command-dispatch\\s*:\\s*tool",
         "\"commandDispatch\"\\s*:\\s*\"tool\"",
         "dispatch_mode\\s*[=:]\\s*['\"]?tool['\"]?"
       ],
       "file_extensions": ["md", "yaml", "yml", "json", "ts", "js"],
-      "contexts": ["skill", "plugin"],
       "remediation": "Prefer command-dispatch: agent (default) to maintain LLM reasoning as a safety layer. Only use tool dispatch for well-audited, trusted skills.",
       "test_cases": {
         "should_match": [
@@ -204,6 +209,7 @@
       "title": "Agent bootstrap file modification",
       "description": "Code that writes to AGENTS.md, SOUL.md, IDENTITY.md, or TOOLS.md — the files that define an agent's personality, capabilities, and instructions. Modifying these enables persistent prompt injection that affects all future sessions.",
       "severity": "critical",
+      "contexts": ["code", "plugin"],
       "patterns": [
         "(write|append|open|>|edit|modify|patch|replace)[^\\n]*(AGENTS|SOUL|IDENTITY|TOOLS)\\.md",
         "(AGENTS|SOUL|IDENTITY|TOOLS)\\.md[^\\n]*(write|append|open|>|edit|modify|patch|replace)",
@@ -233,6 +239,7 @@
       "title": "Session key or session hijacking",
       "description": "Code that accesses allowRequestSessionKey, spawns sessions with hijacked keys, or manipulates session tokens. Session hijacking allows a plugin to impersonate users or access other sessions.",
       "severity": "high",
+      "contexts": ["code", "plugin"],
       "patterns": [
         "allowRequestSessionKey\\s*[=:]\\s*true",
         "\"allowRequestSessionKey\"\\s*:\\s*true",

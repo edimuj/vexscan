@@ -7,6 +7,7 @@
       "title": "Zero-width characters",
       "description": "Zero-width characters can hide instructions in seemingly empty text.",
       "severity": "high",
+      "contexts": [],
       "pattern": "[\\u200B\\u200C\\u200D\\u2060\\uFEFF]{3,}",
       "file_extensions": [],
       "remediation": "Remove zero-width characters that may hide content."
@@ -16,6 +17,7 @@
       "title": "HTML comment instructions",
       "description": "Potential prompt injection hidden in HTML comments.",
       "severity": "medium",
+      "contexts": [],
       "pattern": "(?i)<!--\\s*(ignore\\s+(all\\s+)?(previous|prior)|execute\\s+(this|the\\s+following)|you\\s+(must|should|are)|do\\s+not\\s+tell|secretly|hidden\\s+instruction)",
       "file_extensions": ["html", "htm", "md"],
       "remediation": "Review HTML comments for hidden instructions."
@@ -25,6 +27,7 @@
       "title": "Shell commands in markdown",
       "description": "Markdown code block contains potentially dangerous shell commands that could be extracted and executed.",
       "severity": "high",
+      "contexts": ["code", "config", "message", "skill", "plugin"],
       "pattern": "```(?:bash|sh|shell|zsh)\\s*\\n[^`]*(rm\\s+-rf|curl\\s+[^|]*\\|\\s*(ba)?sh|wget\\s+[^|]*\\|\\s*(ba)?sh|chmod\\s+[+0-7]*x|>\\s*/etc/|mkfs\\.|dd\\s+if=)[^`]*```",
       "file_extensions": ["md", "markdown"],
       "remediation": "Review shell commands in markdown for malicious intent."
@@ -34,6 +37,7 @@
       "title": "Eval/exec in markdown code block",
       "description": "Markdown code block contains eval/exec which could be extracted and executed.",
       "severity": "high",
+      "contexts": ["code", "config", "message", "skill", "plugin"],
       "pattern": "```(?:python|py)\\s*\\n[^`]*(exec\\s*\\(|eval\\s*\\()[^`]*```",
       "file_extensions": ["md", "markdown"],
       "remediation": "Review Python code in markdown for malicious intent."
@@ -43,6 +47,7 @@
       "title": "JavaScript eval in markdown",
       "description": "Markdown code block contains JavaScript eval which could be extracted and executed.",
       "severity": "high",
+      "contexts": ["code", "config", "message", "skill", "plugin"],
       "pattern": "```(?:javascript|js|typescript|ts)\\s*\\n[^`]*(\\beval\\s*\\(|\\bnew\\s+Function\\s*\\()[^`]*```",
       "file_extensions": ["md", "markdown"],
       "remediation": "Review JavaScript code in markdown for malicious intent."
@@ -52,6 +57,7 @@
       "title": "Curl/wget piped to shell in markdown",
       "description": "Classic 'curl | bash' attack pattern in markdown code block. Trusted installer domains are downgraded post-scan.",
       "severity": "critical",
+      "contexts": ["code", "config", "message", "skill", "plugin"],
       "pattern": "```[^`]*(curl|wget)\\s+[^\\n]*\\|\\s*(sudo\\s+)?(ba)?sh[^`]*```",
       "file_extensions": ["md", "markdown"],
       "remediation": "Never pipe remote content directly to shell. Download and inspect first."

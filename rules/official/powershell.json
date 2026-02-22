@@ -7,6 +7,7 @@
       "title": "Invoke-Expression / IEX",
       "description": "Invoke-Expression (IEX) executes arbitrary strings as PowerShell commands.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bInvoke-Expression\\b",
         "\\bIEX\\s*\\("
@@ -30,6 +31,7 @@
       "title": "DownloadString/DownloadFile",
       "description": "Downloading and executing remote content is a primary malware delivery mechanism.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\.DownloadString\\s*\\(",
         "\\.DownloadFile\\s*\\(",
@@ -54,6 +56,7 @@
       "title": "EncodedCommand execution",
       "description": "Base64-encoded PowerShell commands are used to evade detection.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bpowershell\\b[^\\n]*-[Ee]nc(odedCommand)?\\s",
         "\\bpwsh\\b[^\\n]*-[Ee]nc(odedCommand)?\\s"
@@ -77,6 +80,7 @@
       "title": "Execution policy bypass",
       "description": "Bypassing execution policy removes a security control against running untrusted scripts.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "-[Ee]xecutionPolicy\\s+(Bypass|Unrestricted)",
         "Set-ExecutionPolicy\\s+(Bypass|Unrestricted)"
@@ -100,6 +104,7 @@
       "title": "PowerShell reverse shell",
       "description": "PowerShell reverse shell connects back to attacker-controlled server.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bNew-Object\\s+System\\.Net\\.Sockets\\.TCPClient",
         "\\bSystem\\.Net\\.Sockets\\.TcpListener",
@@ -124,6 +129,7 @@
       "title": "Hidden window execution",
       "description": "Running PowerShell with hidden window conceals malicious activity from the user.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "-[Ww]indowStyle\\s+[Hh]idden",
         "\\bStart-Process\\b[^\\n]*-[Nn]o[Nn]ew[Ww]indow"
@@ -146,6 +152,7 @@
       "title": "Credential harvesting",
       "description": "PowerShell credential commands can steal or prompt for user credentials.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bGet-Credential\\b",
         "\\bConvertTo-SecureString\\b[^\\n]*-AsPlainText",
@@ -171,6 +178,7 @@
       "title": "Registry manipulation",
       "description": "Modifying Windows registry can establish persistence or disable security.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bNew-ItemProperty\\s+[^\\n]*HKLM:",
         "\\bSet-ItemProperty\\s+[^\\n]*HKLM:",
@@ -197,6 +205,7 @@
       "title": "AMSI bypass",
       "description": "Bypassing AMSI (Antimalware Scan Interface) disables PowerShell malware scanning.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bAmsiUtils\\b",
         "\\bamsiInitFailed\\b",
@@ -222,6 +231,7 @@
       "title": "Base64 decode and execute",
       "description": "Decoding and executing base64 in PowerShell is a common obfuscation technique.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\[System\\.Convert\\]::FromBase64String",
         "\\[Convert\\]::FromBase64String",
@@ -246,6 +256,7 @@
       "title": "Scheduled task creation",
       "description": "Creating scheduled tasks establishes persistent execution.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bRegister-ScheduledTask\\b",
         "\\bNew-ScheduledTaskAction\\b",
@@ -270,6 +281,7 @@
       "title": "Disable Windows Defender",
       "description": "Disabling Windows Defender removes a critical security protection.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bSet-MpPreference\\s+[^\\n]*-DisableRealtimeMonitoring\\s+\\$true",
         "\\bSet-MpPreference\\s+[^\\n]*-DisableIOAVProtection\\s+\\$true",

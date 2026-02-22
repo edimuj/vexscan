@@ -7,6 +7,7 @@
       "title": "Child process spawn/exec",
       "description": "Spawning shell processes can execute arbitrary system commands.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\b(child_process|require\\s*\\(\\s*['\"]child_process['\"]\\s*\\))\\s*\\.\\s*(exec|execSync|spawn|spawnSync|execFile|execFileSync|fork)\\s*\\(",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
       "remediation": "Validate all inputs passed to shell commands. Prefer execFile over exec when possible."
@@ -16,6 +17,7 @@
       "title": "Shell execution via execa/shelljs",
       "description": "Popular shell execution libraries that can run arbitrary commands.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\b(execa|shelljs|\\$`|shell\\.exec)\\s*\\(",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
       "remediation": "Audit all shell commands being executed and validate inputs."
@@ -25,6 +27,7 @@
       "title": "Python subprocess with non-list arguments",
       "description": "subprocess call with string or variable arguments is vulnerable to command injection.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\bsubprocess\\s*\\.\\s*(run|call|Popen|check_output|check_call|getoutput|getstatusoutput)\\s*\\(\\s*[^\\[\\s]",
       "file_extensions": ["py"],
       "remediation": "Use shell=False and pass arguments as a list. Validate all inputs."
@@ -34,6 +37,7 @@
       "title": "Python os.system/popen",
       "description": "os.system() and os.popen() execute shell commands.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\bos\\s*\\.\\s*(system|popen)\\s*\\(",
       "file_extensions": ["py"],
       "remediation": "Use subprocess module with shell=False instead."
@@ -43,6 +47,7 @@
       "title": "Destructured child_process import",
       "description": "Importing exec/spawn from child_process enables shell command execution.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "(const|let|var)\\s*\\{\\s*(exec|execSync|spawn|spawnSync|execFile|fork)[^}]*\\}\\s*=\\s*require\\s*\\(\\s*['\"]child_process['\"]\\s*\\)",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
       "remediation": "Review shell command usage for security issues."
@@ -52,6 +57,7 @@
       "title": "Direct exec/execSync call",
       "description": "Direct exec() or execSync() calls execute shell commands.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\b(exec|execSync)\\s*\\(\\s*['\"`]",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
       "remediation": "Validate all shell command inputs."
@@ -61,6 +67,7 @@
       "title": "Reverse shell pattern",
       "description": "Bash reverse shell connects back to attacker-controlled server.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "(bash\\s+-i\\s+>&\\s*/dev/tcp/|nc\\s+(-e|--exec)\\s+/bin/(ba)?sh|/dev/tcp/[^/]+/[0-9]+)",
       "file_extensions": ["sh", "bash", "zsh"],
       "remediation": "Remove reverse shell code immediately."
@@ -70,6 +77,7 @@
       "title": "Curl/wget pipe to shell",
       "description": "Downloading and executing remote scripts is extremely dangerous. Trusted installer domains are downgraded post-scan.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "(curl|wget)\\s+[^\\n|]*\\|\\s*(sudo\\s+)?(ba)?sh",
       "file_extensions": ["sh", "bash", "zsh"],
       "remediation": "Download scripts and review before executing."
@@ -79,6 +87,7 @@
       "title": "Python reverse shell",
       "description": "Python one-liner reverse shell pattern combining socket with shell spawning (subprocess, os.dup2, pty.spawn).",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "python[23]?\\s+-c\\s+.import\\s+socket.*?(?:subprocess\\.(?:call|Popen|run)|os\\.dup2|pty\\.spawn)",
       "file_extensions": ["sh", "bash", "zsh"],
       "remediation": "Remove reverse shell code.",
@@ -100,6 +109,7 @@
       "title": "Subprocess with shell=True",
       "description": "subprocess with shell=True passes commands through the shell, enabling command injection.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\bsubprocess\\s*\\.\\s*(run|call|Popen|check_output|check_call)\\s*\\([^)]*shell\\s*=\\s*True",
       "file_extensions": ["py"],
       "remediation": "Use shell=False (the default) and pass arguments as a list."
@@ -109,6 +119,7 @@
       "title": "Netcat with shell execution",
       "description": "Netcat (nc/ncat) combined with shell execution is a common backdoor pattern.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\b(nc|ncat|netcat)\\s+.*(-e|--exec|\\|\\s*/bin/(ba)?sh)",
       "file_extensions": ["sh", "bash", "zsh", "py", "rb", "pl", "js", "ts", "mjs", "cjs", "md", "txt", "yaml", "yml"],
       "remediation": "Remove netcat shell execution patterns."
@@ -118,6 +129,7 @@
       "title": "Python pexpect shell spawning",
       "description": "pexpect.spawn() creates interactive shell processes. In plugins and MCP servers, this gives AI agents unrestricted shell access to execute arbitrary commands.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\bpexpect\\s*\\.\\s*(spawn|spawnu|run)\\s*\\(",
       "file_extensions": ["py"],
       "remediation": "Restrict shell access. Use allowlists for permitted commands instead of spawning unrestricted shells.",
@@ -139,6 +151,7 @@
       "title": "Python pty.spawn shell",
       "description": "pty.spawn() creates a pseudo-terminal and spawns a shell process. Commonly used in reverse shells and privilege escalation.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\bpty\\s*\\.\\s*spawn\\s*\\(",
       "file_extensions": ["py"],
       "remediation": "Remove pty.spawn() usage. Use subprocess with restricted permissions instead.",
@@ -158,6 +171,7 @@
       "title": "Python os.exec* process replacement",
       "description": "os.exec*() functions replace the current process with a new program. Can be used to escape sandboxes or execute arbitrary binaries.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\bos\\s*\\.\\s*(execl|execle|execlp|execv|execve|execvp|execvpe)\\s*\\(",
       "file_extensions": ["py"],
       "remediation": "Use subprocess with restricted permissions instead of os.exec*().",
@@ -178,6 +192,7 @@
       "title": "Python asyncio subprocess shell",
       "description": "asyncio.create_subprocess_shell() executes commands through the system shell. The _exec variant spawns processes directly.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\basyncio\\s*\\.\\s*create_subprocess_(shell|exec)\\s*\\(",
       "file_extensions": ["py"],
       "remediation": "Validate and restrict commands passed to asyncio subprocess functions.",
@@ -197,6 +212,7 @@
       "title": "Python subprocess.Popen persistent process",
       "description": "subprocess.Popen() creates a persistent subprocess. In MCP servers and plugins, this can provide AI agents with long-running shell access.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\bsubprocess\\s*\\.\\s*Popen\\s*\\(",
       "file_extensions": ["py"],
       "exclude_patterns": [

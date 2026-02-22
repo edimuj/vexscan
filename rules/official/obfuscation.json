@@ -7,6 +7,7 @@
       "title": "Base64 decode (atob)",
       "description": "atob() decodes base64 strings, commonly used to hide malicious payloads.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\batob\\s*\\(",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
       "remediation": "Review what is being decoded. Legitimate uses should have clear, documented purposes."
@@ -16,6 +17,7 @@
       "title": "Buffer.from base64",
       "description": "Buffer.from with base64 encoding is used to decode hidden content.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "Buffer\\s*\\.\\s*from\\s*\\([^)]*['\"](base64|hex)['\"]",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
       "remediation": "Review what is being decoded and ensure it's not hiding malicious content."
@@ -25,6 +27,7 @@
       "title": "Long base64 string literal",
       "description": "Long base64-encoded strings may contain hidden code or data.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "['\"`][A-Za-z0-9+/=]{100,}['\"`]",
       "file_extensions": [],
       "remediation": "Decode and review the content of long encoded strings."
@@ -34,6 +37,7 @@
       "title": "String.fromCharCode obfuscation",
       "description": "String.fromCharCode can be used to build strings that evade pattern matching.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "String\\s*\\.\\s*fromCharCode\\s*\\([^)]{10,}\\)",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
       "remediation": "Review what string is being constructed."
@@ -43,6 +47,7 @@
       "title": "Hex escape sequence string",
       "description": "Strings with many hex escapes may be obfuscating content.",
       "severity": "low",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "['\"]((\\\\x[0-9a-fA-F]{2})){5,}['\"]",
       "file_extensions": ["js", "ts", "mjs", "cjs", "py"],
       "remediation": "Convert hex escapes to readable text and review."
@@ -52,6 +57,7 @@
       "title": "Python base64 decode",
       "description": "base64.b64decode() is commonly used to hide malicious payloads.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\bbase64\\s*\\.\\s*(b64decode|decodebytes|decodestring)\\s*\\(",
       "file_extensions": ["py"],
       "remediation": "Review what is being decoded."

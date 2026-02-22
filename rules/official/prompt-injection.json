@@ -7,6 +7,7 @@
       "title": "Ignore instructions pattern",
       "description": "Classic prompt injection attempting to override system instructions. Dangerous in code comments and docstrings as AI agents read source code.",
       "severity": "critical",
+      "contexts": [],
       "pattern": "(?i)(ignore|disregard|forget)\\s+(all\\s+)?(previous|prior|above|earlier)\\s+(instructions|rules|guidelines|constraints)",
       "file_extensions": ["md", "txt", "json", "yaml", "yml", "py", "js", "jsx", "mjs", "ts", "tsx", "mts", "html", "htm", "rb", "go", "rs", "java", "php"],
       "remediation": "Remove prompt injection attempts from content."
@@ -16,6 +17,7 @@
       "title": "System message injection",
       "description": "Attempting to inject fake system messages. Can be embedded in code comments to poison AI context.",
       "severity": "critical",
+      "contexts": [],
       "pattern": "(?i)(<\\s*system\\s*>|\\[SYSTEM\\]|^SYSTEM\\s*:|---\\s*system\\s*---|<<\\s*system\\s*>>)",
       "file_extensions": ["md", "txt", "json", "yaml", "yml", "py", "js", "jsx", "mjs", "ts", "tsx", "mts", "html", "htm", "rb", "go", "rs", "java", "php"],
       "remediation": "Remove fake system message injections."
@@ -25,6 +27,7 @@
       "title": "Role/mode override",
       "description": "Attempting to change AI role or enable special modes. Can be hidden in code comments or docstrings.",
       "severity": "high",
+      "contexts": [],
       "pattern": "(?i)(you\\s+are\\s+now\\s+(in\\s+)?(developer|admin|debug|root|jailbreak|DAN|unrestricted)|switch\\s+to\\s+(developer|admin|debug|jailbreak|DAN|unrestricted)\\s+mode|enter\\s+(jailbreak|DAN|unrestricted)\\s+mode|activate\\s+(jailbreak|DAN|unrestricted))",
       "file_extensions": ["md", "txt", "json", "yaml", "yml", "py", "js", "jsx", "mjs", "ts", "tsx", "mts", "html", "htm", "rb", "go", "rs", "java", "php"],
       "remediation": "Remove role/mode override attempts."
@@ -34,6 +37,7 @@
       "title": "Pre-authorization claim",
       "description": "Claiming user has already authorized an action. Can appear in code comments to influence AI agents.",
       "severity": "high",
+      "contexts": [],
       "pattern": "(?i)(user\\s+has\\s+(already\\s+)?(authorized|approved|confirmed|granted|consented)|pre-?authorized|implicit\\s+consent)",
       "file_extensions": ["md", "txt", "json", "yaml", "yml", "py", "js", "jsx", "mjs", "ts", "tsx", "mts", "html", "htm", "rb", "go", "rs", "java", "php"],
       "remediation": "Remove false authorization claims."
@@ -43,6 +47,7 @@
       "title": "Identity hijacking",
       "description": "Attempting to change the AI's identity to bypass restrictions. Can be smuggled via code comments.",
       "severity": "critical",
+      "contexts": [],
       "pattern": "(?i)(you\\s+are\\s+(no\\s+longer|not)\\s+(claude|gpt|assistant|an?\\s+ai)|you\\s+are\\s+now\\s+[a-z]+gpt|from\\s+now\\s+on.{0,20}(respond|act|behave)\\s+as)",
       "file_extensions": ["md", "txt", "json", "yaml", "yml", "py", "js", "jsx", "mjs", "ts", "tsx", "mts", "html", "htm", "rb", "go", "rs", "java", "php"],
       "remediation": "Remove identity hijacking attempts."
@@ -52,6 +57,7 @@
       "title": "Admin/developer impersonation",
       "description": "Claiming to be an administrator or developer to override instructions. Dangerous in code comments read by AI agents.",
       "severity": "high",
+      "contexts": [],
       "pattern": "(?i)(this\\s+is\\s+(a\\s+)?(message\\s+from|instruction\\s+from)|I\\s+am\\s+(the|an?)\\s+(system\\s+)?administrator|official\\s+(message|instruction)\\s+from\\s+(anthropic|openai|the\\s+system))",
       "file_extensions": ["md", "txt", "json", "yaml", "yml", "py", "js", "jsx", "mjs", "ts", "tsx", "mts", "html", "htm", "rb", "go", "rs", "java", "php"],
       "remediation": "Remove authority impersonation attempts."
@@ -61,6 +67,7 @@
       "title": "Emergency/urgent override",
       "description": "Using urgency to bypass normal security checks. Can be embedded in code comments.",
       "severity": "medium",
+      "contexts": [],
       "pattern": "(?i)(emergency|urgent|critical|immediately)\\s+(override|bypass|skip|ignore)\\s+(security|verification|confirmation)",
       "file_extensions": ["md", "txt", "json", "yaml", "yml", "py", "js", "jsx", "mjs", "ts", "tsx", "mts", "html", "htm", "rb", "go", "rs", "java", "php"],
       "remediation": "Remove urgency-based override attempts."
@@ -70,6 +77,7 @@
       "title": "Authority claim from company",
       "description": "Claiming messages are from Anthropic, OpenAI, or other authorities. Can appear in any file read by AI agents.",
       "severity": "high",
+      "contexts": [],
       "pattern": "(?i)(message|instruction|directive|order)\\s+from\\s+(anthropic|openai|the)?\\s*(admin|administrator|developer|security\\s+team|support)",
       "file_extensions": ["md", "txt", "json", "yaml", "yml", "py", "js", "jsx", "mjs", "ts", "tsx", "mts", "html", "htm", "rb", "go", "rs", "java", "php"],
       "remediation": "Remove false authority claims."
@@ -79,6 +87,7 @@
       "title": "Reveal system prompt",
       "description": "Attempting to trick an AI into revealing its system prompt or initial instructions, which may contain sensitive configuration. Can be hidden in code comments.",
       "severity": "medium",
+      "contexts": [],
       "patterns": [
         "(?i)(reveal|show|display|print|output)\\s+(your|the)\\s+(system|initial|original)\\s+(prompt|instructions|message)",
         "(?i)what\\s+(are|is)\\s+your\\s+(system|initial)\\s+(prompt|instructions)"
@@ -104,6 +113,7 @@
       "title": "Action concealment",
       "description": "Instructions telling an AI to hide actions from the user indicate malicious intent. Especially dangerous in code comments and docstrings.",
       "severity": "high",
+      "contexts": [],
       "patterns": [
         "(?i)do\\s+not\\s+(tell|inform|mention|notify)\\s+(the\\s+)?user",
         "(?i)(hide|conceal)\\s+(this|that|the)\\s+(action|operation|step)",

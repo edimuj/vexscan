@@ -7,6 +7,7 @@
       "title": "Direct eval() usage",
       "description": "eval() executes arbitrary code and is commonly used in malware to run obfuscated payloads.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\beval\\s*\\(",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
       "exclude_patterns": [
@@ -23,6 +24,7 @@
       "title": "Function constructor",
       "description": "new Function() is equivalent to eval() and can execute arbitrary code.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\bnew\\s+Function\\s*\\(",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
       "remediation": "Avoid dynamic code generation. Use explicit function definitions."
@@ -32,6 +34,7 @@
       "title": "VM code execution",
       "description": "Node.js vm module can execute arbitrary code with various isolation levels.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\bvm\\s*\\.\\s*(runInContext|runInNewContext|runInThisContext|compileFunction)\\s*\\(",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
       "remediation": "Ensure VM usage is intentional and inputs are strictly validated."
@@ -41,6 +44,7 @@
       "title": "Python exec/eval",
       "description": "exec() and eval() execute arbitrary Python code.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\b(exec|eval)\\s*\\(",
       "file_extensions": ["py"],
       "remediation": "Use ast.literal_eval() for safe evaluation of literals, or avoid dynamic execution entirely."
@@ -50,6 +54,7 @@
       "title": "Python __import__() dynamic import",
       "description": "__import__() allows loading arbitrary modules at runtime, commonly used to evade static analysis.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\b__import__\\s*\\(",
       "file_extensions": ["py"],
       "remediation": "Use explicit import statements instead of dynamic __import__()."
@@ -59,6 +64,7 @@
       "title": "Python compile() for code generation",
       "description": "compile() creates code objects from strings, which can then be executed with exec().",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\bcompile\\s*\\([^)]*['\"][^'\"]*['\"]\\s*,\\s*['\"]",
       "file_extensions": ["py"],
       "remediation": "Avoid compiling code from strings. Use direct function definitions."
@@ -68,6 +74,7 @@
       "title": "YAML deserialization attack",
       "description": "Unsafe YAML loading with type constructors (!!python/object, !!python/apply) enables arbitrary code execution. Critical in Python AI agent frameworks that process YAML configs.",
       "severity": "critical",
+      "contexts": ["code", "config", "skill", "plugin"],
       "pattern": "(!!python/(object|module|apply|import)|yaml\\.load\\s*\\([^)]*Loader\\s*=\\s*yaml\\.Loader|yaml\\.unsafe_load|yaml\\.full_load|\\bLoad\\s*\\([^)]*\\byaml\\b)",
       "file_extensions": ["py", "yaml", "yml", "txt", "md"],
       "remediation": "Use yaml.safe_load() instead of yaml.load(). Never process YAML with !!python type constructors from untrusted sources.",
@@ -89,6 +96,7 @@
       "title": "SQL injection via string formatting",
       "description": "Building SQL queries with f-strings or .format() allows attackers to inject arbitrary SQL commands.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "f[\"']SELECT.*FROM.*\\{",
         "f[\"'].*WHERE.*\\{",

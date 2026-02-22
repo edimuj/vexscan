@@ -7,6 +7,7 @@
       "title": "Shell environment exfiltration",
       "description": "Dumping environment variables can expose API keys, tokens, and secrets to attackers.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bprintenv\\b",
         "\\bcat\\s+/proc/self/environ\\b",
@@ -32,6 +33,7 @@
       "title": "Base64 decode-execute pipe",
       "description": "Decoding base64 strings and piping to shell is a common payload delivery mechanism.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "base64\\s+(-d|--decode)\\s*\\|\\s*(ba)?sh",
         "echo\\s+[^|]+\\|\\s*base64\\s+(-d|--decode)\\s*\\|\\s*(ba)?sh"
@@ -55,6 +57,7 @@
       "title": "Shell eval/indirect execution",
       "description": "eval with variable expansion enables execution of dynamically constructed commands.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\beval\\s+\"?\\$",
         "\\bbash\\s+-c\\s+\"\\$",
@@ -81,6 +84,7 @@
       "title": "Cron job manipulation",
       "description": "Modifying cron jobs enables persistent command execution on a schedule.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bcrontab\\s+-[reui]",
         ">>?\\s*/etc/cron",
@@ -108,6 +112,7 @@
       "title": "SSH key theft",
       "description": "Reading SSH private keys enables unauthorized remote access.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "cat\\s+~/.ssh/id_",
         "cat\\s+\\$HOME/.ssh/id_",
@@ -132,6 +137,7 @@
       "title": "ANSI-C quoting obfuscation",
       "description": "ANSI-C quoting ($'\\xNN') can obfuscate commands to evade pattern matching.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\$'(\\\\x[0-9a-fA-F]{2}){3,}'",
       "file_extensions": ["sh", "bash", "zsh"],
       "remediation": "Inspect ANSI-C quoted strings for hidden commands. Use plain text.",
@@ -151,6 +157,7 @@
       "title": "Process substitution execution",
       "description": "Process substitution with curl/wget enables remote code execution without touching disk.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bbash\\s+<\\(\\s*curl",
         "\\bbash\\s+<\\(\\s*wget",
@@ -176,6 +183,7 @@
       "title": "Curl/wget data exfiltration",
       "description": "Using curl/wget to upload local files to remote servers.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bcurl\\s+[^\\n]*-F\\s+['\"]?file=@",
         "\\bcurl\\s+[^\\n]*--upload-file\\s",
@@ -202,6 +210,7 @@
       "title": "History/profile manipulation",
       "description": "Modifying shell profiles or disabling history enables stealthy persistence.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         ">>\\s*~/?\\.bashrc",
         ">>\\s*~/?\\.bash_profile",
@@ -233,6 +242,7 @@
       "title": "Systemd service manipulation",
       "description": "Creating or enabling systemd services establishes persistent execution.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bsystemctl\\s+(enable|start|daemon-reload)",
         "cp\\s+[^\\n]*\\.service\\s+/etc/systemd",
@@ -258,6 +268,7 @@
       "title": "Alias hijacking",
       "description": "Redefining common commands via aliases can intercept credentials or inject malicious behavior.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\balias\\s+sudo\\s*=",
         "\\balias\\s+ssh\\s*=",
@@ -284,6 +295,7 @@
       "title": "Named pipe reverse shell",
       "description": "mkfifo combined with netcat creates a reverse shell via named pipe.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bmkfifo\\s+[^\\n]*\\bnc\\b",
         "\\bmkfifo\\s+[^\\n]*\\bncat\\b",
@@ -306,6 +318,7 @@
       "title": "Nohup persistence",
       "description": "nohup with network tools or shells enables background persistent access.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bnohup\\s+.*(curl|wget|bash|sh|nc|python)"
       ],
@@ -328,6 +341,7 @@
       "title": "/dev/tcp data exfiltration",
       "description": "Writing to /dev/tcp enables direct TCP connections for data exfiltration without external tools.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\becho\\s+[^\\n]*>\\s*/dev/tcp/",
         "\\bcat\\s+[^\\n]*>\\s*/dev/tcp/",
@@ -351,6 +365,7 @@
       "title": "Trap cleanup evasion",
       "description": "trap with EXIT/ERR can execute cleanup-evasion code or last-resort payloads.",
       "severity": "low",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\btrap\\s+['\"].*\\b(curl|wget|rm|bash|sh|nc)\\b.*['\"]\\s+(EXIT|ERR|INT|TERM)"
       ],
@@ -373,6 +388,7 @@
       "title": "at/batch job scheduling",
       "description": "at and batch commands schedule one-time future execution.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bat\\s+now\\s*<<",
         "\\bat\\s+now\\s*\\+",
@@ -397,6 +413,7 @@
       "title": "Compgen variable enumeration",
       "description": "compgen -v enumerates all shell variables, potentially exposing secrets.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "pattern": "\\bcompgen\\s+-v\\b",
       "file_extensions": ["sh", "bash", "zsh"],
       "remediation": "Do not enumerate all shell variables. Access only specific needed variables.",

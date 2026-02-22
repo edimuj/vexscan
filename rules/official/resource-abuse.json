@@ -7,6 +7,7 @@
       "title": "Infinite loop",
       "description": "Unbounded loops can consume all CPU resources, causing denial of service.",
       "severity": "low",
+      "contexts": ["code", "skill"],
       "patterns": [
         "while\\s+True\\s*:",
         "while\\s+1\\s*:",
@@ -32,6 +33,7 @@
       "title": "Fork bomb",
       "description": "Fork bombs create processes exponentially, quickly exhausting system resources and crashing the host.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         ":\\(\\)\\{\\s*:\\|:\\s*&\\s*\\}\\s*;\\s*:",
         "os\\.fork\\s*\\(\\s*\\)"
@@ -54,6 +56,7 @@
       "title": "Excessive memory allocation",
       "description": "Allocating very large memory blocks can exhaust system RAM and trigger OOM kills.",
       "severity": "medium",
+      "contexts": ["code", "skill"],
       "patterns": [
         "\\[.*\\]\\s*\\*\\s*(?:[1-9][0-9]{6,})",
         "bytearray\\s*\\(\\s*(?:[1-9][0-9]{7,})"

@@ -7,6 +7,7 @@
       "title": "macOS Launch Agent installation",
       "description": "Writing to ~/Library/LaunchAgents/ or /Library/LaunchDaemons/ installs a persistent service that survives reboots. A common macOS persistence technique.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "Library/LaunchAgents/",
         "Library/LaunchDaemons/",
@@ -35,6 +36,7 @@
       "title": "SSH authorized_keys modification",
       "description": "Writing to ~/.ssh/authorized_keys adds a public key that grants persistent SSH access without a password.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         ">>?\\s*[^\\n]*authorized_keys",
         "\\bauthorized_keys\\b[^\\n]*\\b(write\\w*|append\\w*|open\\w*|echo|tee|cp|mv)\\b",
@@ -63,6 +65,7 @@
       "title": "Git hooks installation",
       "description": "Writing to .git/hooks/ installs scripts that execute automatically on git operations (commit, push, checkout). Malicious hooks can intercept credentials, modify code, or establish persistence.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\.git/hooks/[a-z]",
         "\\bgit\\s+config\\s+core\\.hooksPath"
@@ -89,6 +92,7 @@
       "title": "Docker entrypoint modification",
       "description": "Modifying Docker entrypoints or injecting into docker-entrypoint.sh allows code execution every time a container starts. Common persistence technique in containerized environments.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "docker-entrypoint\\.sh[^\\n]*(>>|>|write|append|chmod)",
         "(>>|>|write|append|chmod)[^\\n]*docker-entrypoint\\.sh",
@@ -117,6 +121,7 @@
       "title": "npm lifecycle script in unexpected package",
       "description": "npm lifecycle scripts (preinstall, postinstall, preuninstall) execute automatically during package installation. Malicious packages abuse these hooks to run arbitrary code on install.",
       "severity": "high",
+      "contexts": ["code", "config", "plugin"],
       "patterns": [
         "\"(preinstall|postinstall|preuninstall|install)\"\\s*:\\s*\"[^\"]*\\b(curl|wget|bash|sh|python|node\\s+-e|eval|exec|nc|ncat|powershell)\\b",
         "\"(preinstall|postinstall|preuninstall|install)\"\\s*:\\s*\"[^\"]*\\|\\s*(bash|sh)\\b"

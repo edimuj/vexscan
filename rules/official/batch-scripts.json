@@ -7,6 +7,7 @@
       "title": "Certutil decode/download",
       "description": "certutil is a Windows LOLBin commonly abused to download files or decode payloads.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bcertutil\\b[^\\n]*-urlcache",
         "\\bcertutil\\b[^\\n]*-decode",
@@ -31,6 +32,7 @@
       "title": "Bitsadmin file download",
       "description": "bitsadmin is a Windows LOLBin used to download files in the background.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bbitsadmin\\b[^\\n]*/transfer",
         "\\bbitsadmin\\b[^\\n]*/addfile"
@@ -53,6 +55,7 @@
       "title": "Registry modification",
       "description": "Direct registry modification via reg.exe can establish persistence or disable security.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\breg\\s+add\\b",
         "\\breg\\s+delete\\b[^\\n]*/f"
@@ -75,6 +78,7 @@
       "title": "User account manipulation",
       "description": "Creating or modifying user accounts enables unauthorized access.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bnet\\s+user\\s+[^/]*\\/add",
         "\\bnet\\s+localgroup\\s+administrators\\b[^\\n]*/add",
@@ -99,6 +103,7 @@
       "title": "Firewall manipulation",
       "description": "Modifying firewall rules can expose the system to network attacks.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bnetsh\\s+advfirewall\\s+[^\\n]*\\boff\\b",
         "\\bnetsh\\s+advfirewall\\s+firewall\\s+add\\s+rule",
@@ -123,6 +128,7 @@
       "title": "Windows service creation",
       "description": "Creating Windows services establishes persistent execution with SYSTEM privileges.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bsc\\s+create\\b",
         "\\bsc\\s+config\\b[^\\n]*\\bstart\\s*=\\s*auto"
@@ -145,6 +151,7 @@
       "title": "Kill security processes",
       "description": "Terminating antivirus and security processes removes system protection.",
       "severity": "critical",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\btaskkill\\b[^\\n]*(MsMpEng|MpCmdRun|SecurityHealth|WinDefend|ccSvcHst|avgnt|avguard|bdagent|ekrn)",
         "\\bnet\\s+stop\\b[^\\n]*(WinDefend|MpsSvc|wscsvc|SecurityHealthService)"
@@ -169,6 +176,7 @@
       "title": "PowerShell from batch",
       "description": "Launching hidden or encoded PowerShell from batch scripts indicates evasion.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bpowershell\\b[^\\n]*-[Ww](indowStyle)?\\s*[Hh]idden",
         "\\bpowershell\\b[^\\n]*-[Ee]nc(odedCommand)?\\s+[A-Za-z0-9+/=]"
@@ -192,6 +200,7 @@
       "title": "Wscript/Cscript execution",
       "description": "Windows Script Host can execute VBScript/JScript for malicious purposes.",
       "severity": "high",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\bwscript\\b[^\\n]*\\.vbs",
         "\\bcscript\\b[^\\n]*\\.vbs",
@@ -218,6 +227,7 @@
       "title": "Hidden file creation",
       "description": "Creating hidden files can conceal malicious payloads on disk.",
       "severity": "medium",
+      "contexts": ["code", "skill", "plugin"],
       "patterns": [
         "\\battrib\\s+\\+[hH]\\b",
         "\\battrib\\s+\\+[sS]\\s+\\+[hH]\\b"
