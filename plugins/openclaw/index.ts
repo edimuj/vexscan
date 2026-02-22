@@ -51,6 +51,32 @@ const VexscanToolSchema = Type.Union([
   Type.Object({
     action: Type.Literal("status"),
   }),
+  Type.Object({
+    action: Type.Literal("trust_list"),
+  }),
+  Type.Object({
+    action: Type.Literal("trust_show"),
+    path: Type.String({ description: "Path to component" }),
+  }),
+  Type.Object({
+    action: Type.Literal("trust_accept"),
+    path: Type.String({ description: "Path to component" }),
+    rules: Type.String({ description: "Comma-separated rule IDs to accept (e.g. EXEC-001,REMOTE-002)" }),
+    notes: Type.Optional(Type.String({ description: "Optional notes for the trust entry" })),
+  }),
+  Type.Object({
+    action: Type.Literal("trust_full"),
+    path: Type.String({ description: "Path to component" }),
+    notes: Type.Optional(Type.String({ description: "Optional notes for the trust entry" })),
+  }),
+  Type.Object({
+    action: Type.Literal("trust_revoke"),
+    name: Type.String({ description: "Component name or trust key to revoke" }),
+  }),
+  Type.Object({
+    action: Type.Literal("trust_quarantine"),
+    path: Type.String({ description: "Path to component to quarantine" }),
+  }),
 ]);
 
 // --- Helpers ---
@@ -162,7 +188,7 @@ const vexscanPlugin = {
     api.registerTool({
       name: "vexscan",
       description:
-        "Scan extensions and code for security threats including prompt injection, malicious code, obfuscation, and data exfiltration.",
+        "Scan extensions and code for security threats including prompt injection, malicious code, obfuscation, and data exfiltration. Manage trust store to suppress reviewed findings.",
       parameters: VexscanToolSchema,
 
       async execute(_toolCallId: string, params: Record<string, unknown>) {
@@ -298,6 +324,40 @@ const vexscanPlugin = {
                 ? `Installed with ${findings} finding(s) (max: ${maxSeverity}). Review recommended.`
                 : "Installed. No security issues found.",
             });
+          }
+
+          if (params.action === "trust_list") {
+            const result = await execVexscan(cli, ["trust", "list"]);
+            return json({ ok: true, output: result.stdout.trim() });
+          }
+
+          if (params.action === "trust_show") {
+            const result = await execVexscan(cli, ["trust", "show", params.path as string]);
+            return json({ ok: true, output: result.stdout.trim() });
+          }
+
+          if (params.action === "trust_accept") {
+            const args = ["trust", "accept", params.path as string, "--rules", params.rules as string];
+            if (params.notes) args.push("--notes", params.notes as string);
+            const result = await execVexscan(cli, args);
+            return json({ ok: true, output: result.stdout.trim() });
+          }
+
+          if (params.action === "trust_full") {
+            const args = ["trust", "full", params.path as string];
+            if (params.notes) args.push("--notes", params.notes as string);
+            const result = await execVexscan(cli, args);
+            return json({ ok: true, output: result.stdout.trim() });
+          }
+
+          if (params.action === "trust_revoke") {
+            const result = await execVexscan(cli, ["trust", "revoke", params.name as string]);
+            return json({ ok: true, output: result.stdout.trim() });
+          }
+
+          if (params.action === "trust_quarantine") {
+            const result = await execVexscan(cli, ["trust", "quarantine", params.path as string]);
+            return json({ ok: true, output: result.stdout.trim() });
           }
 
           return json({ ok: false, error: "Unknown action" });
@@ -445,6 +505,99 @@ const vexscanPlugin = {
               if (opts.rule) args.push("--rule", opts.rule);
 
               const result = await execVexscan(cli, args);
+              console.log(result.stdout);
+            } catch (err) {
+              console.error("Error:", err instanceof Error ? err.message : err);
+              process.exit(1);
+            }
+          });
+
+        const trust = vexscan.command("trust").description("Manage trust store for suppressing reviewed findings");
+
+        trust
+          .command("list")
+          .description("List all trust entries")
+          .action(async () => {
+            try {
+              const cli = await ensureCli();
+              const result = await execVexscan(cli, ["trust", "list"]);
+              console.log(result.stdout);
+            } catch (err) {
+              console.error("Error:", err instanceof Error ? err.message : err);
+              process.exit(1);
+            }
+          });
+
+        trust
+          .command("show <path>")
+          .description("Show trust status for a component")
+          .action(async (path: string) => {
+            try {
+              const cli = await ensureCli();
+              const result = await execVexscan(cli, ["trust", "show", path]);
+              console.log(result.stdout);
+            } catch (err) {
+              console.error("Error:", err instanceof Error ? err.message : err);
+              process.exit(1);
+            }
+          });
+
+        trust
+          .command("accept <path>")
+          .description("Accept specific rule findings for a component")
+          .requiredOption("--rules <ids>", "Comma-separated rule IDs (e.g. EXEC-001,REMOTE-002)")
+          .option("--notes <text>", "Notes for the trust entry")
+          .action(async (path: string, opts: any) => {
+            try {
+              const cli = await ensureCli();
+              const args = ["trust", "accept", path, "--rules", opts.rules];
+              if (opts.notes) args.push("--notes", opts.notes);
+              const result = await execVexscan(cli, args);
+              console.log(result.stdout);
+            } catch (err) {
+              console.error("Error:", err instanceof Error ? err.message : err);
+              process.exit(1);
+            }
+          });
+
+        trust
+          .command("full <path>")
+          .description("Accept all findings for a component")
+          .option("--notes <text>", "Notes for the trust entry")
+          .action(async (path: string, opts: any) => {
+            try {
+              const cli = await ensureCli();
+              const args = ["trust", "full", path];
+              if (opts.notes) args.push("--notes", opts.notes);
+              const result = await execVexscan(cli, args);
+              console.log(result.stdout);
+            } catch (err) {
+              console.error("Error:", err instanceof Error ? err.message : err);
+              process.exit(1);
+            }
+          });
+
+        trust
+          .command("revoke <name>")
+          .description("Revoke trust for a component")
+          .action(async (name: string) => {
+            try {
+              const cli = await ensureCli();
+              const result = await execVexscan(cli, ["trust", "revoke", name]);
+              console.log(result.stdout);
+            } catch (err) {
+              console.error("Error:", err instanceof Error ? err.message : err);
+              process.exit(1);
+            }
+          });
+
+        trust
+          .command("quarantine <path>")
+          .description("Mark a component as quarantined")
+          .action(async (path: string) => {
+            try {
+              const cli = await ensureCli();
+              const result = await execVexscan(cli, ["trust", "quarantine", path]);
               console.log(result.stdout);
             } catch (err) {
               console.error("Error:", err instanceof Error ? err.message : err);
