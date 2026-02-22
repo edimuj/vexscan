@@ -117,7 +117,6 @@ export async function execCommand(cmd: string, args: string[]): Promise<ExecResu
   return new Promise((resolve, reject) => {
     const proc = spawn(cmd, args, {
       stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, NO_COLOR: "1" },
     });
 
     let stdout = "";
@@ -148,7 +147,6 @@ export async function execVexscan(cliPath: string, args: string[]): Promise<Exec
   return new Promise((resolve, reject) => {
     const proc = spawn(cliPath, args, {
       stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, NO_COLOR: "1" },
     });
 
     let stdout = "";

@@ -69,18 +69,25 @@ function parseConfig(value: unknown): Config {
   };
 }
 
+function getVerdict(findings: number, maxSeverity: string | null): string {
+  if (!findings) return "clean";
+  if (maxSeverity === "critical") return "dangerous";
+  if (maxSeverity === "high") return "high_risk";
+  return "warnings";
+}
+
 function getVerdictMessage(verdict: string, findings: number, maxSeverity: string | null): string {
   switch (verdict) {
     case "clean":
-      return "No security issues found";
+      return "No security issues found. Safe to use.";
     case "warnings":
-      return `Found ${findings} issue(s) with max severity: ${maxSeverity}. Review recommended.`;
+      return `Found ${findings} issue(s), max severity: ${maxSeverity}. Review recommended before use.`;
     case "high_risk":
-      return `Found ${findings} HIGH severity issue(s). Review carefully before installing.`;
+      return `Found ${findings} issue(s) including HIGH severity. Careful review required before use.`;
     case "dangerous":
-      return `Found ${findings} CRITICAL issue(s). Do NOT install without thorough review.`;
+      return `Found ${findings} issue(s) including CRITICAL severity. Do NOT use without thorough review.`;
     default:
-      return `Found ${findings} issue(s)`;
+      return `Found ${findings} issue(s).`;
   }
 }
 
@@ -221,25 +228,19 @@ const vexscanPlugin = {
 
             const result = await execVexscan(cli, args);
             const parsed = JSON.parse(result.stdout) as VetResult;
+            const findings = parsed.total_findings || 0;
+            const maxSeverity = parsed.max_severity || null;
+            const verdict = getVerdict(findings, maxSeverity);
 
-            let verdict: string;
-            if (parsed.total_findings === 0) {
-              verdict = "clean";
-            } else if (parsed.max_severity === "critical") {
-              verdict = "dangerous";
-            } else if (parsed.max_severity === "high") {
-              verdict = "high_risk";
-            } else {
-              verdict = "warnings";
-            }
-
-            return json({
+            const response: Record<string, unknown> = {
               ok: true,
               verdict,
-              findings: parsed.total_findings || 0,
-              maxSeverity: parsed.max_severity || null,
-              message: getVerdictMessage(verdict, parsed.total_findings || 0, parsed.max_severity ?? null),
-            });
+              findings,
+              message: getVerdictMessage(verdict, findings, maxSeverity),
+            };
+            if (findings > 0) response.maxSeverity = maxSeverity;
+
+            return json(response);
           }
 
           if (params.action === "install") {
@@ -252,27 +253,26 @@ const vexscanPlugin = {
 
             const vetResult = await execVexscan(cli, vetArgs);
             const parsed = JSON.parse(vetResult.stdout) as VetResult;
+            const findings = parsed.total_findings || 0;
+            const maxSeverity = parsed.max_severity || null;
+            const verdict = getVerdict(findings, maxSeverity);
 
             // Step 2: Check severity gate
             const gate = checkInstallGate(
-              parsed.max_severity,
+              maxSeverity,
               (params.force as boolean) || false,
               (params.allowHigh as boolean) || false,
             );
 
             if (!gate.allowed) {
-              let verdict = "warnings";
-              if (parsed.max_severity === "critical") verdict = "dangerous";
-              else if (parsed.max_severity === "high") verdict = "high_risk";
-
               return json({
                 ok: false,
                 action: "install_blocked",
                 verdict,
-                findings: parsed.total_findings || 0,
-                maxSeverity: parsed.max_severity || null,
+                findings,
+                maxSeverity,
                 reason: gate.reason,
-                message: getVerdictMessage(verdict, parsed.total_findings || 0, parsed.max_severity ?? null),
+                message: getVerdictMessage(verdict, findings, maxSeverity),
               });
             }
 
@@ -293,12 +293,10 @@ const vexscanPlugin = {
               ok: true,
               action: "installed",
               source: params.source,
-              findings: parsed.total_findings || 0,
-              maxSeverity: parsed.max_severity || null,
-              message: parsed.total_findings
-                ? `Installed with ${parsed.total_findings} low-severity finding(s). Review recommended.`
-                : "Installed — no security issues found.",
-              installOutput: installResult.stdout.trim(),
+              findings,
+              message: findings
+                ? `Installed with ${findings} finding(s) (max: ${maxSeverity}). Review recommended.`
+                : "Installed. No security issues found.",
             });
           }
 
