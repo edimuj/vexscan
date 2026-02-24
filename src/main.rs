@@ -78,11 +78,7 @@ async fn run() -> Result<()> {
         Config::load_default()
     };
 
-    let scan_context = cli
-        .context
-        .as_deref()
-        .map(parse_scan_context)
-        .transpose()?;
+    let scan_context = cli.context.as_deref().map(parse_scan_context).transpose()?;
 
     match cli.command {
         Commands::Scan {
@@ -1283,7 +1279,10 @@ async fn run() -> Result<()> {
                 (None, true) => {
                     let text = io::read_to_string(io::stdin())?;
                     if text.trim().is_empty() {
-                        eprintln!("{}: No input received on stdin", "Error".bright_red().bold());
+                        eprintln!(
+                            "{}: No input received on stdin",
+                            "Error".bright_red().bold()
+                        );
                         std::process::exit(1);
                     }
                     text
@@ -1342,9 +1341,7 @@ async fn run() -> Result<()> {
             }
 
             // Filter by min_severity
-            result
-                .findings
-                .retain(|f| f.severity >= min_severity);
+            result.findings.retain(|f| f.severity >= min_severity);
 
             // Build report
             let mut scan_report = vexscan::ScanReport::new(PathBuf::from("<stdin>"));
@@ -1515,7 +1512,9 @@ async fn run() -> Result<()> {
                         let entry = &store.entries[key];
                         let level_str = match entry.trust_level {
                             TrustLevel::Accepted => "accepted".green().to_string(),
-                            TrustLevel::Quarantined => "QUARANTINED".bright_red().bold().to_string(),
+                            TrustLevel::Quarantined => {
+                                "QUARANTINED".bright_red().bold().to_string()
+                            }
                         };
 
                         let rules_str = if entry.accepted_rules.is_empty() {

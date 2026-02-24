@@ -46,8 +46,7 @@ impl TrustEntry {
     /// Whether this entry accepts a specific rule ID.
     pub fn accepts_rule(&self, rule_id: &str) -> bool {
         self.trust_level == TrustLevel::Accepted
-            && (self.accepted_rules.is_empty()
-                || self.accepted_rules.iter().any(|r| r == rule_id))
+            && (self.accepted_rules.is_empty() || self.accepted_rules.iter().any(|r| r == rule_id))
     }
 }
 
@@ -182,7 +181,8 @@ impl TrustStore {
                             continue;
                         }
                         for finding in &mut result.findings {
-                            if finding.suppressed_by.is_none() && entry.accepts_rule(&finding.rule_id)
+                            if finding.suppressed_by.is_none()
+                                && entry.accepts_rule(&finding.rule_id)
                             {
                                 finding.suppressed_by = Some(trust_key.clone());
                                 total_suppressed += 1;

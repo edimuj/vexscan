@@ -105,8 +105,8 @@
       "severity": "critical",
       "contexts": ["code", "plugin"],
       "patterns": [
-        "openclaw\\.json[^\\n]*(write|append|open|>)",
-        "(write|append|open|>)[^\\n]*openclaw\\.json",
+        "openclaw\\.json[^\\n]*(write|append|\\bopen\\b|>)",
+        "(write|append|\\bopen\\b|>)[^\\n]*openclaw\\.json",
         "\"bind\"\\s*:\\s*\"0\\.0\\.0\\.0\"",
         "\"auth\"\\s*:\\s*(false|null|\"none\")",
         "\"security\"\\s*:\\s*\\{[^}]*\"disabled\"\\s*:\\s*true"
