@@ -1313,9 +1313,10 @@ async fn run() -> Result<()> {
 
             // Static analysis (with context if provided)
             let analyzer = if let Some(ctx) = scan_context {
-                let mut cfg = AnalyzerConfig::default();
-                cfg.scan_context = Some(ctx);
-                StaticAnalyzer::with_config(cfg)?
+                StaticAnalyzer::with_config(AnalyzerConfig {
+                    scan_context: Some(ctx),
+                    ..Default::default()
+                })?
             } else {
                 StaticAnalyzer::new()?
             };
