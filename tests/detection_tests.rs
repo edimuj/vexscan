@@ -7,20 +7,14 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
+fn vexscan_bin() -> &'static str {
+    env!("CARGO_BIN_EXE_vexscan")
+}
+
 /// Run vexscan scan on a sample and return the number of findings
 fn scan_sample(path: &str) -> (i32, String) {
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "--quiet",
-            "--",
-            "scan",
-            path,
-            "-f",
-            "json",
-            "--min-severity",
-            "low",
-        ])
+    let output = Command::new(vexscan_bin())
+        .args(["scan", path, "-f", "json", "--min-severity", "low"])
         .env("RUST_LOG", "error")
         .output()
         .expect("Failed to run vexscan");
@@ -459,12 +453,8 @@ fn test_binary_files_skipped() {
     let woff_file = temp_path.join("font.woff2");
     fs::write(&woff_file, b"wOF2\x00\x01\x00\x00").expect("Failed to write WOFF2");
 
-    // Scan the directory with --min-severity low to catch the findings
-    let output = Command::new("cargo")
+    let output = Command::new(vexscan_bin())
         .args([
-            "run",
-            "--quiet",
-            "--",
             "scan",
             temp_path.to_str().unwrap(),
             "-f",
