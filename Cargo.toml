@@ -12,7 +12,6 @@ categories = ["command-line-utilities", "development-tools"]
 # CLI
 clap = { version = "4", features = ["derive", "env"] }
 colored = "2"
-indicatif = "0.17"
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
@@ -47,7 +46,6 @@ async-trait = "0.1"
 
 # Error handling
 anyhow = "1"
-thiserror = "1"
 
 # Logging
 tracing = "0.1"
