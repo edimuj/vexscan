@@ -224,7 +224,7 @@ impl Decoder {
             // (reverse order preserves earlier offsets)
             let mut new_content = current_content.clone();
             let mut sorted = decoded.clone();
-            sorted.sort_by(|a, b| b.offset.cmp(&a.offset));
+            sorted.sort_by_key(|decoded| std::cmp::Reverse(decoded.offset));
             for d in &sorted {
                 let end = d.offset + d.original.len();
                 if end <= new_content.len() && new_content.get(d.offset..end) == Some(&d.original) {

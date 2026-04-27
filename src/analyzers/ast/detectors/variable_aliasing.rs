@@ -65,8 +65,41 @@ impl Detector for VariableAliasingDetector {
         };
 
         match scope_tracker.resolve(callee_name) {
-            ResolvedValue::DangerousFunction(func_name) => {
-                if callee_name != func_name {
+            ResolvedValue::DangerousFunction(func_name) if callee_name != func_name => {
+                let snippet = node.utf8_text(source.as_bytes()).unwrap_or("").to_string();
+
+                let start_line = node.start_position().row + 1;
+                let end_line = node.end_position().row + 1;
+
+                findings.push(
+                    Finding::new(
+                        self.rule_id(),
+                        self.title(),
+                        format!(
+                            "Variable '{}' is an alias for '{}'. Calling it executes arbitrary code. \
+                            This pattern is used to evade regex-based detection.",
+                            callee_name, func_name
+                        ),
+                        self.rule.severity(),
+                        self.rule.category(),
+                        Location::new(path.to_path_buf(), start_line, end_line).with_columns(
+                            callee.start_position().column + 1,
+                            callee.end_position().column + 1,
+                        ),
+                        snippet,
+                    )
+                    .with_remediation(&self.rule.remediation)
+                    .with_metadata("technique", "variable_aliasing")
+                    .with_metadata("alias", callee_name.to_string())
+                    .with_metadata("target_function", func_name)
+                    .with_metadata("ast_analyzed", "true"),
+                );
+            }
+            ResolvedValue::ImportResult {
+                module,
+                export: Some(exp),
+            } if self.lists.is_dangerous_module(&module) => {
+                if self.lists.is_dangerous_export(&module, &exp) {
                     let snippet = node.utf8_text(source.as_bytes()).unwrap_or("").to_string();
 
                     let start_line = node.start_position().row + 1;
@@ -74,60 +107,27 @@ impl Detector for VariableAliasingDetector {
 
                     findings.push(
                         Finding::new(
-                            self.rule_id(),
-                            self.title(),
+                            "AST-SHELL-001",
+                            "Aliased shell execution function call",
                             format!(
-                                "Variable '{}' is an alias for '{}'. Calling it executes arbitrary code. \
-                                This pattern is used to evade regex-based detection.",
-                                callee_name, func_name
+                                "Variable '{}' is an alias for '{}.{}'. Calling it executes shell commands.",
+                                callee_name, module, exp
                             ),
-                            self.rule.severity(),
-                            self.rule.category(),
-                            Location::new(path.to_path_buf(), start_line, end_line)
-                                .with_columns(callee.start_position().column + 1, callee.end_position().column + 1),
+                            Severity::High,
+                            FindingCategory::ShellExecution,
+                            Location::new(path.to_path_buf(), start_line, end_line).with_columns(
+                                callee.start_position().column + 1,
+                                callee.end_position().column + 1,
+                            ),
                             snippet,
                         )
-                        .with_remediation(&self.rule.remediation)
-                        .with_metadata("technique", "variable_aliasing")
+                        .with_remediation("Review the shell command execution and ensure user input is properly sanitized.")
+                        .with_metadata("technique", "import_aliasing")
                         .with_metadata("alias", callee_name.to_string())
-                        .with_metadata("target_function", func_name)
+                        .with_metadata("module", module)
+                        .with_metadata("export", exp)
                         .with_metadata("ast_analyzed", "true"),
                     );
-                }
-            }
-            ResolvedValue::ImportResult { module, export } => {
-                if self.lists.is_dangerous_module(&module) {
-                    if let Some(ref exp) = export {
-                        if self.lists.is_dangerous_export(&module, exp) {
-                            let snippet =
-                                node.utf8_text(source.as_bytes()).unwrap_or("").to_string();
-
-                            let start_line = node.start_position().row + 1;
-                            let end_line = node.end_position().row + 1;
-
-                            findings.push(
-                                Finding::new(
-                                    "AST-SHELL-001",
-                                    "Aliased shell execution function call",
-                                    format!(
-                                        "Variable '{}' is an alias for '{}.{}'. Calling it executes shell commands.",
-                                        callee_name, module, exp
-                                    ),
-                                    Severity::High,
-                                    FindingCategory::ShellExecution,
-                                    Location::new(path.to_path_buf(), start_line, end_line)
-                                        .with_columns(callee.start_position().column + 1, callee.end_position().column + 1),
-                                    snippet,
-                                )
-                                .with_remediation("Review the shell command execution and ensure user input is properly sanitized.")
-                                .with_metadata("technique", "import_aliasing")
-                                .with_metadata("alias", callee_name.to_string())
-                                .with_metadata("module", module)
-                                .with_metadata("export", exp.clone())
-                                .with_metadata("ast_analyzed", "true"),
-                            );
-                        }
-                    }
                 }
             }
             _ => {}

@@ -35,3 +35,5 @@ CLAUDE.md
 .private
 # Nightshift plan artifacts (keep out of version control)
 .nightshift-plan
+share
+.dev/
