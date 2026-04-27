@@ -98,37 +98,37 @@ impl Detector for VariableAliasingDetector {
             ResolvedValue::ImportResult {
                 module,
                 export: Some(exp),
-            } if self.lists.is_dangerous_module(&module) => {
-                if self.lists.is_dangerous_export(&module, &exp) {
-                    let snippet = node.utf8_text(source.as_bytes()).unwrap_or("").to_string();
+            } if self.lists.is_dangerous_module(&module)
+                && self.lists.is_dangerous_export(&module, &exp) =>
+            {
+                let snippet = node.utf8_text(source.as_bytes()).unwrap_or("").to_string();
 
-                    let start_line = node.start_position().row + 1;
-                    let end_line = node.end_position().row + 1;
+                let start_line = node.start_position().row + 1;
+                let end_line = node.end_position().row + 1;
 
-                    findings.push(
-                        Finding::new(
-                            "AST-SHELL-001",
-                            "Aliased shell execution function call",
-                            format!(
-                                "Variable '{}' is an alias for '{}.{}'. Calling it executes shell commands.",
-                                callee_name, module, exp
-                            ),
-                            Severity::High,
-                            FindingCategory::ShellExecution,
-                            Location::new(path.to_path_buf(), start_line, end_line).with_columns(
-                                callee.start_position().column + 1,
-                                callee.end_position().column + 1,
-                            ),
-                            snippet,
-                        )
-                        .with_remediation("Review the shell command execution and ensure user input is properly sanitized.")
-                        .with_metadata("technique", "import_aliasing")
-                        .with_metadata("alias", callee_name.to_string())
-                        .with_metadata("module", module)
-                        .with_metadata("export", exp)
-                        .with_metadata("ast_analyzed", "true"),
-                    );
-                }
+                findings.push(
+                    Finding::new(
+                        "AST-SHELL-001",
+                        "Aliased shell execution function call",
+                        format!(
+                            "Variable '{}' is an alias for '{}.{}'. Calling it executes shell commands.",
+                            callee_name, module, exp
+                        ),
+                        Severity::High,
+                        FindingCategory::ShellExecution,
+                        Location::new(path.to_path_buf(), start_line, end_line).with_columns(
+                            callee.start_position().column + 1,
+                            callee.end_position().column + 1,
+                        ),
+                        snippet,
+                    )
+                    .with_remediation("Review the shell command execution and ensure user input is properly sanitized.")
+                    .with_metadata("technique", "import_aliasing")
+                    .with_metadata("alias", callee_name.to_string())
+                    .with_metadata("module", module)
+                    .with_metadata("export", exp)
+                    .with_metadata("ast_analyzed", "true"),
+                );
             }
             _ => {}
         }
